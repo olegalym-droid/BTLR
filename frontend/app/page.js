@@ -75,7 +75,26 @@ export default function Home() {
   };
 
   useEffect(() => {
-    loadOrders();
+    let isMounted = true;
+
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch("http://127.0.0.1:8000/orders");
+        const data = await res.json();
+
+        if (isMounted) {
+          setOrders(data);
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки заявок:", error);
+      }
+    };
+
+    fetchOrders();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const resetForm = () => {
