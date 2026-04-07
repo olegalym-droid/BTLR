@@ -8,22 +8,24 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">{order.service_name}</h3>
-          <p className="text-sm text-gray-500">{order.category}</p>
+          <h3 className="text-lg font-semibold text-black">
+            {order.service_name}
+          </h3>
+          <p className="text-sm text-gray-700">{order.category}</p>
         </div>
 
         <span
           className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
             isActive
-              ? "bg-gray-100 text-gray-800"
-              : "bg-green-100 text-green-700"
+              ? "bg-gray-100 text-gray-900"
+              : "bg-green-100 text-green-800"
           }`}
         >
           {getStatusLabel(order.status)}
         </span>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-700">
+      <div className="space-y-2 text-sm text-gray-800">
         <p>{order.description}</p>
         <p>
           <span className="font-medium text-black">Адрес:</span> {order.address}
@@ -40,7 +42,7 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
         </p>
 
         {order.master_rating && (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-700">
             Рейтинг: ⭐ {order.master_rating}
           </p>
         )}

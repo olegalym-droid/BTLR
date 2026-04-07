@@ -139,11 +139,11 @@ export default function Home() {
   };
 
   const activeOrders = orders.filter(
-    (order) => order.status !== "completed" && order.status !== "paid"
+    (order) => order.status !== "completed" && order.status !== "paid",
   );
 
   const completedOrders = orders.filter(
-    (order) => order.status === "completed" || order.status === "paid"
+    (order) => order.status === "completed" || order.status === "paid",
   );
 
   const handleTabChange = (tab) => {
@@ -155,8 +155,8 @@ export default function Home() {
   const renderSuccessScreen = () => (
     <div className="flex flex-col items-center justify-center text-center space-y-4 mt-20">
       <div className="text-6xl">⏳</div>
-      <h1 className="text-2xl font-bold">Заявка принята</h1>
-      <p className="text-gray-500">
+      <h1 className="text-2xl font-bold text-black">Заявка принята</h1>
+      <p className="text-gray-700">
         Ищем для вас мастера, это может занять пару минут
       </p>
 
@@ -175,7 +175,7 @@ export default function Home() {
           setOrderCreated(false);
           setActiveTab("services");
         }}
-        className="w-full border border-gray-300 py-3 rounded-lg"
+        className="w-full border border-gray-300 text-black py-3 rounded-lg"
       >
         Назад к услугам
       </button>
@@ -185,8 +185,8 @@ export default function Home() {
   const renderServicesTab = () => (
     <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Услуги</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-3xl font-bold text-black">Услуги</h1>
+        <p className="text-sm text-gray-700 mt-1">
           Выберите категорию, услугу и заполните заявку
         </p>
       </div>
@@ -214,17 +214,17 @@ export default function Home() {
   const renderOrdersTab = () => (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Мои заказы</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-3xl font-bold text-black">Мои заказы</h1>
+        <p className="text-sm text-gray-700 mt-1">
           Активные и завершённые заявки
         </p>
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-3">Активные</h2>
+        <h2 className="text-xl font-semibold text-black mb-3">Активные</h2>
 
         {activeOrders.length === 0 ? (
-          <div className="border rounded-2xl p-4 bg-white text-gray-500">
+          <div className="border rounded-2xl p-4 bg-white text-gray-700">
             Нет активных заказов
           </div>
         ) : (
@@ -242,10 +242,10 @@ export default function Home() {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-3">Завершённые</h2>
+        <h2 className="text-xl font-semibold text-black mb-3">Завершённые</h2>
 
         {completedOrders.length === 0 ? (
-          <div className="border rounded-2xl p-4 bg-white text-gray-500">
+          <div className="border rounded-2xl p-4 bg-white text-gray-700">
             Нет завершённых заказов
           </div>
         ) : (
@@ -266,22 +266,24 @@ export default function Home() {
 
   const renderProfileTab = () => (
     <div className="space-y-4">
-      <h1 className="text-3xl font-bold">Профиль</h1>
+      <h1 className="text-3xl font-bold text-black">Профиль</h1>
 
-      <div className="border p-4 rounded-2xl shadow bg-white space-y-3">
+      <div className="border p-4 rounded-2xl shadow bg-white space-y-4">
         <div>
-          <p className="text-sm text-gray-500">Имя</p>
-          <p className="text-lg font-medium">Олег</p>
+          <p className="text-sm text-gray-700">Имя</p>
+          <p className="text-lg font-medium text-black">Олег</p>
         </div>
 
         <div>
-          <p className="text-sm text-gray-500">Телефон</p>
-          <p className="text-lg font-medium">+7 700 000 00 00</p>
+          <p className="text-sm text-gray-700">Телефон</p>
+          <p className="text-lg font-medium text-black">+7 700 000 00 00</p>
         </div>
 
         <div>
-          <p className="text-sm text-gray-500">Адрес</p>
-          <p className="text-lg font-medium">Адрес пока не добавлен</p>
+          <p className="text-sm text-gray-700">Адрес</p>
+          <p className="text-lg font-medium text-black">
+            Адрес пока не добавлен
+          </p>
         </div>
 
         <button className="w-full bg-black text-white px-4 py-3 rounded-lg">
@@ -312,10 +314,7 @@ export default function Home() {
           )}
         </div>
 
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-        />
+        <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
       </div>
     </div>
   );

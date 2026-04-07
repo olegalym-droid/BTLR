@@ -7,24 +7,23 @@ export default function OrderDetails({
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={onBack}
-        className="text-sm text-gray-500"
-      >
+      <button onClick={onBack} className="text-sm text-gray-700">
         ← Назад
       </button>
 
       <div className="border p-4 rounded-2xl bg-white space-y-4 shadow">
         <div>
-          <h1 className="text-xl font-bold">{selectedOrder.service_name}</h1>
-          <p className="text-sm text-gray-500">{selectedOrder.category}</p>
+          <h1 className="text-xl font-bold text-black">
+            {selectedOrder.service_name}
+          </h1>
+          <p className="text-sm text-gray-700">{selectedOrder.category}</p>
         </div>
 
-        <div className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-800">
+        <div className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-900">
           {getStatusLabel(selectedOrder.status)}
         </div>
 
-        <div className="space-y-2 text-sm text-gray-700">
+        <div className="space-y-2 text-sm text-gray-800">
           <p>{selectedOrder.description}</p>
           <p>
             <span className="font-medium text-black">Адрес:</span>{" "}
@@ -42,7 +41,7 @@ export default function OrderDetails({
           </p>
 
           {selectedOrder.master_rating && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-700">
               Рейтинг: ⭐ {selectedOrder.master_rating}
             </p>
           )}
@@ -59,7 +58,7 @@ export default function OrderDetails({
             Написать
           </button>
 
-          <button className="flex-1 border border-gray-300 py-3 rounded-lg">
+          <button className="flex-1 border border-gray-300 text-black py-3 rounded-lg">
             Позвонить
           </button>
         </div>
