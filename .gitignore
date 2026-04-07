@@ -1,0 +1,22 @@
+# node
+node_modules/
+.next/
+out/
+dist/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# env
+.env
+.env.local
+
+# mac/windows
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
