@@ -62,7 +62,7 @@ def create_order(order: OrderCreate):
         "description": order.description,
         "address": order.address,
         "scheduled_at": order.scheduled_at,
-        "status": "assigned",
+        "status": "completed",
         "master_name": assigned_master["name"],
         "master_rating": assigned_master["rating"],
         "price": None,

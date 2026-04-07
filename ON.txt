@@ -1,0 +1,20 @@
+git pull перед 
+(началом работы)
+
+git add .
+git commit -m "update"
+git push
+(после работы)
+
+cd backend
+.\venv\Scripts\Activate.ps1
+python -m uvicorn main:app --reload
+http://127.0.0.1:8000/docs
+
+cd frontend
+npm run build
+npm run start
+http://localhost:3000
+
+git ls-files > files.txt
+(копировать структуру)
