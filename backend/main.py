@@ -73,6 +73,28 @@ def get_available_orders(db: Session = Depends(get_db)):
     return orders
 
 
+@app.get("/orders/master", response_model=list[OrderResponse])
+def get_master_orders(master_id: int, db: Session = Depends(get_db)):
+    master = (
+        db.query(Account)
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    orders = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.master_id == master_id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+
+    return orders
+
+
 @app.put("/orders/{order_id}/assign", response_model=OrderResponse)
 def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(get_db)):
     master = (
@@ -101,6 +123,81 @@ def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(
     order.master_name = master.full_name
     order.master_rating = master.rating
     order.status = "assigned"
+
+    db.commit()
+    db.refresh(order)
+
+    return order
+
+
+@app.put("/orders/{order_id}/master-status", response_model=OrderResponse)
+def update_order_status_by_master(
+    order_id: int,
+    status: str,
+    master_id: int,
+    db: Session = Depends(get_db),
+):
+    allowed_statuses = ["assigned", "on_the_way", "on_site", "completed"]
+
+    if status not in allowed_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid status",
+                "allowed_statuses": allowed_statuses,
+            },
+        )
+
+    master = (
+        db.query(Account)
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    order = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.id == order_id, Order.master_id == master_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    current_status = order.status
+
+    allowed_transitions = {
+        "assigned": ["on_the_way"],
+        "on_the_way": ["on_site"],
+        "on_site": ["completed"],
+        "completed": [],
+        "paid": [],
+        "searching": [],
+    }
+
+    if status == current_status:
+        return order
+
+    if status not in allowed_transitions.get(current_status, []):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Invalid status transition",
+                "current_status": current_status,
+                "next_allowed_statuses": allowed_transitions.get(current_status, []),
+            },
+        )
+
+    order.status = status
+
+    if status == "completed":
+        if not order.price:
+            order.price = "5000 ₸"
+
+        master.completed_orders_count = (master.completed_orders_count or 0) + 1
 
     db.commit()
     db.refresh(order)
@@ -226,6 +323,12 @@ def update_order_status(
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    if status == "paid" and order.status != "completed":
+        raise HTTPException(
+            status_code=400,
+            detail="Оплатить можно только завершённый заказ",
+        )
 
     order.status = status
     db.commit()

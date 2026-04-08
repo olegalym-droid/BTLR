@@ -9,7 +9,10 @@ import {
 } from "../../lib/auth";
 import {
   loadAvailableOrdersRequest,
+  loadMasterOrdersRequest,
   assignOrderToMasterRequest,
+  updateOrderStatusByMasterRequest,
+  getStatusLabel,
 } from "../../lib/orders";
 import { formatPhoneInput } from "../../lib/profile";
 
@@ -26,20 +29,38 @@ export default function MasterPlaceholderScreen({ onBack }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const [masterProfile, setMasterProfile] = useState(null);
+
   const [availableOrders, setAvailableOrders] = useState([]);
-  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [masterOrders, setMasterOrders] = useState([]);
+
+  const [isAvailableLoading, setIsAvailableLoading] = useState(false);
+  const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
+
   const [successText, setSuccessText] = useState("");
 
   const loadAvailableOrders = async () => {
     try {
-      setIsOrdersLoading(true);
+      setIsAvailableLoading(true);
       const orders = await loadAvailableOrdersRequest();
       setAvailableOrders(Array.isArray(orders) ? orders : []);
     } catch (error) {
-      console.error("Ошибка загрузки заказов:", error);
+      console.error("Ошибка загрузки доступных заказов:", error);
       setAvailableOrders([]);
     } finally {
-      setIsOrdersLoading(false);
+      setIsAvailableLoading(false);
+    }
+  };
+
+  const loadMasterOrders = async (masterId) => {
+    try {
+      setIsMasterOrdersLoading(true);
+      const orders = await loadMasterOrdersRequest(masterId);
+      setMasterOrders(Array.isArray(orders) ? orders : []);
+    } catch (error) {
+      console.error("Ошибка загрузки заказов мастера:", error);
+      setMasterOrders([]);
+    } finally {
+      setIsMasterOrdersLoading(false);
     }
   };
 
@@ -47,7 +68,12 @@ export default function MasterPlaceholderScreen({ onBack }) {
     try {
       const profile = await loadMasterProfileRequest(masterId);
       setMasterProfile(profile);
-      await loadAvailableOrders();
+
+      await Promise.all([
+        loadAvailableOrders(),
+        loadMasterOrders(masterId),
+      ]);
+
       return profile;
     } catch (error) {
       console.error("Ошибка загрузки мастера:", error);
@@ -150,14 +176,12 @@ export default function MasterPlaceholderScreen({ onBack }) {
         throw new Error("Профиль мастера не загружен");
       }
 
-      const updatedOrder = await assignOrderToMasterRequest(
-        orderId,
-        masterProfile.id,
-      );
+      await assignOrderToMasterRequest(orderId, masterProfile.id);
 
-      setAvailableOrders((prev) =>
-        prev.filter((order) => order.id !== updatedOrder.id),
-      );
+      await Promise.all([
+        loadAvailableOrders(),
+        loadMasterOrders(masterProfile.id),
+      ]);
 
       setSuccessText("Заказ успешно принят");
     } catch (error) {
@@ -166,17 +190,121 @@ export default function MasterPlaceholderScreen({ onBack }) {
     }
   };
 
+  const handleMasterStatusChange = async (orderId, status) => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      const updatedOrder = await updateOrderStatusByMasterRequest({
+        orderId,
+        status,
+        masterId: masterProfile.id,
+      });
+
+      setMasterOrders((prev) =>
+        prev.map((order) =>
+          order.id === updatedOrder.id ? { ...updatedOrder } : order,
+        ),
+      );
+
+      if (status === "on_the_way") {
+        setSuccessText("Статус обновлён: мастер выехал");
+      } else if (status === "on_site") {
+        setSuccessText("Статус обновлён: мастер на месте");
+      } else if (status === "completed") {
+        setSuccessText("Заказ завершён");
+      } else {
+        setSuccessText("Статус заказа обновлён");
+      }
+    } catch (error) {
+      console.error("Ошибка смены статуса:", error);
+      alert(error.message || "Не удалось обновить статус");
+    }
+  };
+
   const logout = () => {
     clearAuthData();
     setIsLoggedIn(false);
     setMasterProfile(null);
     setAvailableOrders([]);
+    setMasterOrders([]);
     setPhone("");
     setFullName("");
     setPassword("");
     setConfirmPassword("");
     setSuccessText("");
     setMode("login");
+  };
+
+  const renderOrderPhotos = (order) => {
+    if (!order.photos?.length) return null;
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {order.photos.map((photo) => (
+          <img
+            key={photo.id}
+            src={`${API_BASE_URL}/${photo.file_path}`}
+            alt="Фото заявки"
+            className="h-28 w-full rounded-xl border object-cover"
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const renderMasterOrderAction = (order) => {
+    if (order.status === "assigned") {
+      return (
+        <button
+          onClick={() => handleMasterStatusChange(order.id, "on_the_way")}
+          className="w-full rounded-xl bg-black py-3 text-white"
+        >
+          Выехал
+        </button>
+      );
+    }
+
+    if (order.status === "on_the_way") {
+      return (
+        <button
+          onClick={() => handleMasterStatusChange(order.id, "on_site")}
+          className="w-full rounded-xl bg-black py-3 text-white"
+        >
+          На месте
+        </button>
+      );
+    }
+
+    if (order.status === "on_site") {
+      return (
+        <button
+          onClick={() => handleMasterStatusChange(order.id, "completed")}
+          className="w-full rounded-xl bg-black py-3 text-white"
+        >
+          Завершить
+        </button>
+      );
+    }
+
+    if (order.status === "completed") {
+      return (
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+          Ожидает оплату от пользователя
+        </div>
+      );
+    }
+
+    if (order.status === "paid") {
+      return (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          Заказ оплачен
+        </div>
+      );
+    }
+
+    return null;
   };
 
   if (isLoggedIn) {
@@ -243,11 +371,11 @@ export default function MasterPlaceholderScreen({ onBack }) {
             </button>
           </div>
 
-          {isOrdersLoading && (
+          {isAvailableLoading && (
             <p className="text-sm text-gray-600">Загрузка заказов...</p>
           )}
 
-          {!isOrdersLoading && availableOrders.length === 0 && (
+          {!isAvailableLoading && availableOrders.length === 0 && (
             <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
               Сейчас доступных заказов нет
             </div>
@@ -259,22 +387,22 @@ export default function MasterPlaceholderScreen({ onBack }) {
                 key={order.id}
                 className="rounded-2xl border p-4 space-y-3"
               >
-                <p className="font-semibold text-black">{order.service_name}</p>
-                <p className="text-sm text-gray-700">{order.category}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-black">
+                      {order.service_name}
+                    </p>
+                    <p className="text-sm text-gray-700">{order.category}</p>
+                  </div>
+
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
+                    {getStatusLabel(order.status)}
+                  </span>
+                </div>
+
                 <p className="text-sm text-gray-800">{order.description}</p>
 
-                {order.photos?.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {order.photos.map((photo) => (
-                      <img
-                        key={photo.id}
-                        src={`${API_BASE_URL}/${photo.file_path}`}
-                        alt="Фото заявки"
-                        className="h-28 w-full rounded-xl border object-cover"
-                      />
-                    ))}
-                  </div>
-                )}
+                {renderOrderPhotos(order)}
 
                 <p className="text-sm text-gray-700">
                   <span className="font-medium text-black">Адрес:</span>{" "}
@@ -288,10 +416,78 @@ export default function MasterPlaceholderScreen({ onBack }) {
 
                 <button
                   onClick={() => handleTakeOrder(order.id)}
-                  className="mt-2 w-full rounded-xl bg-black py-3 text-white"
+                  className="w-full rounded-xl bg-black py-3 text-white"
                 >
                   Взять заказ
                 </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-black">Мои заказы</h2>
+
+            <button
+              type="button"
+              onClick={() => masterProfile?.id && loadMasterOrders(masterProfile.id)}
+              className="rounded-xl border px-3 py-2 text-sm text-black"
+            >
+              Обновить
+            </button>
+          </div>
+
+          {isMasterOrdersLoading && (
+            <p className="text-sm text-gray-600">Загрузка заказов мастера...</p>
+          )}
+
+          {!isMasterOrdersLoading && masterOrders.length === 0 && (
+            <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
+              У вас пока нет принятых заказов
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {masterOrders.map((order) => (
+              <div
+                key={order.id}
+                className="rounded-2xl border p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-black">
+                      {order.service_name}
+                    </p>
+                    <p className="text-sm text-gray-700">{order.category}</p>
+                  </div>
+
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
+                    {getStatusLabel(order.status)}
+                  </span>
+                </div>
+
+                <p className="text-sm text-gray-800">{order.description}</p>
+
+                {renderOrderPhotos(order)}
+
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-black">Адрес:</span>{" "}
+                  {order.address}
+                </p>
+
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-black">Дата:</span>{" "}
+                  {order.scheduled_at}
+                </p>
+
+                {order.price && (
+                  <p className="text-sm font-medium text-black">
+                    Сумма: {order.price}
+                  </p>
+                )}
+
+                {renderMasterOrderAction(order)}
               </div>
             ))}
           </div>

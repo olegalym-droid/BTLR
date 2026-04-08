@@ -41,6 +41,26 @@ export const loadAvailableOrdersRequest = async () => {
   return res.json();
 };
 
+export const loadMasterOrdersRequest = async (masterId) => {
+  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+
+  if (!resolvedMasterId) {
+    throw new Error("Мастер не авторизован");
+  }
+
+  const res = await fetch(
+    `${API_BASE_URL}/orders/master?master_id=${resolvedMasterId}`,
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось загрузить заказы мастера");
+  }
+
+  return data;
+};
+
 export const assignOrderToMasterRequest = async (orderId, masterId) => {
   const resolvedMasterId = masterId || getStoredAuthUser()?.id;
 
@@ -59,6 +79,33 @@ export const assignOrderToMasterRequest = async (orderId, masterId) => {
 
   if (!res.ok) {
     throw new Error(data.detail || "Не удалось взять заказ");
+  }
+
+  return data;
+};
+
+export const updateOrderStatusByMasterRequest = async ({
+  orderId,
+  status,
+  masterId,
+}) => {
+  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+
+  if (!resolvedMasterId) {
+    throw new Error("Мастер не авторизован");
+  }
+
+  const res = await fetch(
+    `${API_BASE_URL}/orders/${orderId}/master-status?status=${status}&master_id=${resolvedMasterId}`,
+    {
+      method: "PUT",
+    },
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось обновить статус заказа");
   }
 
   return data;
