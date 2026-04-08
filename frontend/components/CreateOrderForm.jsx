@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const generateTimeSlots = (startHour = 8, endHour = 22) => {
   const slots = [];
@@ -39,7 +39,22 @@ export default function CreateOrderForm({
     return 1;
   });
 
+  const [photos, setPhotos] = useState([]);
+  const fileInputRef = useRef(null);
   const timeSlots = useMemo(() => generateTimeSlots(), []);
+
+  const previewUrls = useMemo(() => {
+    return photos.map((file) => ({
+      file,
+      url: URL.createObjectURL(file),
+    }));
+  }, [photos]);
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((item) => URL.revokeObjectURL(item.url));
+    };
+  }, [previewUrls]);
 
   const handleSelectCategory = (item) => {
     setCategory(item);
@@ -50,6 +65,20 @@ export default function CreateOrderForm({
   const handleSelectService = (service) => {
     setServiceName(service);
     setStep(3);
+  };
+
+  const handlePhotoChange = (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    setPhotos(selectedFiles);
+  };
+
+  const handleRemovePhoto = (indexToRemove) => {
+    const nextPhotos = photos.filter((_, index) => index !== indexToRemove);
+    setPhotos(nextPhotos);
+
+    if (fileInputRef.current && nextPhotos.length === 0) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const stepLabels = [
@@ -75,15 +104,9 @@ export default function CreateOrderForm({
               key={item.id}
               type="button"
               onClick={() => {
-                if (item.id === 1) {
-                  setStep(1);
-                }
-                if (item.id === 2 && category) {
-                  setStep(2);
-                }
-                if (item.id === 3 && category && serviceName) {
-                  setStep(3);
-                }
+                if (item.id === 1) setStep(1);
+                if (item.id === 2 && category) setStep(2);
+                if (item.id === 3 && category && serviceName) setStep(3);
               }}
               className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
                 isActive
@@ -207,6 +230,56 @@ export default function CreateOrderForm({
             className="w-full border rounded-lg p-3 min-h-[100px] text-black placeholder:text-gray-400"
           />
 
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-black">Фото</p>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full border rounded-lg p-3 text-black"
+            >
+              Прикрепить фото
+            </button>
+
+            {photos.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {previewUrls.map((item, index) => (
+                  <div
+                    key={`${item.file.name}-${index}`}
+                    className="rounded-xl border p-2 space-y-2"
+                  >
+                    <img
+                      src={item.url}
+                      alt={item.file.name}
+                      className="h-28 w-full rounded-lg object-cover"
+                    />
+
+                    <p className="text-xs text-gray-700 break-all">
+                      {item.file.name}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(index)}
+                      className="w-full rounded-lg border border-red-300 py-2 text-sm text-red-600"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <input
             type="text"
             placeholder="Адрес"
@@ -245,7 +318,8 @@ export default function CreateOrderForm({
           </div>
 
           <button
-            onClick={createOrder}
+            type="button"
+            onClick={() => createOrder(photos)}
             className="w-full bg-black text-white py-3 rounded-lg"
           >
             Отправить заявку

@@ -1,12 +1,24 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from uuid import uuid4
 from datetime import datetime
-import random
+from pathlib import Path
+from uuid import uuid4
 
+from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session, joinedload
+
+from database import Base, engine, get_db
+from models import Order, OrderPhoto, Account
+from auth_routes import router as auth_router
+from schemas import OrderResponse
 
 app = FastAPI()
+Base.metadata.create_all(bind=engine)
+
+UPLOADS_DIR = Path("uploads/orders")
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,64 +28,116 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-orders = []
-
-masters = [
-    {"id": "1", "name": "Алексей", "rating": 4.8},
-    {"id": "2", "name": "Владимир", "rating": 4.7},
-    {"id": "3", "name": "Сергей", "rating": 4.9},
-]
-
-
-class OrderCreate(BaseModel):
-    category: str
-    service_name: str
-    description: str
-    address: str
-    scheduled_at: str
-
 
 @app.get("/")
 def root():
     return {"message": "Backend is running"}
 
 
-@app.get("/orders")
-def get_orders():
+@app.get("/orders", response_model=list[OrderResponse])
+def get_orders(user_id: int, db: Session = Depends(get_db)):
+    orders = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.user_id == user_id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
     return orders
 
 
-@app.get("/orders/{order_id}")
-def get_order(order_id: str):
-    for order in orders:
-        if order["id"] == order_id:
-            return order
-    raise HTTPException(status_code=404, detail="Order not found")
+@app.get("/orders/{order_id}", response_model=OrderResponse)
+def get_order(order_id: int, user_id: int, db: Session = Depends(get_db)):
+    order = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.id == order_id, Order.user_id == user_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    return order
 
 
-@app.post("/orders")
-def create_order(order: OrderCreate):
-    assigned_master = random.choice(masters)
-
-    new_order = {
-        "id": str(uuid4()),
-        "category": order.category,
-        "service_name": order.service_name,
-        "description": order.description,
-        "address": order.address,
-        "scheduled_at": order.scheduled_at,
-        "status": "completed",
-        "master_name": assigned_master["name"],
-        "master_rating": assigned_master["rating"],
-        "price": None,
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
-    orders.append(new_order)
-    return new_order
+@app.post("/orders", response_model=OrderResponse)
+async def create_order(
+    user_id: int = Form(...),
+    category: str = Form(...),
+    service_name: str = Form(...),
+    description: str = Form(...),
+    address: str = Form(...),
+    scheduled_at: str = Form(...),
+    photos: list[UploadFile] | None = File(default=None),
+    db: Session = Depends(get_db),
+):
 
 
-@app.put("/orders/{order_id}/status")
-def update_order_status(order_id: str, status: str):
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_order = Order(
+        user_id=user_id,
+        category=category,
+        service_name=service_name,
+        description=description,
+        address=address,
+        scheduled_at=scheduled_at,
+        status="searching",
+        master_name=None,
+        master_rating=None,
+        price=None,
+        created_at=datetime.utcnow(),
+    )
+
+    db.add(new_order)
+    db.commit()
+    db.refresh(new_order)
+
+    if photos:
+        for photo in photos:
+            if not photo.filename:
+                continue
+
+            suffix = Path(photo.filename).suffix or ".jpg"
+            filename = f"{uuid4()}{suffix}"
+            file_path = UPLOADS_DIR / filename
+
+            content = await photo.read()
+            file_path.write_bytes(content)
+
+            order_photo = OrderPhoto(
+                order_id=new_order.id,
+                file_path=str(file_path).replace("\\", "/"),
+            )
+            db.add(order_photo)
+
+        db.commit()
+
+    order = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.id == new_order.id)
+        .first()
+    )
+
+    return order
+
+
+@app.put("/orders/{order_id}/status", response_model=OrderResponse)
+def update_order_status(
+    order_id: int,
+    status: str,
+    user_id: int,
+    db: Session = Depends(get_db),
+):
     allowed_statuses = [
         "searching",
         "assigned",
@@ -88,18 +152,25 @@ def update_order_status(order_id: str, status: str):
             status_code=400,
             detail={
                 "error": "Invalid status",
-                "allowed_statuses": allowed_statuses
-            }
+                "allowed_statuses": allowed_statuses,
+            },
         )
 
-    for order in orders:
-        if order["id"] == order_id:
-            order["status"] = status
-            return order
+    order = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.id == order_id, Order.user_id == user_id)
+        .first()
+    )
 
-    raise HTTPException(status_code=404, detail="Order not found")
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    order.status = status
+    db.commit()
+    db.refresh(order)
+
+    return order
 
 
-@app.get("/masters")
-def get_masters():
-    return masters
+app.include_router(auth_router)

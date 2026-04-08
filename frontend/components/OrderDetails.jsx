@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { updateOrderStatusRequest } from "../lib/orders";
+
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 export default function OrderDetails({
   selectedOrder,
@@ -6,10 +9,10 @@ export default function OrderDetails({
   onBack,
   onStatusChange,
 }) {
-  // ✅ ХУКИ ВСЕГДА СНАЧАЛА
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
   if (!selectedOrder) return null;
 
@@ -28,21 +31,19 @@ export default function OrderDetails({
 
   const handlePay = async () => {
     try {
-      await fetch(
-        `http://127.0.0.1:8000/orders/${selectedOrder.id}/status?status=paid`,
-        {
-          method: "PUT",
-        },
-      );
+      setIsPaying(true);
 
-      const updatedOrder = {
-        ...selectedOrder,
+      const updatedOrder = await updateOrderStatusRequest({
+        orderId: selectedOrder.id,
         status: "paid",
-      };
+      });
 
       onStatusChange(updatedOrder);
     } catch (error) {
       console.error("Ошибка оплаты:", error);
+      alert(error.message || "Не удалось обновить оплату");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -69,11 +70,10 @@ export default function OrderDetails({
           <p className="text-sm text-gray-700">{selectedOrder.category}</p>
         </div>
 
-        {/* СТАТУС */}
         <div className="space-y-2">
           <p className="text-sm text-gray-700">Статус</p>
 
-          <div className="flex justify-between text-xs">
+          <div className="flex justify-between text-xs gap-1">
             {statusSteps.map((step, index) => {
               const isActive = index <= currentIndex;
 
@@ -104,9 +104,12 @@ export default function OrderDetails({
               );
             })}
           </div>
+
+          <p className="text-sm font-medium text-black">
+            {getStatusLabel(selectedOrder.status)}
+          </p>
         </div>
 
-        {/* ОПИСАНИЕ */}
         <div className="space-y-2 text-sm text-gray-800">
           <p>{selectedOrder.description}</p>
 
@@ -121,7 +124,23 @@ export default function OrderDetails({
           </p>
         </div>
 
-        {/* МАСТЕР */}
+        {selectedOrder.photos?.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-black">Фото заявки</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {selectedOrder.photos.map((photo) => (
+                <img
+                  key={photo.id}
+                  src={`${API_BASE_URL}/${photo.file_path}`}
+                  alt="Фото заявки"
+                  className="h-32 w-full rounded-xl object-cover border"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="rounded-xl border bg-gray-50 p-3 space-y-2">
           <p className="font-medium text-black">
             Мастер: {selectedOrder.master_name || "назначается..."}
@@ -132,9 +151,14 @@ export default function OrderDetails({
               Рейтинг: ⭐ {selectedOrder.master_rating}
             </p>
           )}
+
+          {selectedOrder.price && (
+            <p className="text-sm font-semibold text-black">
+              Сумма: {selectedOrder.price}
+            </p>
+          )}
         </div>
 
-        {/* COMPLETED */}
         {selectedOrder.status === "completed" && (
           <div className="space-y-3">
             <div className="rounded-xl border bg-green-50 p-3">
@@ -145,15 +169,15 @@ export default function OrderDetails({
             </div>
 
             <button
-              className="w-full bg-black text-white py-3 rounded-lg"
+              className="w-full bg-black text-white py-3 rounded-lg disabled:opacity-60"
               onClick={handlePay}
+              disabled={isPaying}
             >
-              Оплатить
+              {isPaying ? "Оплата..." : "Оплатить"}
             </button>
           </div>
         )}
 
-        {/* PAID */}
         {selectedOrder.status === "paid" && !submitted && (
           <div className="space-y-4">
             <div className="rounded-xl bg-green-100 p-4 text-center">
@@ -162,9 +186,8 @@ export default function OrderDetails({
               </p>
             </div>
 
-            {/* ⭐ ЗВЁЗДЫ */}
             <div className="text-center space-y-2">
-              <p className="text-sm font-medium !text-black">Оцените мастера</p>
+              <p className="text-sm font-medium text-black">Оцените мастера</p>
 
               <div className="flex justify-center gap-2 text-3xl">
                 {[1, 2, 3, 4, 5].map((star) => {
@@ -173,6 +196,7 @@ export default function OrderDetails({
                   return (
                     <button
                       key={star}
+                      type="button"
                       onClick={() => setRating(star)}
                       className={
                         isActive
