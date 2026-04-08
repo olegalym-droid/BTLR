@@ -73,21 +73,22 @@ export const saveAuthData = ({ id, role, phone, full_name }) => {
     }),
   );
 
-  localStorage.setItem(
-    "resident_profile",
-    JSON.stringify({
-      name: full_name || "",
-      phone: phone || "",
-      addresses: [],
-      primaryAddressIndex: 0,
-    }),
-  );
+  if (role === "user") {
+    localStorage.setItem(
+      "resident_profile",
+      JSON.stringify({
+        name: full_name || "",
+        phone: phone || "",
+        addresses: [],
+        primaryAddressIndex: 0,
+      }),
+    );
+  }
 };
 
 export const clearAuthData = () => {
   localStorage.removeItem("isAuth");
   localStorage.removeItem("auth_user");
-  localStorage.removeItem("resident_profile");
 };
 
 export const getStoredAuthUser = () => {
@@ -102,4 +103,15 @@ export const getStoredAuthUser = () => {
     console.error("Ошибка чтения auth_user:", error);
     return null;
   }
+};
+
+export const loadMasterProfileRequest = async (masterId) => {
+  const response = await fetch(`${API_BASE_URL}/masters/${masterId}`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить профиль мастера");
+  }
+
+  return data;
 };

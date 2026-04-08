@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from database import Base, engine, get_db
 from models import Order, OrderPhoto, Account
 from auth_routes import router as auth_router
-from schemas import OrderResponse
+from schemas import OrderResponse, MasterProfileResponse
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
@@ -34,6 +34,21 @@ def root():
     return {"message": "Backend is running"}
 
 
+@app.get("/masters/{master_id}", response_model=MasterProfileResponse)
+def get_master_profile(master_id: int, db: Session = Depends(get_db)):
+    master = (
+        db.query(Account)
+        .options(joinedload(Account.master_categories))
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    return master
+
+
 @app.get("/orders", response_model=list[OrderResponse])
 def get_orders(user_id: int, db: Session = Depends(get_db)):
     orders = (
@@ -44,6 +59,53 @@ def get_orders(user_id: int, db: Session = Depends(get_db)):
         .all()
     )
     return orders
+
+
+@app.get("/orders/available", response_model=list[OrderResponse])
+def get_available_orders(db: Session = Depends(get_db)):
+    orders = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.master_id.is_(None), Order.status == "searching")
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+    return orders
+
+
+@app.put("/orders/{order_id}/assign", response_model=OrderResponse)
+def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(get_db)):
+    master = (
+        db.query(Account)
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    order = (
+        db.query(Order)
+        .options(joinedload(Order.photos))
+        .filter(Order.id == order_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.master_id is not None:
+        raise HTTPException(status_code=400, detail="Order already assigned")
+
+    order.master_id = master.id
+    order.master_name = master.full_name
+    order.master_rating = master.rating
+    order.status = "assigned"
+
+    db.commit()
+    db.refresh(order)
+
+    return order
 
 
 @app.get("/orders/{order_id}", response_model=OrderResponse)
@@ -72,8 +134,6 @@ async def create_order(
     photos: list[UploadFile] | None = File(default=None),
     db: Session = Depends(get_db),
 ):
-
-
     user = (
         db.query(Account)
         .filter(Account.id == user_id, Account.role == "user")
@@ -85,6 +145,7 @@ async def create_order(
 
     new_order = Order(
         user_id=user_id,
+        master_id=None,
         category=category,
         service_name=service_name,
         description=description,

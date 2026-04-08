@@ -41,6 +41,7 @@ class OrderCreateRequest(BaseModel):
 class OrderResponse(BaseModel):
     id: int
     user_id: int
+    master_id: int | None = None
     category: str
     service_name: str
     description: str
@@ -51,6 +52,31 @@ class OrderResponse(BaseModel):
     master_rating: float | None = None
     price: str | None = None
     photos: list[OrderPhotoResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class MasterCategoryResponse(BaseModel):
+    id: int
+    category_name: str
+
+    class Config:
+        from_attributes = True
+
+
+class MasterProfileResponse(BaseModel):
+    id: int
+    role: str
+    phone: str
+    full_name: str | None = None
+    face_photo_path: str | None = None
+    work_city: str | None = None
+    work_district: str | None = None
+    verification_status: str
+    rating: float
+    completed_orders_count: int
+    master_categories: list[MasterCategoryResponse] = []
 
     class Config:
         from_attributes = True

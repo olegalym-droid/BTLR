@@ -31,6 +31,39 @@ export const loadOrdersRequest = async () => {
   return res.json();
 };
 
+export const loadAvailableOrdersRequest = async () => {
+  const res = await fetch(`${API_BASE_URL}/orders/available`);
+
+  if (!res.ok) {
+    throw new Error("Не удалось загрузить доступные заказы");
+  }
+
+  return res.json();
+};
+
+export const assignOrderToMasterRequest = async (orderId, masterId) => {
+  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+
+  if (!resolvedMasterId) {
+    throw new Error("Мастер не авторизован");
+  }
+
+  const res = await fetch(
+    `${API_BASE_URL}/orders/${orderId}/assign?master_id=${resolvedMasterId}`,
+    {
+      method: "PUT",
+    },
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось взять заказ");
+  }
+
+  return data;
+};
+
 export const createOrderRequest = async ({
   category,
   serviceName,
@@ -63,7 +96,6 @@ export const createOrderRequest = async ({
       }
     });
   }
-
 
   const res = await fetch(`${API_BASE_URL}/orders`, {
     method: "POST",

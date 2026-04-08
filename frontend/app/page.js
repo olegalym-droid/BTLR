@@ -6,6 +6,7 @@ import AppContent from "../components/AppContent";
 import { servicesByCategory } from "../lib/constants";
 import { formatPhoneInput } from "../lib/profile";
 import { getStatusLabel } from "../lib/orders";
+import { getStoredAuthUser } from "../lib/auth";
 import useOrders from "../hooks/useOrders";
 import useProfile from "../hooks/useProfile";
 import useOrderForm from "../hooks/useOrderForm";
@@ -71,6 +72,15 @@ export default function Home() {
   }, [category]);
 
   useEffect(() => {
+    const authUser = getStoredAuthUser();
+
+    if (authUser?.role) {
+      setSelectedRole(authUser.role);
+      setIsAuthenticated(true);
+    }
+  }, [setSelectedRole, setIsAuthenticated]);
+
+  useEffect(() => {
     const nextPrimaryAddress =
       profile.addresses[profile.primaryAddressIndex] || "";
 
@@ -80,8 +90,14 @@ export default function Home() {
   }, [profile, setAddress]);
 
   const handleAuthSuccess = () => {
+    const authUser = getStoredAuthUser();
+
     syncProfileFromStorage();
     setIsAuthenticated(true);
+
+    if (authUser?.role) {
+      setSelectedRole(authUser.role);
+    }
   };
 
   const createOrder = async (photos = []) => {

@@ -23,11 +23,16 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
             detail="Аккаунт с таким номером уже существует",
         )
 
+    verification_status = "approved"
+    if payload.role == "master":
+        verification_status = "pending"
+
     account = Account(
         role=payload.role,
         phone=payload.phone,
         full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
+        verification_status=verification_status,
     )
 
     db.add(account)
