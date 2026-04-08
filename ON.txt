@@ -1,5 +1,5 @@
-git pull перед 
-(началом работы)
+git pull 
+(перед началом работы)
 
 git add .
 git commit -m "update"
