@@ -16,6 +16,8 @@ class Account(Base):
     hashed_password = Column(String, nullable=False)
 
     face_photo_path = Column(String, nullable=True)
+    about_me = Column(String, nullable=True)
+    experience_years = Column(Integer, nullable=True)
     work_city = Column(String, nullable=True)
     work_district = Column(String, nullable=True)
     verification_status = Column(String, nullable=False, default="approved")

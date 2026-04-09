@@ -50,6 +50,37 @@ def get_master_profile(master_id: int, db: Session = Depends(get_db)):
     return master
 
 
+@app.put("/masters/{master_id}/profile", response_model=MasterProfileResponse)
+def update_master_profile(
+    master_id: int,
+    full_name: str = Form(...),
+    about_me: str = Form(""),
+    experience_years: int | None = Form(None),
+    work_city: str = Form(""),
+    work_district: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    master = (
+        db.query(Account)
+        .options(joinedload(Account.master_categories))
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    master.full_name = full_name
+    master.about_me = about_me or None
+    master.experience_years = experience_years
+    master.work_city = work_city or None
+    master.work_district = work_district or None
+
+    db.commit()
+    db.refresh(master)
+
+    return master
+
 @app.get("/orders", response_model=list[OrderResponse])
 def get_orders(user_id: int, db: Session = Depends(get_db)):
     orders = (

@@ -74,12 +74,18 @@ class MasterProfileResponse(BaseModel):
     role: str
     phone: str
     full_name: str | None = None
+
     face_photo_path: str | None = None
+    about_me: str | None = None
+    experience_years: int | None = None
+
     work_city: str | None = None
     work_district: str | None = None
+
     verification_status: str
     rating: float
     completed_orders_count: int
+
     master_categories: list[MasterCategoryResponse] = []
 
     class Config:

@@ -122,3 +122,36 @@ export const loadMasterProfileRequest = async (masterId) => {
 
   return data;
 };
+
+export const updateMasterProfileRequest = async ({
+  masterId,
+  fullName,
+  aboutMe = "",
+  experienceYears = "",
+  workCity = "",
+  workDistrict = "",
+}) => {
+  const formData = new FormData();
+
+  formData.append("full_name", fullName);
+  formData.append("about_me", aboutMe);
+  formData.append(
+    "experience_years",
+    experienceYears === "" ? "" : String(experienceYears),
+  );
+  formData.append("work_city", workCity);
+  formData.append("work_district", workDistrict);
+
+  const response = await fetch(`${API_BASE_URL}/masters/${masterId}/profile`, {
+    method: "PUT",
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось обновить профиль мастера");
+  }
+
+  return data;
+};
