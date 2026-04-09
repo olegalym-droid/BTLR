@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from database import Base, engine
-from auth_routes import router as auth_router
-from orders_routes import router as orders_router
-from masters_routes import router as masters_router
-from reviews_routes import router as reviews_router
+from routes.auth import router as auth_router
+from routes.orders import router as orders_router
+from routes.masters import router as masters_router
+from routes.reviews import router as reviews_router
 
 
 def create_app() -> FastAPI:
