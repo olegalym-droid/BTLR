@@ -18,12 +18,22 @@ import { formatPhoneInput } from "../../lib/profile";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-export default function MasterPlaceholderScreen({ onBack }) {
+const AVAILABLE_CATEGORIES = [
+  "Сантехника",
+  "Электрика",
+  "Уборка",
+  "Окна и двери",
+  "Сборка мебели",
+  "Ремонт",
+];
+
+export default function MasterPlaceholderScreen({ onBack, onLogout }) {
   const [mode, setMode] = useState("login");
   const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -37,11 +47,19 @@ export default function MasterPlaceholderScreen({ onBack }) {
   const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
 
   const [successText, setSuccessText] = useState("");
+  const [openedPhoto, setOpenedPhoto] = useState(null);
 
-  const loadAvailableOrders = async () => {
+  const loadAvailableOrders = async (masterId) => {
     try {
       setIsAvailableLoading(true);
-      const orders = await loadAvailableOrdersRequest();
+      const resolvedMasterId =
+        masterId || masterProfile?.id || getStoredAuthUser()?.id;
+
+      if (!resolvedMasterId) {
+        throw new Error("Мастер не авторизован");
+      }
+
+      const orders = await loadAvailableOrdersRequest(resolvedMasterId);
       setAvailableOrders(Array.isArray(orders) ? orders : []);
     } catch (error) {
       console.error("Ошибка загрузки доступных заказов:", error);
@@ -70,7 +88,7 @@ export default function MasterPlaceholderScreen({ onBack }) {
       setMasterProfile(profile);
 
       await Promise.all([
-        loadAvailableOrders(),
+        loadAvailableOrders(masterId),
         loadMasterOrders(masterId),
       ]);
 
@@ -85,16 +103,22 @@ export default function MasterPlaceholderScreen({ onBack }) {
     const authUser = getStoredAuthUser();
 
     if (authUser?.id && authUser.role === "master") {
-      (async () => {
-        try {
-          await loadMasterData(authUser.id);
-          setIsLoggedIn(true);
-        } catch (error) {
-          alert(error.message || "Не удалось загрузить кабинет мастера");
-        }
-      })();
+      loadMasterData(authUser.id)
+        .then(() => setIsLoggedIn(true))
+        .catch((error) =>
+          alert(error.message || "Не удалось загрузить кабинет мастера"),
+        );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const toggleCategory = (category) => {
+    setSelectedCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((item) => item !== category)
+        : [...prev, category],
+    );
+  };
 
   const validateForm = () => {
     if (!phone || !password) {
@@ -122,6 +146,11 @@ export default function MasterPlaceholderScreen({ onBack }) {
         alert("Пароли не совпадают");
         return false;
       }
+
+      if (selectedCategories.length === 0) {
+        alert("Выберите хотя бы одну категорию");
+        return false;
+      }
     }
 
     return true;
@@ -144,6 +173,7 @@ export default function MasterPlaceholderScreen({ onBack }) {
           phone,
           password,
           fullName,
+          categories: selectedCategories,
         });
       } else {
         authData = await loginRequest({
@@ -179,7 +209,7 @@ export default function MasterPlaceholderScreen({ onBack }) {
       await assignOrderToMasterRequest(orderId, masterProfile.id);
 
       await Promise.all([
-        loadAvailableOrders(),
+        loadAvailableOrders(masterProfile.id),
         loadMasterOrders(masterProfile.id),
       ]);
 
@@ -233,8 +263,13 @@ export default function MasterPlaceholderScreen({ onBack }) {
     setFullName("");
     setPassword("");
     setConfirmPassword("");
+    setSelectedCategories([]);
     setSuccessText("");
     setMode("login");
+
+    if (onLogout) {
+      onLogout();
+    }
   };
 
   const renderOrderPhotos = (order) => {
@@ -242,14 +277,24 @@ export default function MasterPlaceholderScreen({ onBack }) {
 
     return (
       <div className="grid grid-cols-2 gap-2">
-        {order.photos.map((photo) => (
-          <img
-            key={photo.id}
-            src={`${API_BASE_URL}/${photo.file_path}`}
-            alt="Фото заявки"
-            className="h-28 w-full rounded-xl border object-cover"
-          />
-        ))}
+        {order.photos.map((photo) => {
+          const photoUrl = `${API_BASE_URL}/${photo.file_path}`;
+
+          return (
+            <button
+              key={photo.id}
+              type="button"
+              onClick={() => setOpenedPhoto(photoUrl)}
+              className="block"
+            >
+              <img
+                src={photoUrl}
+                alt="Фото заявки"
+                className="h-28 w-full rounded-xl border object-cover"
+              />
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -309,190 +354,239 @@ export default function MasterPlaceholderScreen({ onBack }) {
 
   if (isLoggedIn) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border bg-white p-6 shadow space-y-3">
-          <h1 className="text-2xl font-bold text-black">Кабинет мастера</h1>
+      <>
+        <div className="space-y-6">
+          <div className="rounded-3xl border bg-white p-6 shadow space-y-3">
+            <h1 className="text-2xl font-bold text-black">Кабинет мастера</h1>
 
-          <p className="text-sm text-gray-700">
-            <span className="font-medium text-black">Имя:</span>{" "}
-            {masterProfile?.full_name || "Без имени"}
-          </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-black">Имя:</span>{" "}
+              {masterProfile?.full_name || "Без имени"}
+            </p>
 
-          <p className="text-sm text-gray-700">
-            <span className="font-medium text-black">Телефон:</span>{" "}
-            {masterProfile?.phone || "Не указан"}
-          </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-black">Телефон:</span>{" "}
+              {masterProfile?.phone || "Не указан"}
+            </p>
 
-          <p className="text-sm text-gray-700">
-            <span className="font-medium text-black">Статус проверки:</span>{" "}
-            {masterProfile?.verification_status === "pending"
-              ? "На проверке"
-              : masterProfile?.verification_status === "approved"
-                ? "Подтвержден"
-                : masterProfile?.verification_status || "Неизвестно"}
-          </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-black">Статус проверки:</span>{" "}
+              {masterProfile?.verification_status === "pending"
+                ? "На проверке"
+                : masterProfile?.verification_status === "approved"
+                  ? "Подтвержден"
+                  : masterProfile?.verification_status || "Неизвестно"}
+            </p>
 
-          <p className="text-sm text-gray-700">
-            <span className="font-medium text-black">Рейтинг:</span>{" "}
-            {masterProfile?.rating ?? 0}
-          </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-black">Рейтинг:</span>{" "}
+              {masterProfile?.rating ?? 0}
+            </p>
 
-          <p className="text-sm text-gray-700">
-            <span className="font-medium text-black">Выполнено заказов:</span>{" "}
-            {masterProfile?.completed_orders_count ?? 0}
-          </p>
+            <p className="text-sm text-gray-700">
+              <span className="font-medium text-black">Выполнено заказов:</span>{" "}
+              {masterProfile?.completed_orders_count ?? 0}
+            </p>
 
-          {successText && (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
-              {successText}
-            </div>
-          )}
+            {masterProfile?.master_categories?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-black">Категории:</p>
+                <div className="flex flex-wrap gap-2">
+                  {masterProfile.master_categories.map((item) => (
+                    <span
+                      key={item.id}
+                      className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800"
+                    >
+                      {item.category_name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          <button
-            onClick={logout}
-            className="w-full rounded-xl border py-3 text-black"
-          >
-            Выйти
-          </button>
-        </div>
-
-        <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-black">
-              Доступные заказы
-            </h2>
+            {successText && (
+              <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                {successText}
+              </div>
+            )}
 
             <button
-              type="button"
-              onClick={loadAvailableOrders}
-              className="rounded-xl border px-3 py-2 text-sm text-black"
+              onClick={logout}
+              className="w-full rounded-xl border py-3 text-black"
             >
-              Обновить
+              Выйти
             </button>
           </div>
 
-          {isAvailableLoading && (
-            <p className="text-sm text-gray-600">Загрузка заказов...</p>
-          )}
+          <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-black">
+                Доступные заказы
+              </h2>
 
-          {!isAvailableLoading && availableOrders.length === 0 && (
-            <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
-              Сейчас доступных заказов нет
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {availableOrders.map((order) => (
-              <div
-                key={order.id}
-                className="rounded-2xl border p-4 space-y-3"
+              <button
+                type="button"
+                onClick={() => loadAvailableOrders(masterProfile?.id)}
+                className="rounded-xl border px-3 py-2 text-sm text-black"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-black">
-                      {order.service_name}
-                    </p>
-                    <p className="text-sm text-gray-700">{order.category}</p>
-                  </div>
+                Обновить
+              </button>
+            </div>
 
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
+            {isAvailableLoading && (
+              <p className="text-sm text-gray-600">Загрузка заказов...</p>
+            )}
 
-                <p className="text-sm text-gray-800">{order.description}</p>
+            {!isAvailableLoading && availableOrders.length === 0 && (
+              <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
+                Сейчас доступных заказов нет
+              </div>
+            )}
 
-                {renderOrderPhotos(order)}
-
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium text-black">Адрес:</span>{" "}
-                  {order.address}
-                </p>
-
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium text-black">Дата:</span>{" "}
-                  {order.scheduled_at}
-                </p>
-
-                <button
-                  onClick={() => handleTakeOrder(order.id)}
-                  className="w-full rounded-xl bg-black py-3 text-white"
+            <div className="space-y-3">
+              {availableOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="rounded-2xl border p-4 space-y-3"
                 >
-                  Взять заказ
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-black">
+                        {order.service_name}
+                      </p>
+                      <p className="text-sm text-gray-700">{order.category}</p>
+                    </div>
 
-        <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-black">Мои заказы</h2>
-
-            <button
-              type="button"
-              onClick={() => masterProfile?.id && loadMasterOrders(masterProfile.id)}
-              className="rounded-xl border px-3 py-2 text-sm text-black"
-            >
-              Обновить
-            </button>
-          </div>
-
-          {isMasterOrdersLoading && (
-            <p className="text-sm text-gray-600">Загрузка заказов мастера...</p>
-          )}
-
-          {!isMasterOrdersLoading && masterOrders.length === 0 && (
-            <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
-              У вас пока нет принятых заказов
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {masterOrders.map((order) => (
-              <div
-                key={order.id}
-                className="rounded-2xl border p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-black">
-                      {order.service_name}
-                    </p>
-                    <p className="text-sm text-gray-700">{order.category}</p>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
+                      {getStatusLabel(order.status)}
+                    </span>
                   </div>
 
-                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
+                  <p className="text-sm text-gray-800">{order.description}</p>
 
-                <p className="text-sm text-gray-800">{order.description}</p>
+                  {renderOrderPhotos(order)}
 
-                {renderOrderPhotos(order)}
-
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium text-black">Адрес:</span>{" "}
-                  {order.address}
-                </p>
-
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium text-black">Дата:</span>{" "}
-                  {order.scheduled_at}
-                </p>
-
-                {order.price && (
-                  <p className="text-sm font-medium text-black">
-                    Сумма: {order.price}
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-black">Адрес:</span>{" "}
+                    {order.address}
                   </p>
-                )}
 
-                {renderMasterOrderAction(order)}
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-black">Дата:</span>{" "}
+                    {order.scheduled_at}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleTakeOrder(order.id)}
+                      className="w-full rounded-xl bg-black py-3 text-white"
+                    >
+                      Взять заказ
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAvailableOrders((prev) =>
+                          prev.filter((item) => item.id !== order.id),
+                        )
+                      }
+                      className="w-full rounded-xl border border-gray-300 py-3 text-black"
+                    >
+                      Пропустить
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-black">Мои заказы</h2>
+
+              <button
+                type="button"
+                onClick={() =>
+                  masterProfile?.id && loadMasterOrders(masterProfile.id)
+                }
+                className="rounded-xl border px-3 py-2 text-sm text-black"
+              >
+                Обновить
+              </button>
+            </div>
+
+            {isMasterOrdersLoading && (
+              <p className="text-sm text-gray-600">
+                Загрузка заказов мастера...
+              </p>
+            )}
+
+            {!isMasterOrdersLoading && masterOrders.length === 0 && (
+              <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
+                У вас пока нет принятых заказов
               </div>
-            ))}
+            )}
+
+            <div className="space-y-3">
+              {masterOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="rounded-2xl border p-4 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-black">
+                        {order.service_name}
+                      </p>
+                      <p className="text-sm text-gray-700">{order.category}</p>
+                    </div>
+
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-800">{order.description}</p>
+
+                  {renderOrderPhotos(order)}
+
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-black">Адрес:</span>{" "}
+                    {order.address}
+                  </p>
+
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-black">Дата:</span>{" "}
+                    {order.scheduled_at}
+                  </p>
+
+                  {order.price && (
+                    <p className="text-sm font-medium text-black">
+                      Сумма: {order.price}
+                    </p>
+                  )}
+
+                  {renderMasterOrderAction(order)}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+
+        {openedPhoto && (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setOpenedPhoto(null)}
+          >
+            <img
+              src={openedPhoto}
+              alt="Открытое фото"
+              className="max-h-[90vh] max-w-[90vw] rounded-xl"
+            />
+          </div>
+        )}
+      </>
     );
   }
 
@@ -548,6 +642,35 @@ export default function MasterPlaceholderScreen({ onBack }) {
           />
         )}
 
+        {mode === "register" && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-black">
+              Выберите категории услуг
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {AVAILABLE_CATEGORIES.map((category) => {
+                const isSelected = selectedCategories.includes(category);
+
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => toggleCategory(category)}
+                    className={`rounded-lg border px-3 py-2 text-sm transition ${
+                      isSelected
+                        ? "bg-black text-white border-black"
+                        : "bg-white text-black border-gray-300"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleSubmit}
           disabled={isLoading}
@@ -564,6 +687,7 @@ export default function MasterPlaceholderScreen({ onBack }) {
           onClick={() => {
             setMode(mode === "login" ? "register" : "login");
             setSuccessText("");
+            setSelectedCategories([]);
           }}
           className="w-full text-sm underline text-gray-700"
           type="button"

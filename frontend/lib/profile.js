@@ -1,14 +1,23 @@
 import { DEFAULT_PROFILE } from "./constants";
 
+const getProfileStorageKey = (userId) => {
+  if (!userId) {
+    return "resident_profile";
+  }
+
+  return `resident_profile_${userId}`;
+};
+
 export const getStoredProfile = () => {
   if (typeof window === "undefined") {
     return DEFAULT_PROFILE;
   }
 
   try {
-    const savedProfile = localStorage.getItem("resident_profile");
     const authUserRaw = localStorage.getItem("auth_user");
     const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
+    const profileKey = getProfileStorageKey(authUser?.id);
+    const savedProfile = localStorage.getItem(profileKey);
 
     const baseProfile = savedProfile
       ? {
@@ -35,15 +44,29 @@ export const getStoredProfile = () => {
   }
 };
 
+export const saveStoredProfile = (profile) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const authUserRaw = localStorage.getItem("auth_user");
+    const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
+    const profileKey = getProfileStorageKey(authUser?.id);
+
+    localStorage.setItem(profileKey, JSON.stringify(profile));
+  } catch (error) {
+    console.error("Ошибка сохранения профиля:", error);
+  }
+};
+
 export const getPrimaryAddressFromProfile = (profile) => {
   if (!profile?.addresses?.length) {
     return "";
   }
 
   return (
-    profile.addresses[profile.primaryAddressIndex] ||
-    profile.addresses[0] ||
-    ""
+    profile.addresses[profile.primaryAddressIndex] || profile.addresses[0] || ""
   );
 };
 
@@ -61,12 +84,7 @@ export const formatPhoneInput = (value) => {
   return cleaned.slice(0, 16);
 };
 
-export const buildAddressString = ({
-  city,
-  street,
-  house,
-  apartment,
-}) => {
+export const buildAddressString = ({ city, street, house, apartment }) => {
   const parts = [];
 
   if (city.trim()) {

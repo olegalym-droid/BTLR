@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DEFAULT_PROFILE, EMPTY_ADDRESS_FORM } from "../lib/constants";
 import {
   getStoredProfile,
+  saveStoredProfile,
   getPrimaryAddressFromProfile,
   buildAddressString,
 } from "../lib/profile";
@@ -28,7 +29,7 @@ export default function useProfile() {
   };
 
   const saveProfile = () => {
-    localStorage.setItem("resident_profile", JSON.stringify(profile));
+    saveStoredProfile(profile);
     setProfileSaved(true);
     setAddress(getPrimaryAddressFromProfile(profile));
   };

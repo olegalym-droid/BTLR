@@ -8,15 +8,16 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 
 from database import Base, engine, get_db
-from models import Order, OrderPhoto, Account
+from models import Order, OrderPhoto, Account, Review
 from auth_routes import router as auth_router
 from schemas import OrderResponse, MasterProfileResponse
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
-UPLOADS_DIR = Path("uploads/orders")
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+UPLOADS_ROOT = Path("uploads")
+ORDERS_UPLOADS_DIR = UPLOADS_ROOT / "orders"
+ORDERS_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -53,24 +54,94 @@ def get_master_profile(master_id: int, db: Session = Depends(get_db)):
 def get_orders(user_id: int, db: Session = Depends(get_db)):
     orders = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.master),
+        )
         .filter(Order.user_id == user_id)
         .order_by(Order.created_at.desc())
         .all()
     )
-    return orders
+
+    result = []
+    for order in orders:
+        reviewed = (
+            db.query(Review)
+            .filter(Review.order_id == order.id)
+            .first()
+            is not None
+        )
+
+        result.append(
+            OrderResponse(
+                id=order.id,
+                user_id=order.user_id,
+                master_id=order.master_id,
+                category=order.category,
+                service_name=order.service_name,
+                description=order.description,
+                address=order.address,
+                scheduled_at=order.scheduled_at,
+                status=order.status,
+                master_name=order.master_name,
+                master_rating=order.master_rating,
+                price=order.price,
+                reviewed=reviewed,
+                photos=order.photos,
+            )
+        )
+
+    return result
 
 
 @app.get("/orders/available", response_model=list[OrderResponse])
-def get_available_orders(db: Session = Depends(get_db)):
-    orders = (
+def get_available_orders(master_id: int, db: Session = Depends(get_db)):
+    master = (
+        db.query(Account)
+        .options(joinedload(Account.master_categories))
+        .filter(Account.id == master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Master not found")
+
+    master_categories = [item.category_name for item in master.master_categories]
+
+    query = (
         db.query(Order)
         .options(joinedload(Order.photos))
         .filter(Order.master_id.is_(None), Order.status == "searching")
-        .order_by(Order.created_at.desc())
-        .all()
     )
-    return orders
+
+    if master_categories:
+        query = query.filter(Order.category.in_(master_categories))
+
+    orders = query.order_by(Order.created_at.desc()).all()
+
+    result = []
+    for order in orders:
+        short_address = order.address.split(",")[0].strip() if order.address else ""
+        result.append(
+            OrderResponse(
+                id=order.id,
+                user_id=order.user_id,
+                master_id=order.master_id,
+                category=order.category,
+                service_name=order.service_name,
+                description=order.description,
+                address=short_address,
+                scheduled_at=order.scheduled_at,
+                status=order.status,
+                master_name=order.master_name,
+                master_rating=order.master_rating,
+                price=order.price,
+                reviewed=False,
+                photos=order.photos,
+            )
+        )
+
+    return result
 
 
 @app.get("/orders/master", response_model=list[OrderResponse])
@@ -92,7 +163,28 @@ def get_master_orders(master_id: int, db: Session = Depends(get_db)):
         .all()
     )
 
-    return orders
+    result = []
+    for order in orders:
+        result.append(
+            OrderResponse(
+                id=order.id,
+                user_id=order.user_id,
+                master_id=order.master_id,
+                category=order.category,
+                service_name=order.service_name,
+                description=order.description,
+                address=order.address,
+                scheduled_at=order.scheduled_at,
+                status=order.status,
+                master_name=order.master_name,
+                master_rating=order.master_rating,
+                price=order.price,
+                reviewed=False,
+                photos=order.photos,
+            )
+        )
+
+    return result
 
 
 @app.put("/orders/{order_id}/assign", response_model=OrderResponse)
@@ -127,7 +219,22 @@ def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(
     db.commit()
     db.refresh(order)
 
-    return order
+    return OrderResponse(
+        id=order.id,
+        user_id=order.user_id,
+        master_id=order.master_id,
+        category=order.category,
+        service_name=order.service_name,
+        description=order.description,
+        address=order.address,
+        scheduled_at=order.scheduled_at,
+        status=order.status,
+        master_name=order.master_name,
+        master_rating=order.master_rating,
+        price=order.price,
+        reviewed=False,
+        photos=order.photos,
+    )
 
 
 @app.put("/orders/{order_id}/master-status", response_model=OrderResponse)
@@ -179,7 +286,22 @@ def update_order_status_by_master(
     }
 
     if status == current_status:
-        return order
+        return OrderResponse(
+            id=order.id,
+            user_id=order.user_id,
+            master_id=order.master_id,
+            category=order.category,
+            service_name=order.service_name,
+            description=order.description,
+            address=order.address,
+            scheduled_at=order.scheduled_at,
+            status=order.status,
+            master_name=order.master_name,
+            master_rating=order.master_rating,
+            price=order.price,
+            reviewed=False,
+            photos=order.photos,
+        )
 
     if status not in allowed_transitions.get(current_status, []):
         raise HTTPException(
@@ -202,7 +324,22 @@ def update_order_status_by_master(
     db.commit()
     db.refresh(order)
 
-    return order
+    return OrderResponse(
+        id=order.id,
+        user_id=order.user_id,
+        master_id=order.master_id,
+        category=order.category,
+        service_name=order.service_name,
+        description=order.description,
+        address=order.address,
+        scheduled_at=order.scheduled_at,
+        status=order.status,
+        master_name=order.master_name,
+        master_rating=order.master_rating,
+        price=order.price,
+        reviewed=False,
+        photos=order.photos,
+    )
 
 
 @app.get("/orders/{order_id}", response_model=OrderResponse)
@@ -217,7 +354,29 @@ def get_order(order_id: int, user_id: int, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    return order
+    reviewed = (
+        db.query(Review)
+        .filter(Review.order_id == order.id)
+        .first()
+        is not None
+    )
+
+    return OrderResponse(
+        id=order.id,
+        user_id=order.user_id,
+        master_id=order.master_id,
+        category=order.category,
+        service_name=order.service_name,
+        description=order.description,
+        address=order.address,
+        scheduled_at=order.scheduled_at,
+        status=order.status,
+        master_name=order.master_name,
+        master_rating=order.master_rating,
+        price=order.price,
+        reviewed=reviewed,
+        photos=order.photos,
+    )
 
 
 @app.post("/orders", response_model=OrderResponse)
@@ -266,14 +425,14 @@ async def create_order(
 
             suffix = Path(photo.filename).suffix or ".jpg"
             filename = f"{uuid4()}{suffix}"
-            file_path = UPLOADS_DIR / filename
+            file_path = ORDERS_UPLOADS_DIR / filename
 
             content = await photo.read()
             file_path.write_bytes(content)
 
             order_photo = OrderPhoto(
                 order_id=new_order.id,
-                file_path=str(file_path).replace("\\", "/"),
+                file_path=f"uploads/orders/{filename}",
             )
             db.add(order_photo)
 
@@ -286,7 +445,22 @@ async def create_order(
         .first()
     )
 
-    return order
+    return OrderResponse(
+        id=order.id,
+        user_id=order.user_id,
+        master_id=order.master_id,
+        category=order.category,
+        service_name=order.service_name,
+        description=order.description,
+        address=order.address,
+        scheduled_at=order.scheduled_at,
+        status=order.status,
+        master_name=order.master_name,
+        master_rating=order.master_rating,
+        price=order.price,
+        reviewed=False,
+        photos=order.photos,
+    )
 
 
 @app.put("/orders/{order_id}/status", response_model=OrderResponse)
@@ -334,7 +508,85 @@ def update_order_status(
     db.commit()
     db.refresh(order)
 
-    return order
+    reviewed = (
+        db.query(Review)
+        .filter(Review.order_id == order.id)
+        .first()
+        is not None
+    )
+
+    return OrderResponse(
+        id=order.id,
+        user_id=order.user_id,
+        master_id=order.master_id,
+        category=order.category,
+        service_name=order.service_name,
+        description=order.description,
+        address=order.address,
+        scheduled_at=order.scheduled_at,
+        status=order.status,
+        master_name=order.master_name,
+        master_rating=order.master_rating,
+        price=order.price,
+        reviewed=reviewed,
+        photos=order.photos,
+    )
+
+
+@app.post("/reviews")
+def create_review(
+    order_id: int,
+    rating: int,
+    comment: str | None = None,
+    user_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    if rating < 1 or rating > 5:
+        raise HTTPException(status_code=400, detail="Рейтинг должен быть от 1 до 5")
+
+    order = db.query(Order).filter(Order.id == order_id).first()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+
+    if user_id is None or order.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Нельзя оставить отзыв на чужой заказ")
+
+    if order.status != "paid":
+        raise HTTPException(status_code=400, detail="Можно оценить только оплаченный заказ")
+
+    if order.master_id is None:
+        raise HTTPException(status_code=400, detail="У заказа нет мастера")
+
+    existing_review = (
+        db.query(Review)
+        .filter(Review.order_id == order_id)
+        .first()
+    )
+
+    if existing_review:
+        raise HTTPException(status_code=400, detail="Отзыв уже оставлен")
+
+    review = Review(
+        order_id=order.id,
+        master_id=order.master_id,
+        user_id=user_id,
+        rating=rating,
+        comment=comment,
+    )
+
+    db.add(review)
+    db.commit()
+
+    reviews = db.query(Review).filter(Review.master_id == order.master_id).all()
+    avg_rating = sum(r.rating for r in reviews) / len(reviews)
+
+    master = db.query(Account).filter(Account.id == order.master_id).first()
+    if master:
+        master.rating = round(avg_rating, 2)
+        db.commit()
+
+    return {"message": "Отзыв сохранён", "rating": master.rating if master else rating}
 
 
 app.include_router(auth_router)

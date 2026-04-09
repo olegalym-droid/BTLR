@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -6,6 +8,7 @@ class RegisterRequest(BaseModel):
     phone: str
     password: str
     full_name: str | None = None
+    categories: Optional[list[str]] = None
 
 
 class LoginRequest(BaseModel):
@@ -51,6 +54,7 @@ class OrderResponse(BaseModel):
     master_name: str | None = None
     master_rating: float | None = None
     price: str | None = None
+    reviewed: bool = False
     photos: list[OrderPhotoResponse] = []
 
     class Config:

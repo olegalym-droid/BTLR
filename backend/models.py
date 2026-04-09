@@ -100,3 +100,17 @@ class OrderPhoto(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     order = relationship("Order", back_populates="photos")
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    master_id = Column(Integer, ForeignKey("accounts.id"))
+    user_id = Column(Integer, ForeignKey("accounts.id"))
+
+    rating = Column(Integer)  # 1–5
+    comment = Column(String, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -31,14 +31,24 @@ export const loadOrdersRequest = async () => {
   return res.json();
 };
 
-export const loadAvailableOrdersRequest = async () => {
-  const res = await fetch(`${API_BASE_URL}/orders/available`);
+export const loadAvailableOrdersRequest = async (masterId) => {
+  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
 
-  if (!res.ok) {
-    throw new Error("Не удалось загрузить доступные заказы");
+  if (!resolvedMasterId) {
+    throw new Error("Мастер не авторизован");
   }
 
-  return res.json();
+  const res = await fetch(
+    `${API_BASE_URL}/orders/available?master_id=${resolvedMasterId}`,
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось загрузить доступные заказы");
+  }
+
+  return data;
 };
 
 export const loadMasterOrdersRequest = async (masterId) => {
@@ -176,6 +186,37 @@ export const updateOrderStatusRequest = async ({ orderId, status }) => {
 
   if (!res.ok) {
     throw new Error(data.detail || "Не удалось обновить статус");
+  }
+
+  return data;
+};
+
+export const createReviewRequest = async ({
+  orderId,
+  rating,
+  comment = "",
+}) => {
+  const authUser = getStoredAuthUser();
+
+  if (!authUser?.id) {
+    throw new Error("Пользователь не авторизован");
+  }
+
+  const params = new URLSearchParams({
+    order_id: String(orderId),
+    rating: String(rating),
+    user_id: String(authUser.id),
+    comment,
+  });
+
+  const res = await fetch(`${API_BASE_URL}/reviews?${params.toString()}`, {
+    method: "POST",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось отправить отзыв");
   }
 
   return data;

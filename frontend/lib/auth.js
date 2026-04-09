@@ -16,6 +16,7 @@ export const registerRequest = async ({
   phone,
   password,
   fullName = "",
+  categories = [],
 }) => {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
@@ -27,6 +28,7 @@ export const registerRequest = async ({
       phone,
       password,
       full_name: fullName || null,
+      categories: role === "master" ? categories : [],
     }),
   });
 
@@ -74,15 +76,20 @@ export const saveAuthData = ({ id, role, phone, full_name }) => {
   );
 
   if (role === "user") {
-    localStorage.setItem(
-      "resident_profile",
-      JSON.stringify({
-        name: full_name || "",
-        phone: phone || "",
-        addresses: [],
-        primaryAddressIndex: 0,
-      }),
-    );
+    const profileKey = `resident_profile_${id}`;
+    const existingProfileRaw = localStorage.getItem(profileKey);
+
+    if (!existingProfileRaw) {
+      localStorage.setItem(
+        profileKey,
+        JSON.stringify({
+          name: full_name || "",
+          phone: phone || "",
+          addresses: [],
+          primaryAddressIndex: 0,
+        }),
+      );
+    }
   }
 };
 

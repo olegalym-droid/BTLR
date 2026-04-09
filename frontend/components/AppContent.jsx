@@ -82,7 +82,18 @@ export default function AppContent({
   }
 
   if (selectedRole === "master") {
-    return <MasterPlaceholderScreen onBack={() => setSelectedRole(null)} />;
+    return (
+      <MasterPlaceholderScreen
+        onBack={() => {
+          setIsAuthenticated(false);
+          setSelectedRole(null);
+        }}
+        onLogout={() => {
+          setIsAuthenticated(false);
+          setSelectedRole(null);
+        }}
+      />
+    );
   }
 
   if (orderCreated) {

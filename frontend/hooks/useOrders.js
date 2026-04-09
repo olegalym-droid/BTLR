@@ -16,7 +16,17 @@ export default function useOrders() {
   };
 
   useEffect(() => {
-    loadOrders();
+    const runLoadOrders = async () => {
+      await loadOrders();
+    };
+
+    runLoadOrders();
+
+    const interval = setInterval(() => {
+      runLoadOrders();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const createOrder = async ({

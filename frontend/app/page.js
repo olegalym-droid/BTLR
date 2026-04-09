@@ -32,6 +32,7 @@ export default function Home() {
     activeOrders,
     completedOrders,
     updateSelectedOrder,
+    loadOrders,
   } = useOrders();
 
   const {
@@ -116,10 +117,14 @@ export default function Home() {
     if (!success) return;
   };
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = async (tab) => {
     setActiveTab(tab);
     setOrderCreated(false);
     setSelectedOrder(null);
+
+    if (tab === "orders") {
+      await loadOrders();
+    }
   };
 
   const handleLogout = () => {

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Account
+from models import Account, MasterCategory
 from schemas import RegisterRequest, LoginRequest, AuthResponse
 from security import hash_password, verify_password
 
@@ -38,6 +38,26 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.add(account)
     db.commit()
     db.refresh(account)
+
+    # 🔥 ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ
+    if payload.role == "master":
+        categories = payload.categories or []
+
+        if not categories:
+            raise HTTPException(
+                status_code=400,
+                detail="Выберите хотя бы одну категорию",
+            )
+
+        for category in categories:
+            db.add(
+                MasterCategory(
+                    master_id=account.id,
+                    category_name=category,
+                )
+            )
+
+        db.commit()
 
     return AuthResponse(
         id=account.id,
