@@ -46,6 +46,13 @@ class Account(Base):
         foreign_keys="Order.master_id",
     )
 
+    order_responses = relationship(
+        "OrderResponseOffer",
+        back_populates="master",
+        cascade="all, delete-orphan",
+        foreign_keys="OrderResponseOffer.master_id",
+    )
+
 
 class MasterCategory(Base):
     __tablename__ = "master_categories"
@@ -95,6 +102,26 @@ class Order(Base):
         cascade="all, delete-orphan",
     )
 
+    offers = relationship(
+        "OrderResponseOffer",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        foreign_keys="OrderResponseOffer.order_id",
+    )
+
+
+class OrderResponseOffer(Base):
+    __tablename__ = "order_response_offers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    order = relationship("Order", back_populates="offers", foreign_keys=[order_id])
+    master = relationship("Account", back_populates="order_responses", foreign_keys=[master_id])
+
 
 class OrderPhoto(Base):
     __tablename__ = "order_photos"
@@ -105,6 +132,7 @@ class OrderPhoto(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     order = relationship("Order", back_populates="photos")
+
 
 class Review(Base):
     __tablename__ = "reviews"

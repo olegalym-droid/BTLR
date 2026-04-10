@@ -14,6 +14,7 @@ export default function OrderDetails({
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [processingOfferId, setProcessingOfferId] = useState(null);
   const [openedPhoto, setOpenedPhoto] = useState(null);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function OrderDetails({
 
   const statusSteps = [
     { key: "searching", label: "Поиск" },
+    { key: "pending_user_confirmation", label: "Выбор" },
     { key: "assigned", label: "Назначен" },
     { key: "on_the_way", label: "Едет" },
     { key: "on_site", label: "На месте" },
@@ -36,6 +38,21 @@ export default function OrderDetails({
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
   );
+
+  const getCurrentUserId = () => {
+    try {
+      const authUserRaw = localStorage.getItem("auth_user");
+      const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
+
+      if (!authUser?.id) {
+        throw new Error("Пользователь не авторизован");
+      }
+
+      return authUser.id;
+    } catch (error) {
+      throw new Error("Не удалось определить пользователя");
+    }
+  };
 
   const handlePay = async () => {
     try {
@@ -52,6 +69,62 @@ export default function OrderDetails({
       alert(error.message || "Не удалось обновить оплату");
     } finally {
       setIsPaying(false);
+    }
+  };
+
+  const handleConfirmMaster = async (offerId) => {
+    try {
+      setProcessingOfferId(offerId);
+
+      const userId = getCurrentUserId();
+
+      const response = await fetch(
+        `${API_BASE_URL}/orders/${selectedOrder.id}/confirm-master?user_id=${userId}&offer_id=${offerId}`,
+        {
+          method: "PUT",
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Не удалось выбрать мастера");
+      }
+
+      onStatusChange(data);
+    } catch (error) {
+      console.error("Ошибка подтверждения мастера:", error);
+      alert(error.message || "Не удалось выбрать мастера");
+    } finally {
+      setProcessingOfferId(null);
+    }
+  };
+
+  const handleRejectMaster = async (offerId) => {
+    try {
+      setProcessingOfferId(offerId);
+
+      const userId = getCurrentUserId();
+
+      const response = await fetch(
+        `${API_BASE_URL}/orders/${selectedOrder.id}/reject-master?user_id=${userId}&offer_id=${offerId}`,
+        {
+          method: "PUT",
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Не удалось отклонить мастера");
+      }
+
+      onStatusChange(data);
+    } catch (error) {
+      console.error("Ошибка отклонения мастера:", error);
+      alert(error.message || "Не удалось отклонить мастера");
+    } finally {
+      setProcessingOfferId(null);
     }
   };
 
@@ -208,6 +281,84 @@ export default function OrderDetails({
               </p>
             )}
           </div>
+
+          {selectedOrder.status === "pending_user_confirmation" &&
+            selectedOrder.offers?.length > 0 && (
+              <div className="space-y-4 min-w-0">
+                <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4">
+                  <p className="text-sm text-gray-700">
+                    На вашу заявку откликнулись мастера. Выберите одного:
+                  </p>
+                </div>
+
+                {selectedOrder.offers.map((offer) => {
+                  const master = offer.master;
+                  const photoUrl = master?.selfie_photo_path
+                    ? `${API_BASE_URL}/${master.selfie_photo_path}`
+                    : null;
+
+                  return (
+                    <div
+                      key={offer.id}
+                      className="rounded-xl border bg-white p-4 space-y-3"
+                    >
+                      {photoUrl && (
+                        <img
+                          src={photoUrl}
+                          alt="Фото мастера"
+                          className="h-20 w-20 rounded-full object-cover border"
+                        />
+                      )}
+
+                      <p className="text-lg font-semibold text-black break-words [overflow-wrap:anywhere]">
+                        {master?.full_name || "Без имени"}
+                      </p>
+
+                      {master?.about_me && (
+                        <p className="text-sm text-gray-700 break-words [overflow-wrap:anywhere]">
+                          {master.about_me}
+                        </p>
+                      )}
+
+                      {master?.experience_years !== null &&
+                        master?.experience_years !== undefined && (
+                          <p className="text-sm text-gray-700">
+                            Стаж: {master.experience_years} лет
+                          </p>
+                        )}
+
+                      <p className="text-sm text-gray-700">
+                        ⭐ Рейтинг: {master?.rating ?? 0}
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmMaster(offer.id)}
+                          disabled={processingOfferId !== null}
+                          className="w-full rounded-lg bg-black py-3 text-white disabled:opacity-60"
+                        >
+                          {processingOfferId === offer.id
+                            ? "Выбор..."
+                            : "Выбрать"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRejectMaster(offer.id)}
+                          disabled={processingOfferId !== null}
+                          className="w-full rounded-lg border border-gray-300 py-3 text-black disabled:opacity-60"
+                        >
+                          {processingOfferId === offer.id
+                            ? "Обработка..."
+                            : "Отклонить"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
           {selectedOrder.status === "completed" && (
             <div className="space-y-3 min-w-0">

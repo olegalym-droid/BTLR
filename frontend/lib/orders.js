@@ -5,6 +5,7 @@ const API_BASE_URL = "http://127.0.0.1:8000";
 export const getStatusLabel = (status) => {
   const statusMap = {
     searching: "Ищем мастера",
+    pending_user_confirmation: "Ожидает вашего решения",
     assigned: "Мастер назначен",
     on_the_way: "Мастер едет",
     on_site: "Мастер на месте",

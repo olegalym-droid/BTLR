@@ -6,11 +6,11 @@ import AppContent from "../components/AppContent";
 import { servicesByCategory } from "../lib/constants";
 import { formatPhoneInput } from "../lib/profile";
 import { getStatusLabel } from "../lib/orders";
-import { getStoredAuthUser } from "../lib/auth";
 import useOrders from "../hooks/useOrders";
 import useProfile from "../hooks/useProfile";
 import useOrderForm from "../hooks/useOrderForm";
 import useAppSession from "../hooks/useAppSession";
+import { getStoredAuthUser } from "../lib/auth";
 
 export default function Home() {
   const {
@@ -73,15 +73,6 @@ export default function Home() {
   }, [category]);
 
   useEffect(() => {
-    const authUser = getStoredAuthUser();
-
-    if (authUser?.role) {
-      setSelectedRole(authUser.role);
-      setIsAuthenticated(true);
-    }
-  }, [setSelectedRole, setIsAuthenticated]);
-
-  useEffect(() => {
     const nextPrimaryAddress =
       profile.addresses[profile.primaryAddressIndex] || "";
 
@@ -90,11 +81,23 @@ export default function Home() {
     );
   }, [profile, setAddress]);
 
+  useEffect(() => {
+    const authUser = getStoredAuthUser();
+
+    if (authUser?.id && authUser?.role) {
+      setIsAuthenticated(true);
+      setSelectedRole(authUser.role);
+    }
+  }, []);
+
   const handleAuthSuccess = () => {
     const authUser = getStoredAuthUser();
 
     syncProfileFromStorage();
     setIsAuthenticated(true);
+    setOrderCreated(false);
+    setSelectedOrder(null);
+    setActiveTab("services");
 
     if (authUser?.role) {
       setSelectedRole(authUser.role);

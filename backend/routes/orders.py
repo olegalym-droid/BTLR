@@ -1,12 +1,13 @@
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
+from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from utils.file_utils import save_order_photos
-from models import Order, OrderPhoto, Account, Review
-from schemas import OrderResponse
+from models import Order, OrderPhoto, Account, Review, OrderResponseOffer
+from schemas import OrderResponse, OrderOfferResponse, OfferMasterResponse
 
 router = APIRouter(tags=["orders"])
 
@@ -22,6 +23,26 @@ def build_order_response(
     if short_address:
         address = order.address.split(",")[0].strip() if order.address else ""
 
+    offers = []
+    for offer in order.offers:
+        if offer.status != "pending" or offer.master is None:
+            continue
+
+        offers.append(
+            OrderOfferResponse(
+                id=offer.id,
+                status=offer.status,
+                master=OfferMasterResponse(
+                    id=offer.master.id,
+                    full_name=offer.master.full_name,
+                    about_me=offer.master.about_me,
+                    experience_years=offer.master.experience_years,
+                    rating=offer.master.rating,
+                    selfie_photo_path=offer.master.selfie_photo_path,
+                ),
+            )
+        )
+
     return OrderResponse(
         id=order.id,
         user_id=order.user_id,
@@ -36,6 +57,7 @@ def build_order_response(
         master_rating=order.master_rating,
         price=order.price,
         reviewed=reviewed,
+        offers=offers,
         photos=order.photos,
     )
 
@@ -111,6 +133,7 @@ def get_orders(user_id: int, db: Session = Depends(get_db)):
         .options(
             joinedload(Order.photos),
             joinedload(Order.master),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.user_id == user_id)
         .order_by(Order.created_at.desc())
@@ -138,8 +161,14 @@ def get_available_orders(master_id: int, db: Session = Depends(get_db)):
 
     query = (
         db.query(Order)
-        .options(joinedload(Order.photos))
-        .filter(Order.master_id.is_(None), Order.status == "searching")
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(
+            Order.master_id.is_(None),
+            Order.status.in_(["searching", "pending_user_confirmation"]),
+        )
     )
 
     if master_categories:
@@ -149,10 +178,25 @@ def get_available_orders(master_id: int, db: Session = Depends(get_db)):
 
     orders = query.order_by(Order.created_at.desc()).all()
 
-    return [
-        build_order_response(order=order, reviewed=False, short_address=True)
-        for order in orders
-    ]
+    result = []
+    for order in orders:
+        already_offered = any(
+            offer.master_id == master_id and offer.status == "pending"
+            for offer in order.offers
+        )
+
+        if already_offered:
+            continue
+
+        result.append(
+            build_order_response(
+                order=order,
+                reviewed=False,
+                short_address=True,
+            )
+        )
+
+    return result
 
 
 @router.get("/orders/master", response_model=list[OrderResponse])
@@ -166,10 +210,27 @@ def get_master_orders(master_id: int, db: Session = Depends(get_db)):
     if not master:
         raise HTTPException(status_code=404, detail="Master not found")
 
+    pending_offer_order_ids = (
+        db.query(OrderResponseOffer.order_id)
+        .filter(
+            OrderResponseOffer.master_id == master_id,
+            OrderResponseOffer.status == "pending",
+        )
+        .subquery()
+    )
+
     orders = (
         db.query(Order)
-        .options(joinedload(Order.photos))
-        .filter(Order.master_id == master_id)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(
+            or_(
+                Order.master_id == master_id,
+                Order.id.in_(pending_offer_order_ids),
+            )
+        )
         .order_by(Order.created_at.desc())
         .all()
     )
@@ -184,7 +245,10 @@ def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(
 
     order = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
         .filter(Order.id == order_id)
         .first()
     )
@@ -195,23 +259,223 @@ def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(
     if order.master_id is not None:
         raise HTTPException(status_code=400, detail="Order already assigned")
 
-    if order.status != "searching":
+    if order.status not in ["searching", "pending_user_confirmation"]:
         raise HTTPException(
             status_code=400,
-            detail="Можно брать только заказы в статусе searching",
+            detail="Можно откликаться только на активные заказы",
         )
 
     ensure_master_can_take_order(master, order)
 
-    order.master_id = master.id
-    order.master_name = master.full_name
-    order.master_rating = master.rating
-    order.status = "assigned"
+    existing_offer = (
+        db.query(OrderResponseOffer)
+        .filter(
+            OrderResponseOffer.order_id == order_id,
+            OrderResponseOffer.master_id == master_id,
+            OrderResponseOffer.status == "pending",
+        )
+        .first()
+    )
+
+    if existing_offer:
+        raise HTTPException(
+            status_code=400,
+            detail="Вы уже откликнулись на этот заказ",
+        )
+
+    new_offer = OrderResponseOffer(
+        order_id=order.id,
+        master_id=master.id,
+        status="pending",
+    )
+
+    db.add(new_offer)
+
+    if order.status == "searching":
+        order.status = "pending_user_confirmation"
 
     db.commit()
     db.refresh(order)
 
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order.id)
+        .first()
+    )
+
     return build_order_response(order=order)
+
+
+@router.put("/orders/{order_id}/confirm-master", response_model=OrderResponse)
+def confirm_master_for_order(
+    order_id: int,
+    user_id: int,
+    offer_id: int,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order_id, Order.user_id == user_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status != "pending_user_confirmation":
+        raise HTTPException(
+            status_code=400,
+            detail="Этот заказ сейчас не ожидает выбора мастера",
+        )
+
+    selected_offer = next(
+        (offer for offer in order.offers if offer.id == offer_id),
+        None,
+    )
+
+    if selected_offer is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Отклик мастера не найден",
+        )
+
+    if selected_offer.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Этот отклик уже нельзя подтвердить",
+        )
+
+    if selected_offer.master is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Мастер для этого отклика не найден",
+        )
+
+    order.master_id = selected_offer.master.id
+    order.master_name = selected_offer.master.full_name
+    order.master_rating = selected_offer.master.rating
+    order.status = "assigned"
+
+    for offer in order.offers:
+        if offer.id == selected_offer.id:
+            offer.status = "accepted"
+        else:
+            offer.status = "rejected"
+
+    db.commit()
+    db.refresh(order)
+
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order.id)
+        .first()
+    )
+
+    return build_order_response(
+        order=order,
+        reviewed=is_order_reviewed(order.id, db),
+    )
+
+
+@router.put("/orders/{order_id}/reject-master", response_model=OrderResponse)
+def reject_master_for_order(
+    order_id: int,
+    user_id: int,
+    offer_id: int,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order_id, Order.user_id == user_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.status != "pending_user_confirmation":
+        raise HTTPException(
+            status_code=400,
+            detail="Этот заказ сейчас не ожидает выбора мастера",
+        )
+
+    selected_offer = next(
+        (offer for offer in order.offers if offer.id == offer_id),
+        None,
+    )
+
+    if selected_offer is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Отклик мастера не найден",
+        )
+
+    if selected_offer.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Этот отклик уже нельзя отклонить",
+        )
+
+    selected_offer.status = "rejected"
+
+    has_pending_offers = any(
+        offer.id != selected_offer.id and offer.status == "pending"
+        for offer in order.offers
+    )
+
+    order.status = "pending_user_confirmation" if has_pending_offers else "searching"
+
+    db.commit()
+    db.refresh(order)
+
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order.id)
+        .first()
+    )
+
+    return build_order_response(
+        order=order,
+        reviewed=is_order_reviewed(order.id, db),
+    )
 
 
 @router.put("/orders/{order_id}/master-status", response_model=OrderResponse)
@@ -245,7 +509,10 @@ def update_order_status_by_master(
 
     order = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
         .filter(Order.id == order_id, Order.master_id == master_id)
         .first()
     )
@@ -262,6 +529,7 @@ def update_order_status_by_master(
         "completed": [],
         "paid": [],
         "searching": [],
+        "pending_user_confirmation": [],
     }
 
     if status == current_status:
@@ -304,7 +572,10 @@ def get_order(order_id: int, user_id: int, db: Session = Depends(get_db)):
 
     order = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
         .filter(Order.id == order_id, Order.user_id == user_id)
         .first()
     )
@@ -386,7 +657,10 @@ async def create_order(
 
     order = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
         .filter(Order.id == new_order.id)
         .first()
     )
@@ -423,7 +697,10 @@ def update_order_status(
 
     order = (
         db.query(Order)
-        .options(joinedload(Order.photos))
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
         .filter(Order.id == order_id, Order.user_id == user_id)
         .first()
     )

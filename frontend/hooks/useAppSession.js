@@ -1,31 +1,13 @@
 import { useEffect, useState } from "react";
-import {
-  getStoredAuth,
-  getStoredAuthUser,
-  clearAuthData,
-} from "../lib/auth";
+import { clearAuthData } from "../lib/auth";
 
 const APP_ROLE_KEY = "app_selected_role";
 const APP_TAB_KEY = "app_active_tab";
 
 export default function useAppSession() {
-  const [selectedRole, setSelectedRole] = useState(() => {
-    if (typeof window === "undefined") return null;
-
-    const storedRole = localStorage.getItem(APP_ROLE_KEY);
-    const authUser = getStoredAuthUser();
-
-    return storedRole || authUser?.role || null;
-  });
-
-  const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredAuth());
-
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window === "undefined") return "services";
-
-    const storedTab = localStorage.getItem(APP_TAB_KEY);
-    return storedTab || "services";
-  });
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState("services");
 
   useEffect(() => {
     if (typeof window === "undefined") return;

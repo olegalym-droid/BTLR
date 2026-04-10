@@ -41,26 +41,6 @@ class OrderCreateRequest(BaseModel):
     scheduled_at: str
 
 
-class OrderResponse(BaseModel):
-    id: int
-    user_id: int
-    master_id: int | None = None
-    category: str
-    service_name: str
-    description: str
-    address: str
-    scheduled_at: str
-    status: str
-    master_name: str | None = None
-    master_rating: float | None = None
-    price: str | None = None
-    reviewed: bool = False
-    photos: list[OrderPhotoResponse] = []
-
-    class Config:
-        from_attributes = True
-
-
 class MasterCategoryResponse(BaseModel):
     id: int
     category_name: str
@@ -91,6 +71,48 @@ class MasterProfileResponse(BaseModel):
     completed_orders_count: int
 
     master_categories: list[MasterCategoryResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class OfferMasterResponse(BaseModel):
+    id: int
+    full_name: str | None = None
+    about_me: str | None = None
+    experience_years: int | None = None
+    rating: float
+    selfie_photo_path: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class OrderOfferResponse(BaseModel):
+    id: int
+    status: str
+    master: OfferMasterResponse
+
+    class Config:
+        from_attributes = True
+
+
+class OrderResponse(BaseModel):
+    id: int
+    user_id: int
+    master_id: int | None = None
+    category: str
+    service_name: str
+    description: str
+    address: str
+    scheduled_at: str
+    status: str
+    master_name: str | None = None
+    master_rating: float | None = None
+    price: str | None = None
+    reviewed: bool = False
+    offers: list[OrderOfferResponse] = []
+    photos: list[OrderPhotoResponse] = []
 
     class Config:
         from_attributes = True

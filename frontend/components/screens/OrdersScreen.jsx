@@ -21,6 +21,7 @@ export default function OrdersScreen({
     () =>
       activeOrders.filter(
         (order) =>
+          order.status === "pending_user_confirmation" ||
           order.status === "assigned" ||
           order.status === "on_the_way" ||
           order.status === "on_site",
@@ -50,7 +51,7 @@ export default function OrdersScreen({
 
   const getEmptyText = () => {
     if (ordersTab === "sent") return "У вас нет отправленных заявок";
-    if (ordersTab === "accepted") return "У вас нет принятых заказов";
+    if (ordersTab === "accepted") return "У вас нет активных заказов";
     return "У вас нет выполненных заказов";
   };
 
@@ -123,26 +124,31 @@ export default function OrdersScreen({
             ))}
           </div>
 
-          {currentOrders.length > ITEMS_PER_PAGE && (
-            <div className="flex justify-center gap-2 pt-2">
-              {Array.from({ length: totalPages }).map((_, index) => {
-                const page = index + 1;
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={safeCurrentPage === 1}
+                className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+              >
+                Назад
+              </button>
 
-                return (
-                  <button
-                    key={page}
-                    type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={`min-w-10 rounded-lg px-3 py-2 text-sm font-medium ${
-                      safeCurrentPage === page
-                        ? "bg-black text-white"
-                        : "border border-gray-300 bg-white text-black"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
+              <span className="text-sm text-gray-700">
+                {safeCurrentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={safeCurrentPage === totalPages}
+                className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+              >
+                Далее
+              </button>
             </div>
           )}
         </>
