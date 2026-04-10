@@ -1,23 +1,58 @@
 import { useEffect, useState } from "react";
 import { loadOrdersRequest, createOrderRequest } from "../lib/orders";
+import { getStoredAuthUser } from "../lib/auth";
 
 export default function useOrders() {
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState(() => {
+    const authUser = getStoredAuthUser();
+    return authUser?.id && authUser.role === "user" ? [] : [];
+  });
+
   const [orderCreated, setOrderCreated] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   const loadOrders = async () => {
+    const authUser = getStoredAuthUser();
+
+    if (!authUser?.id || authUser.role !== "user") {
+      return;
+    }
+
     try {
       const data = await loadOrdersRequest();
-      setOrders(data);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Ошибка загрузки заявок:", error);
+      setOrders([]);
     }
   };
 
   useEffect(() => {
+    const authUser = getStoredAuthUser();
+
+    if (!authUser?.id || authUser.role !== "user") {
+      return;
+    }
+
+    let isMounted = true;
+
     const runLoadOrders = async () => {
-      await loadOrders();
+      try {
+        const data = await loadOrdersRequest();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setOrders(Array.isArray(data) ? data : []);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        console.error("Ошибка загрузки заявок:", error);
+        setOrders([]);
+      }
     };
 
     runLoadOrders();
@@ -26,7 +61,10 @@ export default function useOrders() {
       runLoadOrders();
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const createOrder = async ({
@@ -39,6 +77,13 @@ export default function useOrders() {
     photos,
     onSuccess,
   }) => {
+    const authUser = getStoredAuthUser();
+
+    if (!authUser?.id || authUser.role !== "user") {
+      alert("Создавать заявки может только пользователь");
+      return false;
+    }
+
     if (
       !category ||
       !serviceName ||

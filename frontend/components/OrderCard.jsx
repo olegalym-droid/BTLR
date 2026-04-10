@@ -1,22 +1,41 @@
+const DESCRIPTION_PREVIEW_LENGTH = 120;
+const ADDRESS_PREVIEW_LENGTH = 90;
+
+function truncateText(value, maxLength) {
+  if (!value) return "";
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength).trim()}...`;
+}
+
 export default function OrderCard({ order, getStatusLabel, onClick }) {
   const isActive = order.status !== "completed" && order.status !== "paid";
   const photosCount = Array.isArray(order.photos) ? order.photos.length : 0;
 
+  const descriptionPreview = truncateText(
+    order.description,
+    DESCRIPTION_PREVIEW_LENGTH,
+  );
+
+  const addressPreview = truncateText(order.address, ADDRESS_PREVIEW_LENGTH);
+
   return (
-    <div
+    <button
+      type="button"
       onClick={() => onClick(order)}
-      className="border p-4 rounded-2xl shadow bg-white space-y-4 cursor-pointer active:scale-[0.99] transition"
+      className="w-full text-left border p-4 rounded-2xl shadow bg-white space-y-4 active:scale-[0.99] transition overflow-hidden"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-black break-words">
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-semibold text-black break-words [overflow-wrap:anywhere]">
             {order.service_name}
           </h3>
 
-          <p className="text-sm text-gray-700">{order.category}</p>
+          <p className="text-sm text-gray-700 mt-1 break-words [overflow-wrap:anywhere]">
+            {order.category}
+          </p>
 
           {order.master_name && (
-            <p className="text-sm text-gray-700 mt-1">
+            <p className="text-sm text-gray-700 mt-1 break-words [overflow-wrap:anywhere]">
               👨‍🔧 Мастер: {order.master_name}
             </p>
           )}
@@ -33,14 +52,17 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
         </span>
       </div>
 
-      <div className="space-y-2 text-sm text-gray-800">
-        <p>{order.description}</p>
-
-        <p>
-          <span className="font-medium text-black">Адрес:</span> {order.address}
+      <div className="space-y-2 text-sm text-gray-800 min-w-0">
+        <p className="break-words [overflow-wrap:anywhere]">
+          {descriptionPreview}
         </p>
 
-        <p>
+        <p className="break-words [overflow-wrap:anywhere]">
+          <span className="font-medium text-black">Адрес:</span>{" "}
+          {addressPreview}
+        </p>
+
+        <p className="break-words [overflow-wrap:anywhere]">
           <span className="font-medium text-black">Дата:</span>{" "}
           {order.scheduled_at}
         </p>
@@ -52,8 +74,8 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
         )}
       </div>
 
-      <div className="rounded-xl bg-gray-50 p-3 space-y-2">
-        <p className="text-sm font-medium text-black">
+      <div className="rounded-xl bg-gray-50 p-3 space-y-2 min-w-0">
+        <p className="text-sm font-medium text-black break-words [overflow-wrap:anywhere]">
           Мастер: {order.master_name || "назначается..."}
         </p>
 
@@ -64,11 +86,11 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
         )}
 
         {order.price && (
-          <p className="text-sm font-semibold text-black">
+          <p className="text-sm font-semibold text-black break-words [overflow-wrap:anywhere]">
             Сумма: {order.price}
           </p>
         )}
       </div>
-    </div>
+    </button>
   );
 }

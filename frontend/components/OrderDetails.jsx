@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { updateOrderStatusRequest, createReviewRequest } from "../lib/orders";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
+const REVIEW_COMMENT_MAX_LENGTH = 300;
 
 export default function OrderDetails({
   selectedOrder,
@@ -33,7 +34,7 @@ export default function OrderDetails({
   ];
 
   const currentIndex = statusSteps.findIndex(
-    (s) => s.key === selectedOrder.status,
+    (step) => step.key === selectedOrder.status,
   );
 
   const handlePay = async () => {
@@ -54,6 +55,10 @@ export default function OrderDetails({
     }
   };
 
+  const handleCommentChange = (event) => {
+    setComment(event.target.value.slice(0, REVIEW_COMMENT_MAX_LENGTH));
+  };
+
   const handleSubmitReview = async () => {
     if (rating === 0) {
       alert("Поставь оценку");
@@ -64,7 +69,7 @@ export default function OrderDetails({
       await createReviewRequest({
         orderId: selectedOrder.id,
         rating,
-        comment,
+        comment: comment.trim(),
       });
 
       setSubmitted(true);
@@ -83,34 +88,36 @@ export default function OrderDetails({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-4 min-w-0">
         <button onClick={onBack} className="text-sm text-gray-700">
           ← Назад
         </button>
 
-        <div className="border p-4 rounded-2xl bg-white space-y-4 shadow">
-          <div>
-            <h1 className="text-xl font-bold text-black">
+        <div className="border p-4 rounded-2xl bg-white space-y-4 shadow overflow-hidden min-w-0">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-black break-words [overflow-wrap:anywhere]">
               {selectedOrder.service_name}
             </h1>
-            <p className="text-sm text-gray-700">{selectedOrder.category}</p>
+            <p className="text-sm text-gray-700 break-words [overflow-wrap:anywhere]">
+              {selectedOrder.category}
+            </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <p className="text-sm text-gray-700">Статус</p>
 
-            <div className="flex justify-between text-xs gap-1">
+            <div className="flex justify-between text-[11px] gap-1 min-w-0">
               {statusSteps.map((step, index) => {
                 const isActive = index <= currentIndex;
 
                 return (
                   <div
                     key={step.key}
-                    className={`flex-1 text-center ${
+                    className={`flex-1 text-center min-w-0 ${
                       isActive ? "text-black font-semibold" : "text-gray-400"
                     }`}
                   >
-                    {step.label}
+                    <span className="block truncate">{step.label}</span>
                   </div>
                 );
               })}
@@ -136,22 +143,24 @@ export default function OrderDetails({
             </p>
           </div>
 
-          <div className="space-y-2 text-sm text-gray-800">
-            <p>{selectedOrder.description}</p>
+          <div className="space-y-2 text-sm text-gray-800 min-w-0">
+            <p className="break-words [overflow-wrap:anywhere]">
+              {selectedOrder.description}
+            </p>
 
-            <p>
+            <p className="break-words [overflow-wrap:anywhere]">
               <span className="font-medium text-black">Адрес:</span>{" "}
               {selectedOrder.address}
             </p>
 
-            <p>
+            <p className="break-words [overflow-wrap:anywhere]">
               <span className="font-medium text-black">Дата:</span>{" "}
               {selectedOrder.scheduled_at}
             </p>
           </div>
 
           {selectedOrder.photos?.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 min-w-0">
               <p className="text-sm font-medium text-black">Фото заявки</p>
 
               <div className="grid grid-cols-2 gap-2">
@@ -163,7 +172,7 @@ export default function OrderDetails({
                       key={photo.id}
                       type="button"
                       onClick={() => setOpenedPhoto(photoUrl)}
-                      className="block"
+                      className="block overflow-hidden rounded-xl"
                     >
                       <img
                         src={photoUrl}
@@ -181,8 +190,8 @@ export default function OrderDetails({
             </div>
           )}
 
-          <div className="rounded-xl border bg-gray-50 p-3 space-y-2">
-            <p className="font-medium text-black">
+          <div className="rounded-xl border bg-gray-50 p-3 space-y-2 min-w-0">
+            <p className="font-medium text-black break-words [overflow-wrap:anywhere]">
               Мастер: {selectedOrder.master_name || "назначается..."}
             </p>
 
@@ -194,17 +203,17 @@ export default function OrderDetails({
               )}
 
             {selectedOrder.price && (
-              <p className="text-sm font-semibold text-black">
+              <p className="text-sm font-semibold text-black break-words [overflow-wrap:anywhere]">
                 Сумма: {selectedOrder.price}
               </p>
             )}
           </div>
 
           {selectedOrder.status === "completed" && (
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               <div className="rounded-xl border bg-green-50 p-3">
                 <p className="text-sm text-gray-700">Работа завершена</p>
-                <p className="text-lg font-semibold text-black">
+                <p className="text-lg font-semibold text-black break-words [overflow-wrap:anywhere]">
                   Сумма: {selectedOrder.price || "5000 ₸"}
                 </p>
               </div>
@@ -220,7 +229,7 @@ export default function OrderDetails({
           )}
 
           {showReviewForm && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <div className="rounded-xl bg-green-100 p-4 text-center">
                 <p className="text-lg font-semibold text-green-800">
                   Оплачено ✅
@@ -254,12 +263,19 @@ export default function OrderDetails({
                 </div>
               </div>
 
-              <textarea
-                placeholder="Комментарий (необязательно)"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                className="w-full border rounded-lg p-3 text-sm text-black placeholder:text-gray-400"
-              />
+              <div className="space-y-2">
+                <textarea
+                  placeholder="Комментарий (необязательно)"
+                  value={comment}
+                  onChange={handleCommentChange}
+                  maxLength={REVIEW_COMMENT_MAX_LENGTH}
+                  className="w-full border rounded-lg p-3 text-sm text-black placeholder:text-gray-400 min-h-[110px] break-words [overflow-wrap:anywhere]"
+                />
+
+                <p className="text-right text-xs text-gray-500">
+                  {comment.length}/{REVIEW_COMMENT_MAX_LENGTH}
+                </p>
+              </div>
 
               <button
                 className="w-full bg-black text-white py-3 rounded-lg"

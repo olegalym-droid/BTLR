@@ -6,6 +6,8 @@ from models import Account, Review, Order
 
 router = APIRouter(tags=["reviews"])
 
+MAX_REVIEW_COMMENT_LENGTH = 300
+
 
 def get_order_or_404(order_id: int, db: Session):
     order = db.query(Order).filter(Order.id == order_id).first()
@@ -65,12 +67,20 @@ def create_review(
     if review_exists(order_id, db):
         raise HTTPException(status_code=400, detail="Отзыв уже оставлен")
 
+    normalized_comment = comment.strip() if comment else None
+
+    if normalized_comment and len(normalized_comment) > MAX_REVIEW_COMMENT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Комментарий не должен быть длиннее {MAX_REVIEW_COMMENT_LENGTH} символов",
+        )
+
     review = Review(
         order_id=order.id,
         master_id=order.master_id,
         user_id=user_id,
         rating=rating,
-        comment=comment,
+        comment=normalized_comment,
     )
 
     db.add(review)

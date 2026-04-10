@@ -10,6 +10,8 @@ from schemas import OrderResponse
 
 router = APIRouter(tags=["orders"])
 
+MAX_ORDER_PHOTOS = 4
+
 
 def build_order_response(
     order: Order,
@@ -351,6 +353,16 @@ async def create_order(
     if not scheduled_at.strip():
         raise HTTPException(status_code=400, detail="Дата и время обязательны")
 
+    valid_photos = []
+    if photos:
+        valid_photos = [photo for photo in photos if photo and photo.filename]
+
+    if len(valid_photos) > MAX_ORDER_PHOTOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Можно прикрепить не более {MAX_ORDER_PHOTOS} фото",
+        )
+
     new_order = Order(
         user_id=user_id,
         master_id=None,
@@ -370,7 +382,7 @@ async def create_order(
     db.commit()
     db.refresh(new_order)
 
-    await save_order_photos(photos, new_order.id, db, OrderPhoto)
+    await save_order_photos(valid_photos, new_order.id, db, OrderPhoto)
 
     order = (
         db.query(Order)

@@ -82,7 +82,7 @@ export default function MasterOrdersSection({
   };
 
   return (
-    <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-4">
+    <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-4 overflow-hidden">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-black">{title}</h2>
 
@@ -111,10 +111,10 @@ export default function MasterOrdersSection({
         {paginatedOrders.map((order) => (
           <div
             key={order.id}
-            className="rounded-2xl border border-gray-300 bg-white p-5 space-y-4"
+            className="rounded-2xl border border-gray-300 bg-white p-5 space-y-4 overflow-hidden"
           >
-            <div className="space-y-3">
-              <p className="text-2xl font-bold leading-tight text-black whitespace-normal break-normal">
+            <div className="space-y-3 min-w-0">
+              <p className="text-2xl font-bold leading-tight text-black break-words [overflow-wrap:anywhere]">
                 {order.service_name}
               </p>
 
@@ -124,10 +124,12 @@ export default function MasterOrdersSection({
                 </span>
               </div>
 
-              <p className="text-lg text-gray-800">{order.category}</p>
+              <p className="text-lg text-gray-800 break-words [overflow-wrap:anywhere]">
+                {order.category}
+              </p>
             </div>
 
-            <p className="text-lg leading-relaxed text-gray-800 whitespace-normal break-words">
+            <p className="text-lg leading-relaxed text-gray-800 break-words [overflow-wrap:anywhere]">
               {order.description}
             </p>
 
@@ -136,7 +138,7 @@ export default function MasterOrdersSection({
               onOpenPhoto={onOpenPhoto}
             />
 
-            <p className="text-lg leading-relaxed text-gray-900 whitespace-normal break-words">
+            <p className="text-lg leading-relaxed text-gray-900 break-words [overflow-wrap:anywhere]">
               <span className="font-semibold text-black">📍 Адрес:</span>{" "}
               {order.address}
             </p>

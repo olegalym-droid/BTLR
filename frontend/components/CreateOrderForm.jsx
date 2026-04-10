@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+const DESCRIPTION_MAX_LENGTH = 300;
+const ADDRESS_MAX_LENGTH = 180;
+const MAX_ORDER_PHOTOS = 4;
+
 const generateTimeSlots = (startHour = 8, endHour = 22) => {
   const slots = [];
 
@@ -69,7 +73,21 @@ export default function CreateOrderForm({
 
   const handlePhotoChange = (event) => {
     const selectedFiles = Array.from(event.target.files || []);
-    setPhotos(selectedFiles);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const nextPhotos = selectedFiles.slice(0, MAX_ORDER_PHOTOS);
+    setPhotos(nextPhotos);
+
+    if (selectedFiles.length > MAX_ORDER_PHOTOS) {
+      alert(`Можно прикрепить не более ${MAX_ORDER_PHOTOS} фото`);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleRemovePhoto = (indexToRemove) => {
@@ -79,6 +97,14 @@ export default function CreateOrderForm({
     if (fileInputRef.current && nextPhotos.length === 0) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleDescriptionChange = (event) => {
+    setDescription(event.target.value.slice(0, DESCRIPTION_MAX_LENGTH));
+  };
+
+  const handleAddressChange = (event) => {
+    setAddress(event.target.value.slice(0, ADDRESS_MAX_LENGTH));
   };
 
   const stepLabels = [
@@ -223,15 +249,24 @@ export default function CreateOrderForm({
             </button>
           </div>
 
-          <textarea
-            placeholder="Что нужно сделать"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full border rounded-lg p-3 min-h-[100px] text-black placeholder:text-gray-400"
-          />
+          <div className="space-y-2">
+            <textarea
+              placeholder="Что нужно сделать"
+              value={description}
+              onChange={handleDescriptionChange}
+              maxLength={DESCRIPTION_MAX_LENGTH}
+              className="w-full border rounded-lg p-3 min-h-[100px] text-black placeholder:text-gray-400"
+            />
+            <p className="text-right text-xs text-gray-500">
+              {description.length}/{DESCRIPTION_MAX_LENGTH}
+            </p>
+          </div>
 
           <div className="space-y-2">
             <p className="text-sm font-medium text-black">Фото</p>
+            <p className="text-xs text-gray-500">
+              Можно прикрепить до {MAX_ORDER_PHOTOS} фото
+            </p>
 
             <input
               ref={fileInputRef}
@@ -249,6 +284,10 @@ export default function CreateOrderForm({
             >
               Прикрепить фото
             </button>
+
+            <p className="text-right text-xs text-gray-500">
+              {photos.length}/{MAX_ORDER_PHOTOS}
+            </p>
 
             {photos.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
@@ -280,13 +319,19 @@ export default function CreateOrderForm({
             )}
           </div>
 
-          <input
-            type="text"
-            placeholder="Адрес"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="w-full border rounded-lg p-3 text-black placeholder:text-gray-400"
-          />
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Адрес"
+              value={address}
+              onChange={handleAddressChange}
+              maxLength={ADDRESS_MAX_LENGTH}
+              className="w-full border rounded-lg p-3 text-black placeholder:text-gray-400"
+            />
+            <p className="text-right text-xs text-gray-500">
+              {address.length}/{ADDRESS_MAX_LENGTH}
+            </p>
+          </div>
 
           <input
             type="date"
