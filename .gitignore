@@ -1,27 +1,42 @@
-# node
+# ======================
+# Node / Frontend
+# ======================
 node_modules/
 .next/
 out/
 dist/
 
-# python
+# ======================
+# Python / Backend
+# ======================
 __pycache__/
 *.pyc
 .venv/
 venv/
 
-# env
+# ======================
+# Environment
+# ======================
 .env
 .env.local
 
-# mac/windows
+# ======================
+# OS
+# ======================
 .DS_Store
 Thumbs.db
 
-# logs
+# ======================
+# Logs
+# ======================
 *.log
 
+# ======================
+# Database
+# ======================
 backend/app.db
+
+# ======================
+# Uploads
+# ======================
 backend/uploads/
-frontend/node_modules/
-frontend/.next/
