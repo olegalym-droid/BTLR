@@ -69,8 +69,41 @@ def get_master_or_404(
     return master
 
 
+def ensure_master_is_approved(master: Account):
+    if master.verification_status != "approved":
+        raise HTTPException(
+            status_code=403,
+            detail="Мастер ещё не подтверждён и не может работать с заказами",
+        )
+
+
+def ensure_master_can_take_order(master: Account, order: Order):
+    master_categories = [item.category_name for item in master.master_categories]
+
+    if not master_categories:
+        raise HTTPException(
+            status_code=400,
+            detail="У мастера не указаны категории услуг",
+        )
+
+    if order.category not in master_categories:
+        raise HTTPException(
+            status_code=403,
+            detail="Мастер не может взять заказ из этой категории",
+        )
+
+
 @router.get("/orders", response_model=list[OrderResponse])
 def get_orders(user_id: int, db: Session = Depends(get_db)):
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     orders = (
         db.query(Order)
         .options(
@@ -97,6 +130,8 @@ def get_orders(user_id: int, db: Session = Depends(get_db)):
 @router.get("/orders/available", response_model=list[OrderResponse])
 def get_available_orders(master_id: int, db: Session = Depends(get_db)):
     master = get_master_or_404(master_id, db, with_categories=True)
+    ensure_master_is_approved(master)
+
     master_categories = [item.category_name for item in master.master_categories]
 
     query = (
@@ -107,6 +142,8 @@ def get_available_orders(master_id: int, db: Session = Depends(get_db)):
 
     if master_categories:
         query = query.filter(Order.category.in_(master_categories))
+    else:
+        return []
 
     orders = query.order_by(Order.created_at.desc()).all()
 
@@ -140,14 +177,8 @@ def get_master_orders(master_id: int, db: Session = Depends(get_db)):
 
 @router.put("/orders/{order_id}/assign", response_model=OrderResponse)
 def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(get_db)):
-    master = (
-        db.query(Account)
-        .filter(Account.id == master_id, Account.role == "master")
-        .first()
-    )
-
-    if not master:
-        raise HTTPException(status_code=404, detail="Master not found")
+    master = get_master_or_404(master_id, db, with_categories=True)
+    ensure_master_is_approved(master)
 
     order = (
         db.query(Order)
@@ -161,6 +192,14 @@ def assign_order_to_master(order_id: int, master_id: int, db: Session = Depends(
 
     if order.master_id is not None:
         raise HTTPException(status_code=400, detail="Order already assigned")
+
+    if order.status != "searching":
+        raise HTTPException(
+            status_code=400,
+            detail="Можно брать только заказы в статусе searching",
+        )
+
+    ensure_master_can_take_order(master, order)
 
     order.master_id = master.id
     order.master_name = master.full_name
@@ -199,6 +238,8 @@ def update_order_status_by_master(
 
     if not master:
         raise HTTPException(status_code=404, detail="Master not found")
+
+    ensure_master_is_approved(master)
 
     order = (
         db.query(Order)
@@ -250,6 +291,15 @@ def update_order_status_by_master(
 
 @router.get("/orders/{order_id}", response_model=OrderResponse)
 def get_order(order_id: int, user_id: int, db: Session = Depends(get_db)):
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
     order = (
         db.query(Order)
         .options(joinedload(Order.photos))
@@ -286,14 +336,29 @@ async def create_order(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    if not category.strip():
+        raise HTTPException(status_code=400, detail="Категория обязательна")
+
+    if not service_name.strip():
+        raise HTTPException(status_code=400, detail="Название услуги обязательно")
+
+    if not description.strip():
+        raise HTTPException(status_code=400, detail="Описание обязательно")
+
+    if not address.strip():
+        raise HTTPException(status_code=400, detail="Адрес обязателен")
+
+    if not scheduled_at.strip():
+        raise HTTPException(status_code=400, detail="Дата и время обязательны")
+
     new_order = Order(
         user_id=user_id,
         master_id=None,
-        category=category,
-        service_name=service_name,
-        description=description,
-        address=address,
-        scheduled_at=scheduled_at,
+        category=category.strip(),
+        service_name=service_name.strip(),
+        description=description.strip(),
+        address=address.strip(),
+        scheduled_at=scheduled_at.strip(),
         status="searching",
         master_name=None,
         master_rating=None,
@@ -324,14 +389,7 @@ def update_order_status(
     user_id: int,
     db: Session = Depends(get_db),
 ):
-    allowed_statuses = [
-        "searching",
-        "assigned",
-        "on_the_way",
-        "on_site",
-        "completed",
-        "paid",
-    ]
+    allowed_statuses = ["paid"]
 
     if status not in allowed_statuses:
         raise HTTPException(
@@ -341,6 +399,15 @@ def update_order_status(
                 "allowed_statuses": allowed_statuses,
             },
         )
+
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
     order = (
         db.query(Order)

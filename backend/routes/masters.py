@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends, Form
+from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
 from models import Account
 from schemas import MasterProfileResponse
+from utils.file_utils import save_master_document
 
 router = APIRouter(tags=["masters"])
 
@@ -44,6 +45,65 @@ def update_master_profile(
     master.experience_years = experience_years
     master.work_city = work_city or None
     master.work_district = work_district or None
+
+    db.commit()
+    db.refresh(master)
+
+    return master
+
+
+@router.put("/masters/{master_id}/documents", response_model=MasterProfileResponse)
+async def upload_master_documents(
+    master_id: int,
+    id_card_front: UploadFile | None = File(default=None),
+    id_card_back: UploadFile | None = File(default=None),
+    selfie_photo: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+):
+    master = get_master_or_404(master_id, db)
+
+    front_path = await save_master_document(id_card_front, "id_front")
+    back_path = await save_master_document(id_card_back, "id_back")
+    selfie_path = await save_master_document(selfie_photo, "selfie")
+
+    if front_path:
+        master.id_card_front_path = front_path
+
+    if back_path:
+        master.id_card_back_path = back_path
+
+    if selfie_path:
+        master.selfie_photo_path = selfie_path
+
+    db.commit()
+    db.refresh(master)
+
+    return master
+
+
+@router.put("/masters/{master_id}/approve", response_model=MasterProfileResponse)
+def approve_master_profile(master_id: int, db: Session = Depends(get_db)):
+    master = get_master_or_404(master_id, db)
+
+    if not master.id_card_front_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала загрузите лицевую сторону удостоверения",
+        )
+
+    if not master.id_card_back_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала загрузите обратную сторону удостоверения",
+        )
+
+    if not master.selfie_photo_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала загрузите фото лица",
+        )
+
+    master.verification_status = "approved"
 
     db.commit()
     db.refresh(master)

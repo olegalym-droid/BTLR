@@ -76,6 +76,10 @@ class MasterProfileResponse(BaseModel):
     full_name: str | None = None
 
     face_photo_path: str | None = None
+    id_card_front_path: str | None = None
+    id_card_back_path: str | None = None
+    selfie_photo_path: str | None = None
+
     about_me: str | None = None
     experience_years: int | None = None
 

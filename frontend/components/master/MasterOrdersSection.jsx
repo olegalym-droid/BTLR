@@ -1,7 +1,12 @@
+import { useMemo, useState } from "react";
 import { getStatusLabel } from "../../lib/orders";
 import MasterOrderPhotos from "./MasterOrderPhotos";
 
+const ITEMS_PER_PAGE = 3;
+
 export default function MasterOrdersSection({
+  title = "Мои заказы",
+  emptyText = "У вас пока нет принятых заказов",
   masterProfile,
   masterOrders,
   isMasterOrdersLoading,
@@ -9,6 +14,20 @@ export default function MasterOrdersSection({
   handleMasterStatusChange,
   onOpenPhoto,
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(masterOrders.length / ITEMS_PER_PAGE) || 1;
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedOrders = useMemo(
+    () =>
+      masterOrders.slice(
+        (safeCurrentPage - 1) * ITEMS_PER_PAGE,
+        safeCurrentPage * ITEMS_PER_PAGE,
+      ),
+    [masterOrders, safeCurrentPage],
+  );
+
   const renderMasterOrderAction = (order) => {
     if (order.status === "assigned") {
       return (
@@ -45,7 +64,7 @@ export default function MasterOrdersSection({
 
     if (order.status === "completed") {
       return (
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+        <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900">
           Ожидает оплату от пользователя
         </div>
       );
@@ -53,7 +72,7 @@ export default function MasterOrdersSection({
 
     if (order.status === "paid") {
       return (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+        <div className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-800">
           Заказ оплачен
         </div>
       );
@@ -63,65 +82,73 @@ export default function MasterOrdersSection({
   };
 
   return (
-    <div className="rounded-3xl border bg-white p-6 shadow space-y-4">
+    <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-black">Мои заказы</h2>
+        <h2 className="text-2xl font-bold text-black">{title}</h2>
 
         <button
           type="button"
           onClick={() =>
             masterProfile?.id && loadMasterOrders(masterProfile.id)
           }
-          className="rounded-xl border px-3 py-2 text-sm text-black"
+          className="rounded-xl border border-black px-4 py-2 text-sm font-medium text-black bg-white"
         >
           Обновить
         </button>
       </div>
 
       {isMasterOrdersLoading && (
-        <p className="text-sm text-gray-600">Загрузка заказов мастера...</p>
+        <p className="text-sm text-black">Загрузка заказов...</p>
       )}
 
       {!isMasterOrdersLoading && masterOrders.length === 0 && (
-        <div className="rounded-2xl border border-dashed p-4 text-sm text-gray-600">
-          У вас пока нет принятых заказов
+        <div className="rounded-2xl border border-dashed border-gray-400 p-4 text-sm text-gray-700">
+          {emptyText}
         </div>
       )}
 
-      <div className="space-y-3">
-        {masterOrders.map((order) => (
-          <div key={order.id} className="rounded-2xl border p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
+      <div className="space-y-4">
+        {paginatedOrders.map((order) => (
+          <div
+            key={order.id}
+            className="rounded-2xl border border-gray-300 bg-white p-5 space-y-4"
+          >
+            <div className="space-y-3">
+              <p className="text-2xl font-bold leading-tight text-black whitespace-normal break-normal">
+                {order.service_name}
+              </p>
+
               <div>
-                <p className="font-semibold text-black">{order.service_name}</p>
-                <p className="text-sm text-gray-700">{order.category}</p>
+                <span className="inline-flex rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900">
+                  {getStatusLabel(order.status)}
+                </span>
               </div>
 
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
-                {getStatusLabel(order.status)}
-              </span>
+              <p className="text-lg text-gray-800">{order.category}</p>
             </div>
 
-            <p className="text-sm text-gray-800">{order.description}</p>
+            <p className="text-lg leading-relaxed text-gray-800 whitespace-normal break-words">
+              {order.description}
+            </p>
 
             <MasterOrderPhotos
               photos={order.photos}
               onOpenPhoto={onOpenPhoto}
             />
 
-            <p className="text-sm text-gray-700">
-              <span className="font-medium text-black">Адрес:</span>{" "}
+            <p className="text-lg leading-relaxed text-gray-900 whitespace-normal break-words">
+              <span className="font-semibold text-black">📍 Адрес:</span>{" "}
               {order.address}
             </p>
 
-            <p className="text-sm text-gray-700">
-              <span className="font-medium text-black">Дата:</span>{" "}
+            <p className="text-lg text-gray-900">
+              <span className="font-semibold text-black">📅 Дата:</span>{" "}
               {order.scheduled_at}
             </p>
 
             {order.price && (
-              <p className="text-sm font-medium text-black">
-                Сумма: {order.price}
+              <p className="text-xl font-semibold text-black">
+                💰 {order.price}
               </p>
             )}
 
@@ -129,6 +156,29 @@ export default function MasterOrdersSection({
           </div>
         ))}
       </div>
+
+      {masterOrders.length > ITEMS_PER_PAGE && (
+        <div className="flex justify-center gap-2 pt-2">
+          {Array.from({ length: totalPages }).map((_, index) => {
+            const page = index + 1;
+
+            return (
+              <button
+                key={page}
+                type="button"
+                onClick={() => setCurrentPage(page)}
+                className={`min-w-10 rounded-lg px-3 py-2 text-sm font-medium ${
+                  safeCurrentPage === page
+                    ? "bg-black text-white"
+                    : "border border-gray-300 bg-white text-black"
+                }`}
+              >
+                {page}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

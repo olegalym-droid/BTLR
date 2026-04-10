@@ -20,9 +20,12 @@ class Account(Base):
     experience_years = Column(Integer, nullable=True)
     work_city = Column(String, nullable=True)
     work_district = Column(String, nullable=True)
-    verification_status = Column(String, nullable=False, default="approved")
+    verification_status = Column(String, nullable=False, default="pending")
     rating = Column(Float, nullable=False, default=0.0)
     completed_orders_count = Column(Integer, nullable=False, default=0)
+    id_card_front_path = Column(String, nullable=True)
+    id_card_back_path = Column(String, nullable=True)
+    selfie_photo_path = Column(String, nullable=True)
 
     orders = relationship(
         "Order",

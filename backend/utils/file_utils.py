@@ -3,6 +3,7 @@ from uuid import uuid4
 
 
 ORDERS_UPLOADS_DIR = Path("uploads/orders")
+MASTER_DOCS_UPLOADS_DIR = Path("uploads/master_docs")
 
 
 async def save_order_photos(photos, order_id, db, OrderPhoto):
@@ -10,6 +11,8 @@ async def save_order_photos(photos, order_id, db, OrderPhoto):
 
     if not photos:
         return saved_photos
+
+    ORDERS_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
     for photo in photos:
         if not photo.filename:
@@ -33,3 +36,19 @@ async def save_order_photos(photos, order_id, db, OrderPhoto):
     db.commit()
 
     return saved_photos
+
+
+async def save_master_document(file, prefix: str) -> str | None:
+    if not file or not file.filename:
+        return None
+
+    MASTER_DOCS_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+    suffix = Path(file.filename).suffix or ".jpg"
+    filename = f"{prefix}_{uuid4()}{suffix}"
+    file_path = MASTER_DOCS_UPLOADS_DIR / filename
+
+    content = await file.read()
+    file_path.write_bytes(content)
+
+    return f"uploads/master_docs/{filename}"

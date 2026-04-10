@@ -22,6 +22,17 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         handleSaveMasterProfile={master.handleSaveMasterProfile}
         successText={master.successText}
         logout={master.logout}
+        idCardFront={master.idCardFront}
+        setIdCardFront={master.setIdCardFront}
+        idCardBack={master.idCardBack}
+        setIdCardBack={master.setIdCardBack}
+        selfiePhoto={master.selfiePhoto}
+        setSelfiePhoto={master.setSelfiePhoto}
+        handleUploadDocuments={master.handleUploadDocuments}
+        handleApproveProfile={master.handleApproveProfile}
+        hasUploadedAllDocuments={master.hasUploadedAllDocuments}
+        isDocumentsLoading={master.isDocumentsLoading}
+        isApproveLoading={master.isApproveLoading}
         availableOrders={master.availableOrders}
         isAvailableLoading={master.isAvailableLoading}
         loadAvailableOrders={master.loadAvailableOrders}
@@ -33,6 +44,8 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         handleMasterStatusChange={master.handleMasterStatusChange}
         openedPhoto={master.openedPhoto}
         setOpenedPhoto={master.setOpenedPhoto}
+        activeSection={master.activeSection}
+        setActiveSection={master.setActiveSection}
       />
     );
   }

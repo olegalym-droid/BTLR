@@ -155,3 +155,56 @@ export const updateMasterProfileRequest = async ({
 
   return data;
 };
+
+export const uploadMasterDocumentsRequest = async ({
+  masterId,
+  idCardFront,
+  idCardBack,
+  selfiePhoto,
+}) => {
+  const formData = new FormData();
+
+  if (idCardFront instanceof File) {
+    formData.append("id_card_front", idCardFront);
+  }
+
+  if (idCardBack instanceof File) {
+    formData.append("id_card_back", idCardBack);
+  }
+
+  if (selfiePhoto instanceof File) {
+    formData.append("selfie_photo", selfiePhoto);
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/masters/${masterId}/documents`,
+    {
+      method: "PUT",
+      body: formData,
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить документы");
+  }
+
+  return data;
+};
+
+export const approveMasterProfileRequest = async (masterId) => {
+  const response = await fetch(`${API_BASE_URL}/masters/${masterId}/approve`, {
+    method: "PUT",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось подтвердить профиль мастера");
+  }
+
+  return data;
+};
+
+export { API_BASE_URL };

@@ -6,6 +6,8 @@ import {
   getStoredAuthUser,
   loadMasterProfileRequest,
   updateMasterProfileRequest,
+  uploadMasterDocumentsRequest,
+  approveMasterProfileRequest,
   clearAuthData,
 } from "../lib/auth";
 import {
@@ -28,6 +30,10 @@ export default function useMasterCabinet({ onLogout }) {
   const [workCity, setWorkCity] = useState("");
   const [workDistrict, setWorkDistrict] = useState("");
 
+  const [idCardFront, setIdCardFront] = useState(null);
+  const [idCardBack, setIdCardBack] = useState(null);
+  const [selfiePhoto, setSelfiePhoto] = useState(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -38,9 +44,19 @@ export default function useMasterCabinet({ onLogout }) {
 
   const [isAvailableLoading, setIsAvailableLoading] = useState(false);
   const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
+  const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
+  const [isApproveLoading, setIsApproveLoading] = useState(false);
 
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
+
+  const [activeSection, setActiveSection] = useState("profile");
+
+  const hasUploadedAllDocuments = Boolean(
+    masterProfile?.id_card_front_path &&
+    masterProfile?.id_card_back_path &&
+    masterProfile?.selfie_photo_path,
+  );
 
   const loadAvailableOrders = async (masterId) => {
     try {
@@ -245,6 +261,61 @@ export default function useMasterCabinet({ onLogout }) {
     }
   };
 
+  const handleUploadDocuments = async () => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      if (!idCardFront && !idCardBack && !selfiePhoto) {
+        throw new Error("Выберите хотя бы один файл для загрузки");
+      }
+
+      setIsDocumentsLoading(true);
+
+      const updatedProfile = await uploadMasterDocumentsRequest({
+        masterId: masterProfile.id,
+        idCardFront,
+        idCardBack,
+        selfiePhoto,
+      });
+
+      setMasterProfile(updatedProfile);
+      setIdCardFront(null);
+      setIdCardBack(null);
+      setSelfiePhoto(null);
+      setSuccessText("Документы загружены");
+    } catch (error) {
+      console.error("Ошибка загрузки документов:", error);
+      alert(error.message || "Не удалось загрузить документы");
+    } finally {
+      setIsDocumentsLoading(false);
+    }
+  };
+
+  const handleApproveProfile = async () => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      setIsApproveLoading(true);
+
+      const updatedProfile = await approveMasterProfileRequest(
+        masterProfile.id,
+      );
+      setMasterProfile(updatedProfile);
+      setSuccessText("Профиль мастера подтверждён");
+
+      await loadAvailableOrders(masterProfile.id);
+    } catch (error) {
+      console.error("Ошибка подтверждения профиля:", error);
+      alert(error.message || "Не удалось подтвердить профиль");
+    } finally {
+      setIsApproveLoading(false);
+    }
+  };
+
   const handleTakeOrder = async (orderId) => {
     try {
       if (!masterProfile?.id) {
@@ -313,9 +384,13 @@ export default function useMasterCabinet({ onLogout }) {
     setExperienceYears("");
     setWorkCity("");
     setWorkDistrict("");
+    setIdCardFront(null);
+    setIdCardBack(null);
+    setSelfiePhoto(null);
     setSuccessText("");
     setMode("login");
     setOpenedPhoto(null);
+    setActiveSection("profile");
 
     if (onLogout) {
       onLogout();
@@ -345,6 +420,13 @@ export default function useMasterCabinet({ onLogout }) {
     workDistrict,
     setWorkDistrict,
 
+    idCardFront,
+    setIdCardFront,
+    idCardBack,
+    setIdCardBack,
+    selfiePhoto,
+    setSelfiePhoto,
+
     isLoading,
     isLoggedIn,
     masterProfile,
@@ -355,13 +437,22 @@ export default function useMasterCabinet({ onLogout }) {
 
     isAvailableLoading,
     isMasterOrdersLoading,
+    isDocumentsLoading,
+    isApproveLoading,
+
+    hasUploadedAllDocuments,
 
     successText,
     openedPhoto,
     setOpenedPhoto,
 
+    activeSection,
+    setActiveSection,
+
     handleSubmit,
     handleSaveMasterProfile,
+    handleUploadDocuments,
+    handleApproveProfile,
     handleTakeOrder,
     handleMasterStatusChange,
     loadAvailableOrders,

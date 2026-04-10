@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import MasterProfileSection from "./MasterProfileSection";
 import MasterAvailableOrdersSection from "./MasterAvailableOrdersSection";
 import MasterOrdersSection from "./MasterOrdersSection";
@@ -17,6 +18,17 @@ export default function MasterDashboard({
   handleSaveMasterProfile,
   successText,
   logout,
+  idCardFront,
+  setIdCardFront,
+  idCardBack,
+  setIdCardBack,
+  selfiePhoto,
+  setSelfiePhoto,
+  handleUploadDocuments,
+  handleApproveProfile,
+  hasUploadedAllDocuments,
+  isDocumentsLoading,
+  isApproveLoading,
   availableOrders,
   isAvailableLoading,
   loadAvailableOrders,
@@ -28,50 +40,170 @@ export default function MasterDashboard({
   handleMasterStatusChange,
   openedPhoto,
   setOpenedPhoto,
+  activeSection,
+  setActiveSection,
 }) {
+  const [ordersTab, setOrdersTab] = useState("search");
+
+  const currentOrders = useMemo(
+    () =>
+      masterOrders.filter(
+        (order) => order.status !== "completed" && order.status !== "paid",
+      ),
+    [masterOrders],
+  );
+
+  const completedOrders = useMemo(
+    () =>
+      masterOrders.filter(
+        (order) => order.status === "completed" || order.status === "paid",
+      ),
+    [masterOrders],
+  );
+
   return (
     <>
       <div className="space-y-6">
-        <MasterProfileSection
-          masterProfile={masterProfile}
-          fullName={fullName}
-          setFullName={setFullName}
-          aboutMe={aboutMe}
-          setAboutMe={setAboutMe}
-          experienceYears={experienceYears}
-          setExperienceYears={setExperienceYears}
-          workCity={workCity}
-          setWorkCity={setWorkCity}
-          workDistrict={workDistrict}
-          setWorkDistrict={setWorkDistrict}
-          handleSaveMasterProfile={handleSaveMasterProfile}
-          successText={successText}
-          logout={logout}
-        />
+        <div className="grid grid-cols-2 rounded-2xl border border-gray-300 bg-white p-2 shadow">
+          <button
+            type="button"
+            onClick={() => setActiveSection("profile")}
+            className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+              activeSection === "profile"
+                ? "bg-black text-white"
+                : "bg-white text-black"
+            }`}
+          >
+            Профиль
+          </button>
 
-        <MasterAvailableOrdersSection
-          masterProfile={masterProfile}
-          availableOrders={availableOrders}
-          isAvailableLoading={isAvailableLoading}
-          loadAvailableOrders={loadAvailableOrders}
-          handleTakeOrder={handleTakeOrder}
-          setAvailableOrders={setAvailableOrders}
-          onOpenPhoto={setOpenedPhoto}
-        />
+          <button
+            type="button"
+            onClick={() => setActiveSection("orders")}
+            className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+              activeSection === "orders"
+                ? "bg-black text-white"
+                : "bg-white text-black"
+            }`}
+          >
+            Заказы
+          </button>
+        </div>
 
-        <MasterOrdersSection
-          masterProfile={masterProfile}
-          masterOrders={masterOrders}
-          isMasterOrdersLoading={isMasterOrdersLoading}
-          loadMasterOrders={loadMasterOrders}
-          handleMasterStatusChange={handleMasterStatusChange}
-          onOpenPhoto={setOpenedPhoto}
-        />
+        {activeSection === "profile" && (
+          <MasterProfileSection
+            masterProfile={masterProfile}
+            fullName={fullName}
+            setFullName={setFullName}
+            aboutMe={aboutMe}
+            setAboutMe={setAboutMe}
+            experienceYears={experienceYears}
+            setExperienceYears={setExperienceYears}
+            workCity={workCity}
+            setWorkCity={setWorkCity}
+            workDistrict={workDistrict}
+            setWorkDistrict={setWorkDistrict}
+            handleSaveMasterProfile={handleSaveMasterProfile}
+            successText={successText}
+            logout={logout}
+            idCardFront={idCardFront}
+            setIdCardFront={setIdCardFront}
+            idCardBack={idCardBack}
+            setIdCardBack={setIdCardBack}
+            selfiePhoto={selfiePhoto}
+            setSelfiePhoto={setSelfiePhoto}
+            handleUploadDocuments={handleUploadDocuments}
+            handleApproveProfile={handleApproveProfile}
+            hasUploadedAllDocuments={hasUploadedAllDocuments}
+            isDocumentsLoading={isDocumentsLoading}
+            isApproveLoading={isApproveLoading}
+          />
+        )}
+
+        {activeSection === "orders" && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 rounded-2xl border border-gray-300 bg-white p-2 shadow">
+              <button
+                type="button"
+                onClick={() => setOrdersTab("search")}
+                className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                  ordersTab === "search"
+                    ? "bg-black text-white"
+                    : "bg-white text-black"
+                }`}
+              >
+                Поиск заказов
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOrdersTab("active")}
+                className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                  ordersTab === "active"
+                    ? "bg-black text-white"
+                    : "bg-white text-black"
+                }`}
+              >
+                Активные
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOrdersTab("completed")}
+                className={`rounded-xl px-3 py-3 text-sm font-semibold transition ${
+                  ordersTab === "completed"
+                    ? "bg-black text-white"
+                    : "bg-white text-black"
+                }`}
+              >
+                Выполненные
+              </button>
+            </div>
+
+            {ordersTab === "search" && (
+              <MasterAvailableOrdersSection
+                masterProfile={masterProfile}
+                availableOrders={availableOrders}
+                isAvailableLoading={isAvailableLoading}
+                loadAvailableOrders={loadAvailableOrders}
+                handleTakeOrder={handleTakeOrder}
+                setAvailableOrders={setAvailableOrders}
+                onOpenPhoto={setOpenedPhoto}
+              />
+            )}
+
+            {ordersTab === "active" && (
+              <MasterOrdersSection
+                title="Активные заказы"
+                emptyText="У вас нет активных заказов"
+                masterProfile={masterProfile}
+                masterOrders={currentOrders}
+                isMasterOrdersLoading={isMasterOrdersLoading}
+                loadMasterOrders={loadMasterOrders}
+                handleMasterStatusChange={handleMasterStatusChange}
+                onOpenPhoto={setOpenedPhoto}
+              />
+            )}
+
+            {ordersTab === "completed" && (
+              <MasterOrdersSection
+                title="Выполненные заказы"
+                emptyText="У вас нет выполненных заказов"
+                masterProfile={masterProfile}
+                masterOrders={completedOrders}
+                isMasterOrdersLoading={isMasterOrdersLoading}
+                loadMasterOrders={loadMasterOrders}
+                handleMasterStatusChange={handleMasterStatusChange}
+                onOpenPhoto={setOpenedPhoto}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {openedPhoto && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setOpenedPhoto(null)}
         >
           <img
