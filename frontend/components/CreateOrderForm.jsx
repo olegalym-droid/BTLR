@@ -20,9 +20,12 @@ const generateTimeSlots = (startHour = 8, endHour = 22) => {
   return slots;
 };
 
-const getDaysInMonth = (month, year) => {
-  if (!month || !year) return 31;
-  return new Date(year, month, 0).getDate();
+const getTodayDateString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 export default function CreateOrderForm({
@@ -49,11 +52,10 @@ export default function CreateOrderForm({
   });
 
   const [photos, setPhotos] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const fileInputRef = useRef(null);
   const timeSlots = useMemo(() => generateTimeSlots(), []);
-
-  const today = new Date();
-  const currentYear = today.getFullYear();
 
   const previewUrls = useMemo(() => {
     return photos.map((file) => ({
@@ -67,67 +69,6 @@ export default function CreateOrderForm({
       previewUrls.forEach((item) => URL.revokeObjectURL(item.url));
     };
   }, [previewUrls]);
-
-  const parsedDate = useMemo(() => {
-    if (!selectedDate || !selectedDate.includes("-")) {
-      return { year: "", month: "", day: "" };
-    }
-
-    const [year, month, day] = selectedDate.split("-");
-    return {
-      year,
-      month,
-      day,
-    };
-  }, [selectedDate]);
-
-  const availableDays = useMemo(() => {
-    const daysCount = getDaysInMonth(
-      Number(parsedDate.month || 1),
-      Number(parsedDate.year || currentYear),
-    );
-
-    return Array.from({ length: daysCount }, (_, index) =>
-      String(index + 1).padStart(2, "0"),
-    );
-  }, [parsedDate.month, parsedDate.year, currentYear]);
-
-  const years = useMemo(() => {
-    return Array.from({ length: 3 }, (_, index) => String(currentYear + index));
-  }, [currentYear]);
-
-  const months = [
-    { value: "01", label: "Январь" },
-    { value: "02", label: "Февраль" },
-    { value: "03", label: "Март" },
-    { value: "04", label: "Апрель" },
-    { value: "05", label: "Май" },
-    { value: "06", label: "Июнь" },
-    { value: "07", label: "Июль" },
-    { value: "08", label: "Август" },
-    { value: "09", label: "Сентябрь" },
-    { value: "10", label: "Октябрь" },
-    { value: "11", label: "Ноябрь" },
-    { value: "12", label: "Декабрь" },
-  ];
-
-  const updateDate = ({
-    nextDay = parsedDate.day,
-    nextMonth = parsedDate.month,
-    nextYear = parsedDate.year,
-  }) => {
-    if (!nextDay || !nextMonth || !nextYear) {
-      setSelectedDate("");
-      return;
-    }
-
-    const maxDay = getDaysInMonth(Number(nextMonth), Number(nextYear));
-    const normalizedDay = Math.min(Number(nextDay), maxDay);
-
-    setSelectedDate(
-      `${nextYear}-${nextMonth}-${String(normalizedDay).padStart(2, "0")}`,
-    );
-  };
 
   const handleSelectCategory = (item) => {
     setCategory(item);
@@ -147,10 +88,10 @@ export default function CreateOrderForm({
       return;
     }
 
-    const nextPhotos = selectedFiles.slice(0, MAX_ORDER_PHOTOS);
-    setPhotos(nextPhotos);
+    const merged = [...photos, ...selectedFiles].slice(0, MAX_ORDER_PHOTOS);
+    setPhotos(merged);
 
-    if (selectedFiles.length > MAX_ORDER_PHOTOS) {
+    if (photos.length + selectedFiles.length > MAX_ORDER_PHOTOS) {
       alert(`Можно прикрепить не более ${MAX_ORDER_PHOTOS} фото`);
     }
 
@@ -176,6 +117,24 @@ export default function CreateOrderForm({
     setAddress(event.target.value.slice(0, ADDRESS_MAX_LENGTH));
   };
 
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+
+      await createOrder({
+        category,
+        serviceName,
+        description,
+        address,
+        selectedDate,
+        selectedTime,
+        photos,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const stepLabels = [
     { id: 1, title: "Категория" },
     { id: 2, title: "Услуга" },
@@ -183,300 +142,299 @@ export default function CreateOrderForm({
   ];
 
   return (
-    <div className="border rounded-2xl bg-white shadow p-4 space-y-5">
-      <div>
-        <h2 className="text-lg font-semibold text-black">Оформление заявки</h2>
-        <p className="text-sm text-gray-700 mt-1">Заполни заявку по шагам</p>
-      </div>
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-5 lg:p-6">
+      <div className="space-y-5">
+        <div>
+          <h2 className="text-xl font-semibold text-black sm:text-2xl">
+            Оформление заявки
+          </h2>
+          <p className="mt-1 text-sm text-gray-600 sm:text-base">
+            Заполните заявку по шагам
+          </p>
+        </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        {stepLabels.map((item) => {
-          const isActive = step === item.id;
-          const isDone = step > item.id;
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {stepLabels.map((item) => {
+            const isActive = step === item.id;
+            const isDone = step > item.id;
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                if (item.id === 1) setStep(1);
-                if (item.id === 2 && category) setStep(2);
-                if (item.id === 3 && category && serviceName) setStep(3);
-              }}
-              className={`rounded-xl border px-3 py-3 text-sm font-medium transition ${
-                isActive
-                  ? "bg-black text-white border-black"
-                  : isDone
-                    ? "bg-gray-100 text-black border-gray-300"
-                    : "bg-white text-gray-600 border-gray-300"
-              }`}
-            >
-              {item.title}
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (item.id === 1) setStep(1);
+                  if (item.id === 2 && category) setStep(2);
+                  if (item.id === 3 && category && serviceName) setStep(3);
+                }}
+                className={`rounded-xl border px-4 py-3 text-sm font-medium transition sm:text-base ${
+                  isActive
+                    ? "border-black bg-black text-white"
+                    : isDone
+                      ? "border-gray-300 bg-gray-100 text-black"
+                      : "border-gray-300 bg-white text-gray-600"
+                }`}
+              >
+                {item.title}
+              </button>
+            );
+          })}
+        </div>
 
-      {category && (
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
-            Категория: {category}
-          </span>
-
-          {serviceName && (
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800">
-              Услуга: {serviceName}
+        {category && (
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-800 sm:text-sm">
+              Категория: {category}
             </span>
-          )}
-        </div>
-      )}
 
-      {step === 1 && (
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-base font-semibold text-black">
-              Выберите категорию
-            </h3>
-            <p className="text-sm text-gray-700 mt-1">
-              С чего начинается ваша заявка
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {categories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => handleSelectCategory(item)}
-                className={`border rounded-xl p-3 text-sm text-left transition ${
-                  category === item
-                    ? "bg-black text-white border-black"
-                    : "bg-white text-black border-gray-300"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 2 && category && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-black">
-                Выберите услугу
-              </h3>
-              <p className="text-sm text-gray-700 mt-1">{category}</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="text-sm text-gray-700"
-            >
-              Изменить
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {availableServices.map((service) => (
-              <button
-                key={service}
-                type="button"
-                onClick={() => handleSelectService(service)}
-                className={`w-full border rounded-xl p-3 text-left transition ${
-                  serviceName === service
-                    ? "bg-black text-white border-black"
-                    : "bg-white text-black border-gray-300"
-                }`}
-              >
-                {service}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {step === 3 && category && serviceName && (
-        <div className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-black">
-                Детали заявки
-              </h3>
-              <p className="text-sm text-gray-700 mt-1">{serviceName}</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="text-sm text-gray-700"
-            >
-              Изменить
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            <textarea
-              placeholder="Что нужно сделать"
-              value={description}
-              onChange={handleDescriptionChange}
-              maxLength={DESCRIPTION_MAX_LENGTH}
-              className="w-full border rounded-lg p-3 min-h-[100px] text-black placeholder:text-gray-400"
-            />
-            <p className="text-right text-xs text-gray-500">
-              {description.length}/{DESCRIPTION_MAX_LENGTH}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-black">Фото</p>
-            <p className="text-xs text-gray-500">
-              Можно прикрепить до {MAX_ORDER_PHOTOS} фото
-            </p>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handlePhotoChange}
-              className="hidden"
-            />
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border rounded-lg p-3 text-black"
-            >
-              Прикрепить фото
-            </button>
-
-            <p className="text-right text-xs text-gray-500">
-              {photos.length}/{MAX_ORDER_PHOTOS}
-            </p>
-
-            {photos.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {previewUrls.map((item, index) => (
-                  <div
-                    key={`${item.file.name}-${index}`}
-                    className="rounded-xl border p-2 space-y-2"
-                  >
-                    <img
-                      src={item.url}
-                      alt={item.file.name}
-                      className="h-28 w-full rounded-lg object-cover"
-                    />
-
-                    <p className="text-xs text-gray-700 break-all">
-                      {item.file.name}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(index)}
-                      className="w-full rounded-lg border border-red-300 py-2 text-sm text-red-600"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                ))}
-              </div>
+            {serviceName && (
+              <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-800 sm:text-sm">
+                Услуга: {serviceName}
+              </span>
             )}
           </div>
+        )}
 
-          <div className="space-y-2">
-            <input
-              type="text"
-              placeholder="Адрес"
-              value={address}
-              onChange={handleAddressChange}
-              maxLength={ADDRESS_MAX_LENGTH}
-              className="w-full border rounded-lg p-3 text-black placeholder:text-gray-400"
-            />
-            <p className="text-right text-xs text-gray-500">
-              {address.length}/{ADDRESS_MAX_LENGTH}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-black">Дата</p>
-            <div className="grid grid-cols-3 gap-2">
-              <select
-                value={parsedDate.day}
-                onChange={(e) => updateDate({ nextDay: e.target.value })}
-                className="w-full border rounded-lg p-3 text-black bg-white"
-              >
-                <option value="">День</option>
-                {availableDays.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={parsedDate.month}
-                onChange={(e) => updateDate({ nextMonth: e.target.value })}
-                className="w-full border rounded-lg p-3 text-black bg-white"
-              >
-                <option value="">Месяц</option>
-                {months.map((month) => (
-                  <option key={month.value} value={month.value}>
-                    {month.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={parsedDate.year}
-                onChange={(e) => updateDate({ nextYear: e.target.value })}
-                className="w-full border rounded-lg p-3 text-black bg-white"
-              >
-                <option value="">Год</option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+        {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-black sm:text-lg">
+                Выберите категорию
+              </h3>
+              <p className="mt-1 text-sm text-gray-600 sm:text-base">
+                С чего начинается ваша заявка
+              </p>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-black">Время</p>
-            <p className="text-sm text-gray-700">Выберите удобный слот</p>
-
-            <div className="grid grid-cols-3 gap-2">
-              {timeSlots.map((time) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {categories.map((item) => (
                 <button
-                  key={time}
+                  key={item}
                   type="button"
-                  onClick={() => setSelectedTime(time)}
-                  className={`rounded-lg border px-3 py-2 text-sm transition ${
-                    selectedTime === time
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-gray-300"
+                  onClick={() => handleSelectCategory(item)}
+                  className={`rounded-xl border p-4 text-left text-sm transition sm:text-base ${
+                    category === item
+                      ? "border-black bg-black text-white"
+                      : "border-gray-300 bg-white text-black hover:border-gray-400"
                   }`}
                 >
-                  {time}
+                  {item}
                 </button>
               ))}
             </div>
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => createOrder(photos)}
-            className="w-full bg-black text-white py-3 rounded-lg"
-          >
-            Отправить заявку
-          </button>
-        </div>
-      )}
+        {step === 2 && category && (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-black sm:text-lg">
+                  Выберите услугу
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 sm:text-base">
+                  {category}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="self-start text-sm text-gray-700 hover:underline"
+              >
+                Изменить категорию
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {availableServices.map((service) => (
+                <button
+                  key={service}
+                  type="button"
+                  onClick={() => handleSelectService(service)}
+                  className={`w-full rounded-xl border p-4 text-left text-sm transition sm:text-base ${
+                    serviceName === service
+                      ? "border-black bg-black text-white"
+                      : "border-gray-300 bg-white text-black hover:border-gray-400"
+                  }`}
+                >
+                  {service}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 3 && category && serviceName && (
+          <div className="space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-black sm:text-lg">
+                  Детали заявки
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 sm:text-base">
+                  {serviceName}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="self-start text-sm text-gray-700 hover:underline"
+              >
+                Изменить услугу
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-black sm:text-base">
+                Описание
+              </label>
+              <textarea
+                placeholder="Что нужно сделать"
+                value={description}
+                onChange={handleDescriptionChange}
+                maxLength={DESCRIPTION_MAX_LENGTH}
+                className="min-h-[120px] w-full rounded-xl border border-gray-300 p-4 text-black outline-none placeholder:text-gray-400 focus:border-black"
+              />
+              <p className="text-right text-xs text-gray-500">
+                {description.length}/{DESCRIPTION_MAX_LENGTH}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-black sm:text-base">
+                  Фото
+                </p>
+                <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                  Можно прикрепить до {MAX_ORDER_PHOTOS} фото
+                </p>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-black hover:border-gray-400 sm:text-base"
+              >
+                Прикрепить фото
+              </button>
+
+              <p className="text-right text-xs text-gray-500">
+                {photos.length}/{MAX_ORDER_PHOTOS}
+              </p>
+
+              {photos.length > 0 && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {previewUrls.map((item, index) => (
+                    <div
+                      key={`${item.file.name}-${index}`}
+                      className="space-y-2 rounded-2xl border border-gray-200 p-3"
+                    >
+                      <img
+                        src={item.url}
+                        alt={item.file.name}
+                        className="h-40 w-full rounded-xl object-cover sm:h-44"
+                      />
+
+                      <p className="break-all text-xs text-gray-700 sm:text-sm">
+                        {item.file.name}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(index)}
+                        className="w-full rounded-xl border border-red-300 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-black sm:text-base">
+                Адрес
+              </label>
+              <input
+                type="text"
+                placeholder="Введите адрес"
+                value={address}
+                onChange={handleAddressChange}
+                maxLength={ADDRESS_MAX_LENGTH}
+                className="w-full rounded-xl border border-gray-300 p-4 text-black outline-none placeholder:text-gray-400 focus:border-black"
+              />
+              <p className="text-right text-xs text-gray-500">
+                {address.length}/{ADDRESS_MAX_LENGTH}
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-black sm:text-base">
+                  Дата
+                </p>
+
+                <input
+                  type="date"
+                  value={selectedDate}
+                  min={getTodayDateString()}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-14 w-full rounded-xl border border-gray-300 bg-white px-4 text-base text-black outline-none focus:border-black"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-black sm:text-base">
+                  Время
+                </p>
+                <p className="text-xs text-gray-500 sm:text-sm">
+                  Выберите удобный слот
+                </p>
+
+                <div className="rounded-2xl border border-gray-200 p-3">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                    {timeSlots.map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => setSelectedTime(time)}
+                        className={`h-12 rounded-xl border px-3 text-sm transition sm:text-base ${
+                          selectedTime === time
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-black hover:border-gray-400"
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-black px-4 py-4 text-sm font-medium text-white disabled:opacity-60 sm:text-base"
+            >
+              {isSubmitting ? "Отправка..." : "Отправить заявку"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

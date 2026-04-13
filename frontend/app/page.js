@@ -116,7 +116,15 @@ export default function Home() {
     }
   };
 
-  const createOrder = async (photos = []) => {
+  const createOrder = async ({
+    category,
+    serviceName,
+    description,
+    address,
+    selectedDate,
+    selectedTime,
+    photos = [],
+  }) => {
     const success = await createOrderAction({
       category,
       serviceName,
@@ -153,65 +161,69 @@ export default function Home() {
   const showBottomNav = selectedRole === "user" && isAuthenticated;
 
   return (
-    <div className="bg-gray-50">
-      <div className="mx-auto w-full max-w-md px-4 py-4">
-        <AppContent
-          session={{
-            selectedRole,
-            setSelectedRole,
-            isAuthenticated,
-            setIsAuthenticated,
-            activeTab,
-            setActiveTab,
-            handleAuthSuccess,
-          }}
-          ordersState={{
-            orderCreated,
-            setOrderCreated,
-            selectedOrder,
-            setSelectedOrder,
-            updateSelectedOrder,
-            activeOrders,
-            completedOrders,
-          }}
-          orderForm={{
-            category,
-            setCategory,
-            serviceName,
-            setServiceName,
-            description,
-            setDescription,
-            address,
-            setAddress,
-            selectedDate,
-            setSelectedDate,
-            selectedTime,
-            setSelectedTime,
-          }}
-          profileState={{
-            profile,
-            setProfile,
-            newAddressForm,
-            setNewAddressForm,
-            profileSaved,
-            addAddress,
-            removeAddress,
-            setPrimaryAddress,
-            saveProfile,
-          }}
-          adminState={adminState}
-          categories={categories}
-          availableServices={availableServices}
-          createOrder={createOrder}
-          getStatusLabel={getStatusLabel}
-          handleLogout={handleLogout}
-          formatPhoneInput={formatPhoneInput}
-        />
-
+    <main className="min-h-screen bg-gray-100">
+      <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-6">
         {showBottomNav && (
-          <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+          <div className="mb-4">
+            <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+          </div>
         )}
+
+        <div className="rounded-2xl bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-6">
+          <AppContent
+            session={{
+              selectedRole,
+              setSelectedRole,
+              isAuthenticated,
+              setIsAuthenticated,
+              activeTab,
+              setActiveTab,
+              handleAuthSuccess,
+            }}
+            ordersState={{
+              orderCreated,
+              setOrderCreated,
+              selectedOrder,
+              setSelectedOrder,
+              updateSelectedOrder,
+              activeOrders,
+              completedOrders,
+            }}
+            orderForm={{
+              category,
+              setCategory,
+              serviceName,
+              setServiceName,
+              description,
+              setDescription,
+              address,
+              setAddress,
+              selectedDate,
+              setSelectedDate,
+              selectedTime,
+              setSelectedTime,
+            }}
+            profileState={{
+              profile,
+              setProfile,
+              newAddressForm,
+              setNewAddressForm,
+              profileSaved,
+              addAddress,
+              removeAddress,
+              setPrimaryAddress,
+              saveProfile,
+            }}
+            adminState={adminState}
+            categories={categories}
+            availableServices={availableServices}
+            createOrder={createOrder}
+            getStatusLabel={getStatusLabel}
+            handleLogout={handleLogout}
+            formatPhoneInput={formatPhoneInput}
+          />
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
