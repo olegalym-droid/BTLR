@@ -42,6 +42,12 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         isMasterOrdersLoading={master.isMasterOrdersLoading}
         loadMasterOrders={master.loadMasterOrders}
         handleMasterStatusChange={master.handleMasterStatusChange}
+        reportPhotos={master.reportPhotos}
+        setReportPhotos={master.setReportPhotos}
+        reportTargetOrderId={master.reportTargetOrderId}
+        setReportTargetOrderId={master.setReportTargetOrderId}
+        handleUploadOrderReport={master.handleUploadOrderReport}
+        isReportUploading={master.isReportUploading}
         openedPhoto={master.openedPhoto}
         setOpenedPhoto={master.setOpenedPhoto}
         activeSection={master.activeSection}

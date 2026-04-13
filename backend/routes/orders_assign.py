@@ -23,6 +23,7 @@ def assign_order_to_master_service(
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order_id)
@@ -77,6 +78,7 @@ def assign_order_to_master_service(
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order.id)

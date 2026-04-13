@@ -39,3 +39,7 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+
+from fastapi.staticfiles import StaticFiles
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

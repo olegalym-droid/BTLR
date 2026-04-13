@@ -26,6 +26,7 @@ def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
@@ -46,7 +47,10 @@ def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
     return result
 
 
-def get_available_orders_for_master(master_id: int, db: Session) -> list[OrderResponse]:
+def get_available_orders_for_master(
+    master_id: int,
+    db: Session,
+) -> list[OrderResponse]:
     master = get_master_or_404(master_id, db, with_categories=True)
     ensure_master_is_approved(master)
 
@@ -56,6 +60,7 @@ def get_available_orders_for_master(master_id: int, db: Session) -> list[OrderRe
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(
@@ -115,6 +120,7 @@ def get_orders_for_master(master_id: int, db: Session) -> list[OrderResponse]:
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(
@@ -130,7 +136,11 @@ def get_orders_for_master(master_id: int, db: Session) -> list[OrderResponse]:
     return [build_order_response(order=order) for order in orders]
 
 
-def get_single_order_for_user(order_id: int, user_id: int, db: Session) -> OrderResponse:
+def get_single_order_for_user(
+    order_id: int,
+    user_id: int,
+    db: Session,
+) -> OrderResponse:
     user = (
         db.query(Account)
         .filter(Account.id == user_id, Account.role == "user")
@@ -144,6 +154,7 @@ def get_single_order_for_user(order_id: int, user_id: int, db: Session) -> Order
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order_id, Order.user_id == user_id)

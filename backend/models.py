@@ -54,6 +54,13 @@ class Account(Base):
         foreign_keys="OrderResponseOffer.master_id",
     )
 
+    order_report_photos = relationship(
+        "OrderReportPhoto",
+        back_populates="master",
+        cascade="all, delete-orphan",
+        foreign_keys="OrderReportPhoto.master_id",
+    )
+
 
 class MasterCategory(Base):
     __tablename__ = "master_categories"
@@ -103,6 +110,12 @@ class Order(Base):
         cascade="all, delete-orphan",
     )
 
+    report_photos = relationship(
+        "OrderReportPhoto",
+        back_populates="order",
+        cascade="all, delete-orphan",
+    )
+
     offers = relationship(
         "OrderResponseOffer",
         back_populates="order",
@@ -133,6 +146,23 @@ class OrderPhoto(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     order = relationship("Order", back_populates="photos")
+
+
+class OrderReportPhoto(Base):
+    __tablename__ = "order_report_photos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    file_path = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    order = relationship("Order", back_populates="report_photos")
+    master = relationship(
+        "Account",
+        back_populates="order_report_photos",
+        foreign_keys=[master_id],
+    )
 
 
 class Review(Base):

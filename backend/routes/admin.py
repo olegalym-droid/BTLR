@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from models import Account
-from schemas import MasterProfileResponse
+from models import Account, Order, OrderResponseOffer
+from schemas import MasterProfileResponse, OrderResponse
+from routes.orders_helpers import build_order_response, is_order_reviewed
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -138,3 +139,35 @@ def reject_master_by_admin(
     db.refresh(master)
 
     return master
+
+
+@router.get("/orders/with-reports", response_model=list[OrderResponse])
+def get_orders_with_reports(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    orders = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.report_photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.master_id.isnot(None))
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for order in orders:
+        if not order.report_photos:
+            continue
+
+        result.append(
+            build_order_response(
+                order=order,
+                reviewed=is_order_reviewed(order.id, db),
+            )
+        )
+
+    return result

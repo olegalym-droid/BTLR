@@ -15,6 +15,7 @@ import {
   loadMasterOrdersRequest,
   assignOrderToMasterRequest,
   updateOrderStatusByMasterRequest,
+  uploadOrderReportRequest,
 } from "../lib/orders";
 
 export default function useMasterCabinet({ onLogout }) {
@@ -34,6 +35,9 @@ export default function useMasterCabinet({ onLogout }) {
   const [idCardBack, setIdCardBack] = useState(null);
   const [selfiePhoto, setSelfiePhoto] = useState(null);
 
+  const [reportPhotos, setReportPhotos] = useState([]);
+  const [reportTargetOrderId, setReportTargetOrderId] = useState(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -46,6 +50,7 @@ export default function useMasterCabinet({ onLogout }) {
   const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
+  const [isReportUploading, setIsReportUploading] = useState(false);
 
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
@@ -387,6 +392,41 @@ export default function useMasterCabinet({ onLogout }) {
     }
   };
 
+  const handleUploadOrderReport = async (orderId) => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      if (!Array.isArray(reportPhotos) || reportPhotos.length === 0) {
+        throw new Error("Сначала выберите фото отчёта");
+      }
+
+      setIsReportUploading(true);
+
+      const updatedOrder = await uploadOrderReportRequest({
+        orderId,
+        masterId: masterProfile.id,
+        photos: reportPhotos,
+      });
+
+      setMasterOrders((prev) =>
+        prev.map((order) =>
+          order.id === updatedOrder.id ? { ...updatedOrder } : order,
+        ),
+      );
+
+      setReportPhotos([]);
+      setReportTargetOrderId(null);
+      setSuccessText("Фото-отчёт успешно загружен");
+    } catch (error) {
+      console.error("Ошибка загрузки фото-отчёта:", error);
+      alert(error.message || "Не удалось загрузить фото-отчёт");
+    } finally {
+      setIsReportUploading(false);
+    }
+  };
+
   const logout = () => {
     clearAuthData();
     setIsLoggedIn(false);
@@ -405,6 +445,8 @@ export default function useMasterCabinet({ onLogout }) {
     setIdCardFront(null);
     setIdCardBack(null);
     setSelfiePhoto(null);
+    setReportPhotos([]);
+    setReportTargetOrderId(null);
     setSuccessText("");
     setMode("login");
     setOpenedPhoto(null);
@@ -445,6 +487,11 @@ export default function useMasterCabinet({ onLogout }) {
     selfiePhoto,
     setSelfiePhoto,
 
+    reportPhotos,
+    setReportPhotos,
+    reportTargetOrderId,
+    setReportTargetOrderId,
+
     isLoading,
     isLoggedIn,
     masterProfile,
@@ -457,6 +504,7 @@ export default function useMasterCabinet({ onLogout }) {
     isMasterOrdersLoading,
     isAvatarLoading,
     isDocumentsLoading,
+    isReportUploading,
 
     hasUploadedAllDocuments,
 
@@ -473,6 +521,7 @@ export default function useMasterCabinet({ onLogout }) {
     handleUploadDocuments,
     handleTakeOrder,
     handleMasterStatusChange,
+    handleUploadOrderReport,
     loadAvailableOrders,
     loadMasterOrders,
     logout,

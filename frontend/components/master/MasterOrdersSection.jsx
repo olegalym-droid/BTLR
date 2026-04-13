@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { getStatusLabel } from "../../lib/orders";
 import MasterOrderPhotos from "./MasterOrderPhotos";
 
 const ITEMS_PER_PAGE = 3;
+const MAX_REPORT_PHOTOS = 8;
 
 export default function MasterOrdersSection({
   title = "Мои заказы",
@@ -12,9 +13,16 @@ export default function MasterOrdersSection({
   isMasterOrdersLoading,
   loadMasterOrders,
   handleMasterStatusChange,
+  reportPhotos,
+  setReportPhotos,
+  reportTargetOrderId,
+  setReportTargetOrderId,
+  handleUploadOrderReport,
+  isReportUploading,
   onOpenPhoto,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
+  const fileInputRef = useRef(null);
 
   const totalPages = Math.ceil(masterOrders.length / ITEMS_PER_PAGE) || 1;
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -27,6 +35,31 @@ export default function MasterOrdersSection({
       ),
     [masterOrders, safeCurrentPage],
   );
+
+  const handleReportFilesChange = (orderId, event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const nextFiles = selectedFiles.slice(0, MAX_REPORT_PHOTOS);
+
+    setReportTargetOrderId(orderId);
+    setReportPhotos(nextFiles);
+
+    if (selectedFiles.length > MAX_REPORT_PHOTOS) {
+      alert(`Можно выбрать не более ${MAX_REPORT_PHOTOS} фото отчёта`);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const removeReportPhoto = (indexToRemove) => {
+    setReportPhotos((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
 
   const renderMasterOrderAction = (order) => {
     if (order.status === "assigned") {
@@ -62,18 +95,126 @@ export default function MasterOrdersSection({
       );
     }
 
-    if (order.status === "completed") {
+    if (order.status === "completed" || order.status === "paid") {
       return (
-        <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900">
-          Ожидает оплату от пользователя
-        </div>
-      );
-    }
+        <div className="space-y-4">
+          <div
+            className={`rounded-xl p-3 text-sm ${
+              order.status === "paid"
+                ? "border border-green-300 bg-green-50 text-green-800"
+                : "border border-yellow-300 bg-yellow-50 text-yellow-900"
+            }`}
+          >
+            {order.status === "paid"
+              ? "Заказ оплачен"
+              : "Ожидает оплату от пользователя"}
+          </div>
 
-    if (order.status === "paid") {
-      return (
-        <div className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm text-green-800">
-          Заказ оплачен
+          <div className="space-y-3 rounded-xl border border-gray-200 p-4">
+            <div>
+              <p className="text-sm font-medium text-black">Фото-отчёт мастера</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Загрузите фото выполненной работы
+              </p>
+            </div>
+
+            <input
+              ref={reportTargetOrderId === order.id ? fileInputRef : null}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(event) => handleReportFilesChange(order.id, event)}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                setReportTargetOrderId(order.id);
+                fileInputRef.current?.click();
+              }}
+              className="w-full rounded-xl border border-gray-300 py-3 text-black"
+            >
+              Выбрать фото отчёта
+            </button>
+
+            {reportTargetOrderId === order.id && reportPhotos.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-500">
+                  Выбрано: {reportPhotos.length}/{MAX_REPORT_PHOTOS}
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {reportPhotos.map((photo, index) => {
+                    const previewUrl = URL.createObjectURL(photo);
+
+                    return (
+                      <div
+                        key={`${photo.name}-${index}`}
+                        className="space-y-2 rounded-xl border border-gray-200 p-2"
+                      >
+                        <img
+                          src={previewUrl}
+                          alt={photo.name}
+                          className="h-24 w-full rounded-lg object-cover"
+                        />
+                        <p className="break-all text-xs text-gray-700">
+                          {photo.name}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => removeReportPhoto(index)}
+                          className="w-full rounded-lg border border-red-300 py-2 text-xs text-red-600"
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleUploadOrderReport(order.id)}
+                  disabled={isReportUploading}
+                  className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-60"
+                >
+                  {isReportUploading && reportTargetOrderId === order.id
+                    ? "Загрузка..."
+                    : "Отправить фото-отчёт"}
+                </button>
+              </div>
+            )}
+
+            {Array.isArray(order.report_photos) && order.report_photos.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-black">
+                  Уже загруженные фото-отчёты
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {order.report_photos.map((photo) => {
+                    const photoUrl = `http://127.0.0.1:8000/${photo.file_path}`;
+
+                    return (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => onOpenPhoto(photoUrl)}
+                        className="block"
+                      >
+                        <img
+                          src={photoUrl}
+                          alt="Фото-отчёт"
+                          className="h-28 w-full rounded-xl border object-cover"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       );
     }

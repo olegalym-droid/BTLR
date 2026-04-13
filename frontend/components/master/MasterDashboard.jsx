@@ -40,6 +40,12 @@ export default function MasterDashboard({
   isMasterOrdersLoading,
   loadMasterOrders,
   handleMasterStatusChange,
+  reportPhotos,
+  setReportPhotos,
+  reportTargetOrderId,
+  setReportTargetOrderId,
+  handleUploadOrderReport,
+  isReportUploading,
   openedPhoto,
   setOpenedPhoto,
   activeSection,
@@ -185,6 +191,12 @@ export default function MasterDashboard({
                 isMasterOrdersLoading={isMasterOrdersLoading}
                 loadMasterOrders={loadMasterOrders}
                 handleMasterStatusChange={handleMasterStatusChange}
+                reportPhotos={reportPhotos}
+                setReportPhotos={setReportPhotos}
+                reportTargetOrderId={reportTargetOrderId}
+                setReportTargetOrderId={setReportTargetOrderId}
+                handleUploadOrderReport={handleUploadOrderReport}
+                isReportUploading={isReportUploading}
                 onOpenPhoto={setOpenedPhoto}
               />
             )}
@@ -198,6 +210,12 @@ export default function MasterDashboard({
                 isMasterOrdersLoading={isMasterOrdersLoading}
                 loadMasterOrders={loadMasterOrders}
                 handleMasterStatusChange={handleMasterStatusChange}
+                reportPhotos={reportPhotos}
+                setReportPhotos={setReportPhotos}
+                reportTargetOrderId={reportTargetOrderId}
+                setReportTargetOrderId={setReportTargetOrderId}
+                handleUploadOrderReport={handleUploadOrderReport}
+                isReportUploading={isReportUploading}
                 onOpenPhoto={setOpenedPhoto}
               />
             )}

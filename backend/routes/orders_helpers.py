@@ -2,10 +2,15 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from models import Account, Review, Order
-from schemas import OrderResponse, OrderOfferResponse, OfferMasterResponse
+from schemas import (
+    OrderResponse,
+    OrderOfferResponse,
+    OfferMasterResponse,
+)
 
 
 MAX_ORDER_PHOTOS = 4
+MAX_ORDER_REPORT_PHOTOS = 8
 
 
 def build_order_response(
@@ -54,6 +59,7 @@ def build_order_response(
         reviewed=reviewed,
         offers=offers,
         photos=order.photos,
+        report_photos=order.report_photos,
     )
 
 

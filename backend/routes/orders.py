@@ -18,6 +18,7 @@ from routes.orders_selection import (
 from routes.orders_status import (
     update_order_status_by_master_service,
     update_order_status_by_user_service,
+    upload_order_report_by_master_service,
 )
 
 router = APIRouter(tags=["orders"])
@@ -92,6 +93,21 @@ def update_order_status_by_master(
         order_id=order_id,
         status=status,
         master_id=master_id,
+        db=db,
+    )
+
+
+@router.put("/orders/{order_id}/report", response_model=OrderResponse)
+async def upload_order_report(
+    order_id: int,
+    master_id: int = Form(...),
+    photos: list[UploadFile] | None = File(default=None),
+    db: Session = Depends(get_db),
+):
+    return await upload_order_report_by_master_service(
+        order_id=order_id,
+        master_id=master_id,
+        photos=photos,
         db=db,
     )
 

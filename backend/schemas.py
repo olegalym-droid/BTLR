@@ -32,6 +32,14 @@ class OrderPhotoResponse(BaseModel):
         from_attributes = True
 
 
+class OrderReportPhotoResponse(BaseModel):
+    id: int
+    file_path: str
+
+    class Config:
+        from_attributes = True
+
+
 class OrderCreateRequest(BaseModel):
     user_id: int
     category: str
@@ -115,6 +123,7 @@ class OrderResponse(BaseModel):
     reviewed: bool = False
     offers: list[OrderOfferResponse] = []
     photos: list[OrderPhotoResponse] = []
+    report_photos: list[OrderReportPhotoResponse] = []
 
     class Config:
         from_attributes = True

@@ -78,6 +78,7 @@ async def create_order_service(
         db.query(Order)
         .options(
             joinedload(Order.photos),
+            joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == new_order.id)

@@ -1,6 +1,6 @@
-import { getStoredAuthUser } from "./auth";
-
 const API_BASE_URL = "http://127.0.0.1:8000";
+
+import { getStoredAuthUser } from "./auth";
 
 export const getStatusLabel = (status) => {
   const statusMap = {
@@ -25,11 +25,13 @@ export const loadOrdersRequest = async () => {
 
   const res = await fetch(`${API_BASE_URL}/orders?user_id=${authUser.id}`);
 
+  const data = await res.json();
+
   if (!res.ok) {
-    throw new Error("Не удалось загрузить заявки");
+    throw new Error(data.detail || "Не удалось загрузить заявки");
   }
 
-  return res.json();
+  return data;
 };
 
 export const loadAvailableOrdersRequest = async (masterId) => {
@@ -117,6 +119,46 @@ export const updateOrderStatusByMasterRequest = async ({
 
   if (!res.ok) {
     throw new Error(data.detail || "Не удалось обновить статус заказа");
+  }
+
+  return data;
+};
+
+export const uploadOrderReportRequest = async ({
+  orderId,
+  masterId,
+  photos = [],
+}) => {
+  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+
+  if (!resolvedMasterId) {
+    throw new Error("Мастер не авторизован");
+  }
+
+  const validPhotos = Array.isArray(photos)
+    ? photos.filter((photo) => photo instanceof File)
+    : [];
+
+  if (validPhotos.length === 0) {
+    throw new Error("Выберите хотя бы одно фото отчёта");
+  }
+
+  const formData = new FormData();
+  formData.append("master_id", String(resolvedMasterId));
+
+  validPhotos.forEach((photo) => {
+    formData.append("photos", photo, photo.name);
+  });
+
+  const res = await fetch(`${API_BASE_URL}/orders/${orderId}/report`, {
+    method: "PUT",
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось загрузить фото-отчёт");
   }
 
   return data;
