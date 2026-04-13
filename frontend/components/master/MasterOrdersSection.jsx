@@ -4,6 +4,7 @@ import MasterOrderPhotos from "./MasterOrderPhotos";
 
 const ITEMS_PER_PAGE = 3;
 const MAX_REPORT_PHOTOS = 8;
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 export default function MasterOrdersSection({
   title = "Мои заказы",
@@ -61,6 +62,145 @@ export default function MasterOrdersSection({
     setReportPhotos((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  const renderExistingReportPhotos = (order) => {
+    if (!Array.isArray(order.report_photos) || order.report_photos.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-black">
+          Уже загруженные фото-отчёты
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {order.report_photos.map((photo) => {
+            const photoUrl = `${API_BASE_URL}/${photo.file_path}`;
+
+            return (
+              <button
+                key={photo.id}
+                type="button"
+                onClick={() => onOpenPhoto(photoUrl)}
+                className="block"
+              >
+                <img
+                  src={photoUrl}
+                  alt="Фото-отчёт"
+                  className="h-28 w-full rounded-xl border object-cover"
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportUploader = (order) => {
+    const isCurrentOrderTarget = reportTargetOrderId === order.id;
+    const hasExistingReport =
+      Array.isArray(order.report_photos) && order.report_photos.length > 0;
+
+    return (
+      <div className="space-y-4 rounded-xl border border-gray-200 p-4">
+        <div>
+          <p className="text-sm font-medium text-black">Фото-отчёт мастера</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Сначала загрузите фото выполненной работы, затем завершите заказ
+          </p>
+        </div>
+
+        <input
+          ref={isCurrentOrderTarget ? fileInputRef : null}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(event) => handleReportFilesChange(order.id, event)}
+          className="hidden"
+        />
+
+        <button
+          type="button"
+          onClick={() => {
+            setReportTargetOrderId(order.id);
+            fileInputRef.current?.click();
+          }}
+          className="w-full rounded-xl border border-gray-300 py-3 text-black"
+        >
+          Выбрать фото отчёта
+        </button>
+
+        {isCurrentOrderTarget && reportPhotos.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">
+              Выбрано: {reportPhotos.length}/{MAX_REPORT_PHOTOS}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {reportPhotos.map((photo, index) => {
+                const previewUrl = URL.createObjectURL(photo);
+
+                return (
+                  <div
+                    key={`${photo.name}-${index}`}
+                    className="space-y-2 rounded-xl border border-gray-200 p-2"
+                  >
+                    <img
+                      src={previewUrl}
+                      alt={photo.name}
+                      className="h-24 w-full rounded-lg object-cover"
+                    />
+                    <p className="break-all text-xs text-gray-700">
+                      {photo.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => removeReportPhoto(index)}
+                      className="w-full rounded-lg border border-red-300 py-2 text-xs text-red-600"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleUploadOrderReport(order.id)}
+              disabled={isReportUploading}
+              className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-60"
+            >
+              {isReportUploading && isCurrentOrderTarget
+                ? "Загрузка..."
+                : "Отправить фото-отчёт"}
+            </button>
+          </div>
+        )}
+
+        {renderExistingReportPhotos(order)}
+
+        {order.status === "on_site" && (
+          <button
+            type="button"
+            onClick={() => handleMasterStatusChange(order.id, "completed")}
+            disabled={!hasExistingReport}
+            className="w-full rounded-xl bg-black py-3 text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Завершить
+          </button>
+        )}
+
+        {order.status === "on_site" && !hasExistingReport && (
+          <p className="text-xs text-red-600">
+            Чтобы завершить заказ, сначала загрузите хотя бы одно фото отчёта
+          </p>
+        )}
+      </div>
+    );
+  };
+
   const renderMasterOrderAction = (order) => {
     if (order.status === "assigned") {
       return (
@@ -85,14 +225,7 @@ export default function MasterOrdersSection({
     }
 
     if (order.status === "on_site") {
-      return (
-        <button
-          onClick={() => handleMasterStatusChange(order.id, "completed")}
-          className="w-full rounded-xl bg-black py-3 text-white"
-        >
-          Завершить
-        </button>
-      );
+      return renderReportUploader(order);
     }
 
     if (order.status === "completed" || order.status === "paid") {
@@ -114,7 +247,7 @@ export default function MasterOrdersSection({
             <div>
               <p className="text-sm font-medium text-black">Фото-отчёт мастера</p>
               <p className="mt-1 text-xs text-gray-500">
-                Загрузите фото выполненной работы
+                Вы можете догрузить дополнительные фото выполненной работы
               </p>
             </div>
 
@@ -186,34 +319,7 @@ export default function MasterOrdersSection({
               </div>
             )}
 
-            {Array.isArray(order.report_photos) && order.report_photos.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-black">
-                  Уже загруженные фото-отчёты
-                </p>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {order.report_photos.map((photo) => {
-                    const photoUrl = `http://127.0.0.1:8000/${photo.file_path}`;
-
-                    return (
-                      <button
-                        key={photo.id}
-                        type="button"
-                        onClick={() => onOpenPhoto(photoUrl)}
-                        className="block"
-                      >
-                        <img
-                          src={photoUrl}
-                          alt="Фото-отчёт"
-                          className="h-28 w-full rounded-xl border object-cover"
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {renderExistingReportPhotos(order)}
           </div>
         </div>
       );

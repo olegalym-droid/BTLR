@@ -59,6 +59,12 @@ def update_order_status_by_master_service(
     if status not in allowed_transitions.get(order.status, []):
         raise HTTPException(status_code=400, detail="Invalid transition")
 
+    if status == "completed" and not order.report_photos:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала загрузите фото-отчёт, затем завершайте заказ",
+        )
+
     order.status = status
 
     if status == "completed":
