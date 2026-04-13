@@ -15,8 +15,6 @@ export default function ServicesScreen({
   setSelectedDate,
   selectedTime,
   setSelectedTime,
-  photos,
-  setPhotos,
   createOrder,
 }) {
   return (
@@ -43,8 +41,6 @@ export default function ServicesScreen({
         setSelectedDate={setSelectedDate}
         selectedTime={selectedTime}
         setSelectedTime={setSelectedTime}
-        photos={photos}
-        setPhotos={setPhotos}
         createOrder={createOrder}
       />
     </div>

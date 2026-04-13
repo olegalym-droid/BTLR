@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import OrderCard from "../OrderCard";
 
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 5;
 
 export default function OrdersScreen({
   activeOrders,
@@ -50,21 +50,21 @@ export default function OrdersScreen({
   );
 
   const getEmptyText = () => {
-    if (ordersTab === "sent") return "У вас нет отправленных заявок";
-    if (ordersTab === "accepted") return "У вас нет активных заказов";
-    return "У вас нет выполненных заказов";
+    if (ordersTab === "sent") return "У вас пока нет отправленных заявок";
+    if (ordersTab === "accepted") return "У вас пока нет активных заказов";
+    return "У вас пока нет завершённых заказов";
   };
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-5">
+      <div className="space-y-2">
         <h1 className="text-3xl font-bold text-black">Мои заказы</h1>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           История заявок и текущих заказов
         </p>
       </div>
 
-      <div className="grid grid-cols-3 rounded-2xl border border-gray-300 bg-white p-2 shadow">
+      <div className="grid grid-cols-3 rounded-2xl border border-gray-300 bg-white p-1.5 shadow">
         <button
           type="button"
           onClick={() => {
@@ -90,7 +90,7 @@ export default function OrdersScreen({
               : "bg-white text-black"
           }`}
         >
-          Принятые
+          Активные
         </button>
 
         <button
@@ -103,12 +103,12 @@ export default function OrdersScreen({
             ordersTab === "done" ? "bg-black text-white" : "bg-white text-black"
           }`}
         >
-          Выполненные
+          Завершённые
         </button>
       </div>
 
       {currentOrders.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-400 bg-white p-4 text-gray-700">
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-700 shadow-sm">
           {getEmptyText()}
         </div>
       ) : (
@@ -130,7 +130,7 @@ export default function OrdersScreen({
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={safeCurrentPage === 1}
-                className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+                className="rounded-xl border px-4 py-2 text-sm text-black disabled:opacity-50"
               >
                 Назад
               </button>
@@ -145,7 +145,7 @@ export default function OrdersScreen({
                   setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                 }
                 disabled={safeCurrentPage === totalPages}
-                className="rounded-lg border px-3 py-2 text-sm disabled:opacity-50"
+                className="rounded-xl border px-4 py-2 text-sm text-black disabled:opacity-50"
               >
                 Далее
               </button>

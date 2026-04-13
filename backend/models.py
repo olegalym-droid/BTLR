@@ -15,6 +15,7 @@ class Account(Base):
     full_name = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
 
+    avatar_path = Column(String, nullable=True)
     face_photo_path = Column(String, nullable=True)
     about_me = Column(String, nullable=True)
     experience_years = Column(Integer, nullable=True)

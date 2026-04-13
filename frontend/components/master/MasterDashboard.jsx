@@ -18,6 +18,10 @@ export default function MasterDashboard({
   handleSaveMasterProfile,
   successText,
   logout,
+  avatarFile,
+  setAvatarFile,
+  handleUploadAvatar,
+  isAvatarLoading,
   idCardFront,
   setIdCardFront,
   idCardBack,
@@ -25,10 +29,8 @@ export default function MasterDashboard({
   selfiePhoto,
   setSelfiePhoto,
   handleUploadDocuments,
-  handleApproveProfile,
   hasUploadedAllDocuments,
   isDocumentsLoading,
-  isApproveLoading,
   availableOrders,
   isAvailableLoading,
   loadAvailableOrders,
@@ -106,6 +108,10 @@ export default function MasterDashboard({
             handleSaveMasterProfile={handleSaveMasterProfile}
             successText={successText}
             logout={logout}
+            avatarFile={avatarFile}
+            setAvatarFile={setAvatarFile}
+            handleUploadAvatar={handleUploadAvatar}
+            isAvatarLoading={isAvatarLoading}
             idCardFront={idCardFront}
             setIdCardFront={setIdCardFront}
             idCardBack={idCardBack}
@@ -113,10 +119,8 @@ export default function MasterDashboard({
             selfiePhoto={selfiePhoto}
             setSelfiePhoto={setSelfiePhoto}
             handleUploadDocuments={handleUploadDocuments}
-            handleApproveProfile={handleApproveProfile}
             hasUploadedAllDocuments={hasUploadedAllDocuments}
             isDocumentsLoading={isDocumentsLoading}
-            isApproveLoading={isApproveLoading}
           />
         )}
 

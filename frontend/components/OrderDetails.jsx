@@ -293,8 +293,10 @@ export default function OrderDetails({
 
                 {selectedOrder.offers.map((offer) => {
                   const master = offer.master;
-                  const photoUrl = master?.selfie_photo_path
-                    ? `${API_BASE_URL}/${master.selfie_photo_path}`
+                  const photoPath =
+                    master?.avatar_path || master?.selfie_photo_path || null;
+                  const photoUrl = photoPath
+                    ? `${API_BASE_URL}/${photoPath}`
                     : null;
 
                   return (

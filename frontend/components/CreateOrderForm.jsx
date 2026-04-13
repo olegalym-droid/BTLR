@@ -20,6 +20,11 @@ const generateTimeSlots = (startHour = 8, endHour = 22) => {
   return slots;
 };
 
+const getDaysInMonth = (month, year) => {
+  if (!month || !year) return 31;
+  return new Date(year, month, 0).getDate();
+};
+
 export default function CreateOrderForm({
   categories,
   category,
@@ -47,6 +52,9 @@ export default function CreateOrderForm({
   const fileInputRef = useRef(null);
   const timeSlots = useMemo(() => generateTimeSlots(), []);
 
+  const today = new Date();
+  const currentYear = today.getFullYear();
+
   const previewUrls = useMemo(() => {
     return photos.map((file) => ({
       file,
@@ -59,6 +67,67 @@ export default function CreateOrderForm({
       previewUrls.forEach((item) => URL.revokeObjectURL(item.url));
     };
   }, [previewUrls]);
+
+  const parsedDate = useMemo(() => {
+    if (!selectedDate || !selectedDate.includes("-")) {
+      return { year: "", month: "", day: "" };
+    }
+
+    const [year, month, day] = selectedDate.split("-");
+    return {
+      year,
+      month,
+      day,
+    };
+  }, [selectedDate]);
+
+  const availableDays = useMemo(() => {
+    const daysCount = getDaysInMonth(
+      Number(parsedDate.month || 1),
+      Number(parsedDate.year || currentYear),
+    );
+
+    return Array.from({ length: daysCount }, (_, index) =>
+      String(index + 1).padStart(2, "0"),
+    );
+  }, [parsedDate.month, parsedDate.year, currentYear]);
+
+  const years = useMemo(() => {
+    return Array.from({ length: 3 }, (_, index) => String(currentYear + index));
+  }, [currentYear]);
+
+  const months = [
+    { value: "01", label: "Январь" },
+    { value: "02", label: "Февраль" },
+    { value: "03", label: "Март" },
+    { value: "04", label: "Апрель" },
+    { value: "05", label: "Май" },
+    { value: "06", label: "Июнь" },
+    { value: "07", label: "Июль" },
+    { value: "08", label: "Август" },
+    { value: "09", label: "Сентябрь" },
+    { value: "10", label: "Октябрь" },
+    { value: "11", label: "Ноябрь" },
+    { value: "12", label: "Декабрь" },
+  ];
+
+  const updateDate = ({
+    nextDay = parsedDate.day,
+    nextMonth = parsedDate.month,
+    nextYear = parsedDate.year,
+  }) => {
+    if (!nextDay || !nextMonth || !nextYear) {
+      setSelectedDate("");
+      return;
+    }
+
+    const maxDay = getDaysInMonth(Number(nextMonth), Number(nextYear));
+    const normalizedDay = Math.min(Number(nextDay), maxDay);
+
+    setSelectedDate(
+      `${nextYear}-${nextMonth}-${String(normalizedDay).padStart(2, "0")}`,
+    );
+  };
 
   const handleSelectCategory = (item) => {
     setCategory(item);
@@ -333,12 +402,49 @@ export default function CreateOrderForm({
             </p>
           </div>
 
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full border rounded-lg p-3 text-black"
-          />
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-black">Дата</p>
+            <div className="grid grid-cols-3 gap-2">
+              <select
+                value={parsedDate.day}
+                onChange={(e) => updateDate({ nextDay: e.target.value })}
+                className="w-full border rounded-lg p-3 text-black bg-white"
+              >
+                <option value="">День</option>
+                {availableDays.map((day) => (
+                  <option key={day} value={day}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={parsedDate.month}
+                onChange={(e) => updateDate({ nextMonth: e.target.value })}
+                className="w-full border rounded-lg p-3 text-black bg-white"
+              >
+                <option value="">Месяц</option>
+                {months.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={parsedDate.year}
+                onChange={(e) => updateDate({ nextYear: e.target.value })}
+                className="w-full border rounded-lg p-3 text-black bg-white"
+              >
+                <option value="">Год</option>
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div className="space-y-2">
             <p className="text-sm font-medium text-black">Время</p>

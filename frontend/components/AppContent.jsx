@@ -1,17 +1,18 @@
 import OrderDetails from "./OrderDetails";
-import AuthRolePicker from "./auth/AuthRolePicker";
-import UserAuth from "./auth/UserAuth";
+import UnifiedAuth from "./auth/UnifiedAuth";
 import ProfileScreen from "./screens/ProfileScreen";
 import ServicesScreen from "./screens/ServicesScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import SuccessScreen from "./screens/SuccessScreen";
 import MasterPlaceholderScreen from "./screens/MasterPlaceholderScreen";
+import AdminDashboard from "./admin/AdminDashboard";
 
 export default function AppContent({
   session,
   ordersState,
   orderForm,
   profileState,
+  adminState,
   categories,
   availableServices,
   createOrder,
@@ -52,8 +53,6 @@ export default function AppContent({
     setSelectedDate,
     selectedTime,
     setSelectedTime,
-    photos,
-    setPhotos,
   } = orderForm;
 
   const {
@@ -68,15 +67,30 @@ export default function AppContent({
     saveProfile,
   } = profileState;
 
-  if (!selectedRole) {
-    return <AuthRolePicker onSelectRole={setSelectedRole} />;
-  }
+  const {
+    isLoggedIn: isAdminLoggedIn,
+    pendingMasters,
+    selectedMaster,
+    setSelectedMaster,
+    successText: adminSuccessText,
+    handleApproveMaster,
+    isLoading: isAdminLoading,
+    logout: adminLogout,
+    loginWithCredentials,
+  } = adminState;
 
-  if (selectedRole === "user" && !isAuthenticated) {
+  if (!selectedRole) {
     return (
-      <UserAuth
-        onBack={() => setSelectedRole(null)}
-        onSuccess={handleAuthSuccess || (() => setIsAuthenticated(true))}
+      <UnifiedAuth
+        onUserOrMasterSuccess={(role) => {
+          handleAuthSuccess();
+          setSelectedRole(role);
+          setIsAuthenticated(true);
+        }}
+        onAdminSuccess={async (login, password) => {
+          await loginWithCredentials(login, password);
+          setSelectedRole("admin");
+        }}
       />
     );
   }
@@ -91,6 +105,55 @@ export default function AppContent({
         onLogout={() => {
           setIsAuthenticated(false);
           setSelectedRole(null);
+        }}
+      />
+    );
+  }
+
+  if (selectedRole === "admin") {
+    if (!isAdminLoggedIn) {
+      return (
+        <UnifiedAuth
+          onUserOrMasterSuccess={(role) => {
+            handleAuthSuccess();
+            setSelectedRole(role);
+            setIsAuthenticated(true);
+          }}
+          onAdminSuccess={async (login, password) => {
+            await loginWithCredentials(login, password);
+            setSelectedRole("admin");
+          }}
+        />
+      );
+    }
+
+    return (
+      <AdminDashboard
+        pendingMasters={pendingMasters}
+        selectedMaster={selectedMaster}
+        setSelectedMaster={setSelectedMaster}
+        handleApproveMaster={handleApproveMaster}
+        isLoading={isAdminLoading}
+        successText={adminSuccessText}
+        logout={() => {
+          adminLogout();
+          setSelectedRole(null);
+        }}
+      />
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <UnifiedAuth
+        onUserOrMasterSuccess={(role) => {
+          handleAuthSuccess();
+          setSelectedRole(role);
+          setIsAuthenticated(true);
+        }}
+        onAdminSuccess={async (login, password) => {
+          await loginWithCredentials(login, password);
+          setSelectedRole("admin");
         }}
       />
     );
@@ -139,8 +202,6 @@ export default function AppContent({
         setSelectedDate={setSelectedDate}
         selectedTime={selectedTime}
         setSelectedTime={setSelectedTime}
-        photos={photos}
-        setPhotos={setPhotos}
         createOrder={createOrder}
       />
     );

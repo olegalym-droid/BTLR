@@ -129,18 +129,16 @@ export const updateMasterProfileRequest = async ({
   aboutMe = "",
   experienceYears = "",
   workCity = "",
-  workDistrict = "",
 }) => {
   const formData = new FormData();
 
-  formData.append("full_name", fullName);
+  formData.append("full_name", fullName.trim());
   formData.append("about_me", aboutMe);
   formData.append(
     "experience_years",
     experienceYears === "" ? "" : String(experienceYears),
   );
   formData.append("work_city", workCity);
-  formData.append("work_district", workDistrict);
 
   const response = await fetch(`${API_BASE_URL}/masters/${masterId}/profile`, {
     method: "PUT",
@@ -151,6 +149,27 @@ export const updateMasterProfileRequest = async ({
 
   if (!response.ok) {
     throw new Error(data.detail || "Не удалось обновить профиль мастера");
+  }
+
+  return data;
+};
+
+export const uploadMasterAvatarRequest = async ({ masterId, avatar }) => {
+  const formData = new FormData();
+
+  if (avatar instanceof File) {
+    formData.append("avatar", avatar);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/masters/${masterId}/avatar`, {
+    method: "PUT",
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить аватарку");
   }
 
   return data;
@@ -176,32 +195,15 @@ export const uploadMasterDocumentsRequest = async ({
     formData.append("selfie_photo", selfiePhoto);
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/masters/${masterId}/documents`,
-    {
-      method: "PUT",
-      body: formData,
-    },
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || "Не удалось загрузить документы");
-  }
-
-  return data;
-};
-
-export const approveMasterProfileRequest = async (masterId) => {
-  const response = await fetch(`${API_BASE_URL}/masters/${masterId}/approve`, {
+  const response = await fetch(`${API_BASE_URL}/masters/${masterId}/documents`, {
     method: "PUT",
+    body: formData,
   });
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail || "Не удалось подтвердить профиль мастера");
+    throw new Error(data.detail || "Не удалось загрузить документы");
   }
 
   return data;

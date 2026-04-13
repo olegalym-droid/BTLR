@@ -12,31 +12,31 @@ export default function ProfileScreen({
   formatPhoneInput,
 }) {
   return (
-    <div className="space-y-4">
-      <div>
+    <div className="space-y-5">
+      <div className="space-y-2">
         <h1 className="text-3xl font-bold text-black">Профиль</h1>
-        <p className="mt-1 text-sm text-gray-700">
+        <p className="text-sm text-gray-700">
           Контакты и адреса для быстрого оформления заявок
         </p>
       </div>
 
-      <div className="space-y-4 rounded-2xl border bg-white p-4 shadow">
+      <div className="rounded-3xl border border-gray-300 bg-white p-5 shadow space-y-5">
         <div className="space-y-2">
-          <label className="text-sm text-gray-700">Имя</label>
+          <label className="text-sm font-medium text-black">Имя</label>
           <input
             type="text"
             value={profile.name}
             onChange={(e) =>
               setProfile((prev) => ({ ...prev, name: e.target.value }))
             }
-            className="w-full rounded-lg border p-3 text-black"
+            className="w-full rounded-2xl border p-4 text-black"
             placeholder="Введите имя"
             maxLength={50}
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm text-gray-700">Телефон</label>
+          <label className="text-sm font-medium text-black">Телефон</label>
           <input
             type="text"
             value={profile.phone}
@@ -46,7 +46,7 @@ export default function ProfileScreen({
                 phone: formatPhoneInput(e.target.value),
               }))
             }
-            className="w-full rounded-lg border p-3 text-black"
+            className="w-full rounded-2xl border p-4 text-black"
             placeholder="+7 777 123 45 67"
             inputMode="tel"
           />
@@ -55,15 +55,15 @@ export default function ProfileScreen({
           </p>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-700">Адреса</p>
-            <p className="mt-1 text-xs text-gray-500">
-              Заполните адрес по частям, так пользователю будет понятнее
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-black">Адреса</p>
+            <p className="text-xs text-gray-500">
+              Заполните адрес по частям, так он будет понятнее и удобнее
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 gap-3">
             <input
               type="text"
               value={newAddressForm.city}
@@ -73,7 +73,7 @@ export default function ProfileScreen({
                   city: e.target.value,
                 }))
               }
-              className="w-full rounded-lg border p-3 text-black"
+              className="w-full rounded-2xl border p-4 text-black"
               placeholder="Город"
               maxLength={50}
             />
@@ -87,12 +87,12 @@ export default function ProfileScreen({
                   street: e.target.value,
                 }))
               }
-              className="w-full rounded-lg border p-3 text-black"
+              className="w-full rounded-2xl border p-4 text-black"
               placeholder="Улица"
               maxLength={80}
             />
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <input
                 type="text"
                 value={newAddressForm.house}
@@ -102,7 +102,7 @@ export default function ProfileScreen({
                     house: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border p-3 text-black"
+                className="w-full rounded-2xl border p-4 text-black"
                 placeholder="Дом"
                 maxLength={10}
               />
@@ -116,7 +116,7 @@ export default function ProfileScreen({
                     apartment: e.target.value,
                   }))
                 }
-                className="w-full rounded-lg border p-3 text-black"
+                className="w-full rounded-2xl border p-4 text-black"
                 placeholder="Квартира"
                 maxLength={10}
               />
@@ -125,33 +125,33 @@ export default function ProfileScreen({
             <button
               type="button"
               onClick={addAddress}
-              className="w-full rounded-lg bg-black px-4 py-3 text-white"
+              className="w-full rounded-2xl bg-black px-4 py-4 text-white font-medium"
             >
               Добавить адрес
             </button>
           </div>
 
           {profile.addresses.length === 0 ? (
-            <div className="rounded-xl border border-dashed p-3 text-sm text-gray-600">
+            <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-600">
               Адреса пока не добавлены
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {profile.addresses.map((item, index) => {
                 const isPrimary = index === profile.primaryAddressIndex;
 
                 return (
                   <div
                     key={`${item}-${index}`}
-                    className="flex flex-col gap-3 rounded-xl border p-3"
+                    className="rounded-2xl border border-gray-300 p-4 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm text-black">{item}</p>
+                      <p className="text-sm text-black break-words">{item}</p>
 
                       <button
                         type="button"
                         onClick={() => removeAddress(index)}
-                        className="text-sm text-red-600"
+                        className="shrink-0 text-sm text-red-600"
                       >
                         Удалить
                       </button>
@@ -160,7 +160,7 @@ export default function ProfileScreen({
                     <button
                       type="button"
                       onClick={() => setPrimaryAddress(index)}
-                      className={`w-full rounded-lg border py-2 text-sm transition ${
+                      className={`w-full rounded-xl border py-3 text-sm font-medium transition ${
                         isPrimary
                           ? "border-black bg-black text-white"
                           : "border-gray-300 bg-white text-black"
@@ -178,13 +178,13 @@ export default function ProfileScreen({
         <button
           type="button"
           onClick={saveProfile}
-          className="w-full rounded-lg bg-black px-4 py-3 text-white"
+          className="w-full rounded-2xl bg-black px-4 py-4 text-white font-medium"
         >
           Сохранить профиль
         </button>
 
         {profileSaved && (
-          <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
             Профиль сохранён
           </div>
         )}
@@ -192,7 +192,7 @@ export default function ProfileScreen({
         <button
           type="button"
           onClick={handleLogout}
-          className="w-full rounded-lg border border-gray-300 px-4 py-3 text-black"
+          className="w-full rounded-2xl border border-gray-300 px-4 py-4 text-black"
         >
           Выйти
         </button>

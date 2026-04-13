@@ -17,11 +17,13 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         setExperienceYears={master.setExperienceYears}
         workCity={master.workCity}
         setWorkCity={master.setWorkCity}
-        workDistrict={master.workDistrict}
-        setWorkDistrict={master.setWorkDistrict}
         handleSaveMasterProfile={master.handleSaveMasterProfile}
         successText={master.successText}
         logout={master.logout}
+        avatarFile={master.avatarFile}
+        setAvatarFile={master.setAvatarFile}
+        handleUploadAvatar={master.handleUploadAvatar}
+        isAvatarLoading={master.isAvatarLoading}
         idCardFront={master.idCardFront}
         setIdCardFront={master.setIdCardFront}
         idCardBack={master.idCardBack}
@@ -29,10 +31,8 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         selfiePhoto={master.selfiePhoto}
         setSelfiePhoto={master.setSelfiePhoto}
         handleUploadDocuments={master.handleUploadDocuments}
-        handleApproveProfile={master.handleApproveProfile}
         hasUploadedAllDocuments={master.hasUploadedAllDocuments}
         isDocumentsLoading={master.isDocumentsLoading}
-        isApproveLoading={master.isApproveLoading}
         availableOrders={master.availableOrders}
         isAvailableLoading={master.isAvailableLoading}
         loadAvailableOrders={master.loadAvailableOrders}

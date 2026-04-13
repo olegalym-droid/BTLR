@@ -35,16 +35,39 @@ def update_master_profile(
     about_me: str = Form(""),
     experience_years: int | None = Form(None),
     work_city: str = Form(""),
-    work_district: str = Form(""),
     db: Session = Depends(get_db),
 ):
     master = get_master_or_404(master_id, db)
 
-    master.full_name = full_name
-    master.about_me = about_me or None
+    master.full_name = full_name.strip()
+    master.about_me = about_me.strip() or None
     master.experience_years = experience_years
-    master.work_city = work_city or None
-    master.work_district = work_district or None
+    master.work_city = work_city.strip() or None
+    master.work_district = None
+
+    db.commit()
+    db.refresh(master)
+
+    return master
+
+
+@router.put("/masters/{master_id}/avatar", response_model=MasterProfileResponse)
+async def upload_master_avatar(
+    master_id: int,
+    avatar: UploadFile | None = File(default=None),
+    db: Session = Depends(get_db),
+):
+    master = get_master_or_404(master_id, db)
+
+    avatar_path = await save_master_document(avatar, "avatar")
+
+    if not avatar_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Сначала выберите файл аватарки",
+        )
+
+    master.avatar_path = avatar_path
 
     db.commit()
     db.refresh(master)

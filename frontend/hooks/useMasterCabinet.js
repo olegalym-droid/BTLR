@@ -6,8 +6,8 @@ import {
   getStoredAuthUser,
   loadMasterProfileRequest,
   updateMasterProfileRequest,
+  uploadMasterAvatarRequest,
   uploadMasterDocumentsRequest,
-  approveMasterProfileRequest,
   clearAuthData,
 } from "../lib/auth";
 import {
@@ -28,8 +28,8 @@ export default function useMasterCabinet({ onLogout }) {
   const [aboutMe, setAboutMe] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
   const [workCity, setWorkCity] = useState("");
-  const [workDistrict, setWorkDistrict] = useState("");
 
+  const [avatarFile, setAvatarFile] = useState(null);
   const [idCardFront, setIdCardFront] = useState(null);
   const [idCardBack, setIdCardBack] = useState(null);
   const [selfiePhoto, setSelfiePhoto] = useState(null);
@@ -44,8 +44,8 @@ export default function useMasterCabinet({ onLogout }) {
 
   const [isAvailableLoading, setIsAvailableLoading] = useState(false);
   const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
+  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
-  const [isApproveLoading, setIsApproveLoading] = useState(false);
 
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
@@ -54,8 +54,8 @@ export default function useMasterCabinet({ onLogout }) {
 
   const hasUploadedAllDocuments = Boolean(
     masterProfile?.id_card_front_path &&
-    masterProfile?.id_card_back_path &&
-    masterProfile?.selfie_photo_path,
+      masterProfile?.id_card_back_path &&
+      masterProfile?.selfie_photo_path,
   );
 
   const loadAvailableOrders = async (masterId) => {
@@ -114,7 +114,6 @@ export default function useMasterCabinet({ onLogout }) {
           : String(profile.experience_years),
       );
       setWorkCity(profile.work_city || "");
-      setWorkDistrict(profile.work_district || "");
 
       await Promise.all([
         loadAvailableOrders(masterId),
@@ -234,13 +233,28 @@ export default function useMasterCabinet({ onLogout }) {
         throw new Error("Профиль мастера не загружен");
       }
 
+      if (!fullName.trim()) {
+        throw new Error("Введите имя");
+      }
+
+      const normalizedExperience =
+        String(experienceYears).trim() === ""
+          ? ""
+          : String(Number(experienceYears));
+
+      if (
+        normalizedExperience !== "" &&
+        (Number.isNaN(Number(experienceYears)) || Number(experienceYears) < 0)
+      ) {
+        throw new Error("Опыт должен быть числом 0 или больше");
+      }
+
       const updatedProfile = await updateMasterProfileRequest({
         masterId: masterProfile.id,
-        fullName: fullName || masterProfile.full_name || "",
+        fullName: fullName.trim(),
         aboutMe,
-        experienceYears,
+        experienceYears: normalizedExperience,
         workCity,
-        workDistrict,
       });
 
       setMasterProfile(updatedProfile);
@@ -253,11 +267,38 @@ export default function useMasterCabinet({ onLogout }) {
           : String(updatedProfile.experience_years),
       );
       setWorkCity(updatedProfile.work_city || "");
-      setWorkDistrict(updatedProfile.work_district || "");
       setSuccessText("Профиль мастера сохранён");
     } catch (error) {
       console.error("Ошибка сохранения профиля мастера:", error);
       alert(error.message || "Не удалось сохранить профиль мастера");
+    }
+  };
+
+  const handleUploadAvatar = async () => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      if (!avatarFile) {
+        throw new Error("Сначала выберите файл аватарки");
+      }
+
+      setIsAvatarLoading(true);
+
+      const updatedProfile = await uploadMasterAvatarRequest({
+        masterId: masterProfile.id,
+        avatar: avatarFile,
+      });
+
+      setMasterProfile(updatedProfile);
+      setAvatarFile(null);
+      setSuccessText("Аватарка обновлена");
+    } catch (error) {
+      console.error("Ошибка загрузки аватарки:", error);
+      alert(error.message || "Не удалось загрузить аватарку");
+    } finally {
+      setIsAvatarLoading(false);
     }
   };
 
@@ -284,35 +325,12 @@ export default function useMasterCabinet({ onLogout }) {
       setIdCardFront(null);
       setIdCardBack(null);
       setSelfiePhoto(null);
-      setSuccessText("Документы загружены");
+      setSuccessText("Документы загружены и отправлены на проверку");
     } catch (error) {
       console.error("Ошибка загрузки документов:", error);
       alert(error.message || "Не удалось загрузить документы");
     } finally {
       setIsDocumentsLoading(false);
-    }
-  };
-
-  const handleApproveProfile = async () => {
-    try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      setIsApproveLoading(true);
-
-      const updatedProfile = await approveMasterProfileRequest(
-        masterProfile.id,
-      );
-      setMasterProfile(updatedProfile);
-      setSuccessText("Профиль мастера подтверждён");
-
-      await loadAvailableOrders(masterProfile.id);
-    } catch (error) {
-      console.error("Ошибка подтверждения профиля:", error);
-      alert(error.message || "Не удалось подтвердить профиль");
-    } finally {
-      setIsApproveLoading(false);
     }
   };
 
@@ -383,7 +401,7 @@ export default function useMasterCabinet({ onLogout }) {
     setAboutMe("");
     setExperienceYears("");
     setWorkCity("");
-    setWorkDistrict("");
+    setAvatarFile(null);
     setIdCardFront(null);
     setIdCardBack(null);
     setSelfiePhoto(null);
@@ -417,9 +435,9 @@ export default function useMasterCabinet({ onLogout }) {
     setExperienceYears,
     workCity,
     setWorkCity,
-    workDistrict,
-    setWorkDistrict,
 
+    avatarFile,
+    setAvatarFile,
     idCardFront,
     setIdCardFront,
     idCardBack,
@@ -437,8 +455,8 @@ export default function useMasterCabinet({ onLogout }) {
 
     isAvailableLoading,
     isMasterOrdersLoading,
+    isAvatarLoading,
     isDocumentsLoading,
-    isApproveLoading,
 
     hasUploadedAllDocuments,
 
@@ -451,8 +469,8 @@ export default function useMasterCabinet({ onLogout }) {
 
     handleSubmit,
     handleSaveMasterProfile,
+    handleUploadAvatar,
     handleUploadDocuments,
-    handleApproveProfile,
     handleTakeOrder,
     handleMasterStatusChange,
     loadAvailableOrders,

@@ -55,6 +55,7 @@ class MasterProfileResponse(BaseModel):
     phone: str
     full_name: str | None = None
 
+    avatar_path: str | None = None
     face_photo_path: str | None = None
     id_card_front_path: str | None = None
     id_card_back_path: str | None = None
@@ -82,6 +83,7 @@ class OfferMasterResponse(BaseModel):
     about_me: str | None = None
     experience_years: int | None = None
     rating: float
+    avatar_path: str | None = None
     selfie_photo_path: str | None = None
 
     class Config:

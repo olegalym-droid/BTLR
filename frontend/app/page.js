@@ -10,6 +10,7 @@ import useOrders from "../hooks/useOrders";
 import useProfile from "../hooks/useProfile";
 import useOrderForm from "../hooks/useOrderForm";
 import useAppSession from "../hooks/useAppSession";
+import useAdminCabinet from "../hooks/useAdminCabinet";
 import { getStoredAuthUser } from "../lib/auth";
 
 export default function Home() {
@@ -22,6 +23,10 @@ export default function Home() {
     setIsAuthenticated,
     logoutSession,
   } = useAppSession();
+
+  const adminState = useAdminCabinet({
+    onLogout: () => {},
+  });
 
   const {
     orderCreated,
@@ -83,12 +88,19 @@ export default function Home() {
 
   useEffect(() => {
     const authUser = getStoredAuthUser();
+    const adminLogin = localStorage.getItem("admin_login");
+    const adminPassword = localStorage.getItem("admin_password");
 
     if (authUser?.id && authUser?.role) {
       setIsAuthenticated(true);
       setSelectedRole(authUser.role);
+      return;
     }
-  }, []);
+
+    if (adminLogin && adminPassword) {
+      setSelectedRole("admin");
+    }
+  }, [setIsAuthenticated, setSelectedRole]);
 
   const handleAuthSuccess = () => {
     const authUser = getStoredAuthUser();
@@ -138,64 +150,65 @@ export default function Home() {
     setOrderCreated(false);
   };
 
-  return (
-    <div className="flex min-h-screen justify-center bg-gray-50">
-      <div className="w-full max-w-md pb-24">
-        <div className="p-4 md:p-6">
-          <AppContent
-            session={{
-              selectedRole,
-              setSelectedRole,
-              isAuthenticated,
-              setIsAuthenticated,
-              activeTab,
-              setActiveTab,
-              handleAuthSuccess,
-            }}
-            ordersState={{
-              orderCreated,
-              setOrderCreated,
-              selectedOrder,
-              setSelectedOrder,
-              updateSelectedOrder,
-              activeOrders,
-              completedOrders,
-            }}
-            orderForm={{
-              category,
-              setCategory,
-              serviceName,
-              setServiceName,
-              description,
-              setDescription,
-              address,
-              setAddress,
-              selectedDate,
-              setSelectedDate,
-              selectedTime,
-              setSelectedTime,
-            }}
-            profileState={{
-              profile,
-              setProfile,
-              newAddressForm,
-              setNewAddressForm,
-              profileSaved,
-              addAddress,
-              removeAddress,
-              setPrimaryAddress,
-              saveProfile,
-            }}
-            categories={categories}
-            availableServices={availableServices}
-            createOrder={createOrder}
-            getStatusLabel={getStatusLabel}
-            handleLogout={handleLogout}
-            formatPhoneInput={formatPhoneInput}
-          />
-        </div>
+  const showBottomNav = selectedRole === "user" && isAuthenticated;
 
-        {selectedRole === "user" && isAuthenticated && (
+  return (
+    <div className="bg-gray-50">
+      <div className="mx-auto w-full max-w-md px-4 py-4">
+        <AppContent
+          session={{
+            selectedRole,
+            setSelectedRole,
+            isAuthenticated,
+            setIsAuthenticated,
+            activeTab,
+            setActiveTab,
+            handleAuthSuccess,
+          }}
+          ordersState={{
+            orderCreated,
+            setOrderCreated,
+            selectedOrder,
+            setSelectedOrder,
+            updateSelectedOrder,
+            activeOrders,
+            completedOrders,
+          }}
+          orderForm={{
+            category,
+            setCategory,
+            serviceName,
+            setServiceName,
+            description,
+            setDescription,
+            address,
+            setAddress,
+            selectedDate,
+            setSelectedDate,
+            selectedTime,
+            setSelectedTime,
+          }}
+          profileState={{
+            profile,
+            setProfile,
+            newAddressForm,
+            setNewAddressForm,
+            profileSaved,
+            addAddress,
+            removeAddress,
+            setPrimaryAddress,
+            saveProfile,
+          }}
+          adminState={adminState}
+          categories={categories}
+          availableServices={availableServices}
+          createOrder={createOrder}
+          getStatusLabel={getStatusLabel}
+          handleLogout={handleLogout}
+          formatPhoneInput={formatPhoneInput}
+        />
+
+        {showBottomNav && (
           <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
         )}
       </div>
