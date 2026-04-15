@@ -1,19 +1,62 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
-
 import { getStoredAuthUser } from "./auth";
+import { API_BASE_URL } from "./constants";
+
+export const ORDER_STATUSES = {
+  SEARCHING: "searching",
+  PENDING_USER_CONFIRMATION: "pending_user_confirmation",
+  ASSIGNED: "assigned",
+  ON_THE_WAY: "on_the_way",
+  ON_SITE: "on_site",
+  COMPLETED: "completed",
+  PAID: "paid",
+};
+
+export const ORDER_STATUS_LABELS = {
+  [ORDER_STATUSES.SEARCHING]: "Ищем мастера",
+  [ORDER_STATUSES.PENDING_USER_CONFIRMATION]: "Ожидает вашего решения",
+  [ORDER_STATUSES.ASSIGNED]: "Мастер назначен",
+  [ORDER_STATUSES.ON_THE_WAY]: "Мастер едет",
+  [ORDER_STATUSES.ON_SITE]: "Мастер на месте",
+  [ORDER_STATUSES.COMPLETED]: "Работа выполнена",
+  [ORDER_STATUSES.PAID]: "Оплачено",
+};
+
+export const ORDER_PROGRESS_STEPS = [
+  { key: ORDER_STATUSES.SEARCHING, label: "Поиск" },
+  { key: ORDER_STATUSES.PENDING_USER_CONFIRMATION, label: "Выбор" },
+  { key: ORDER_STATUSES.ASSIGNED, label: "Назначен" },
+  { key: ORDER_STATUSES.ON_THE_WAY, label: "Едет" },
+  { key: ORDER_STATUSES.ON_SITE, label: "На месте" },
+  { key: ORDER_STATUSES.COMPLETED, label: "Готово" },
+  { key: ORDER_STATUSES.PAID, label: "Оплачено" },
+];
+
+export const USER_ACTIVE_ORDER_STATUSES = [
+  ORDER_STATUSES.SEARCHING,
+  ORDER_STATUSES.PENDING_USER_CONFIRMATION,
+  ORDER_STATUSES.ASSIGNED,
+  ORDER_STATUSES.ON_THE_WAY,
+  ORDER_STATUSES.ON_SITE,
+];
+
+export const USER_DONE_ORDER_STATUSES = [
+  ORDER_STATUSES.COMPLETED,
+  ORDER_STATUSES.PAID,
+];
+
+export const MASTER_ACTIVE_ORDER_STATUSES = [
+  ORDER_STATUSES.ASSIGNED,
+  ORDER_STATUSES.ON_THE_WAY,
+  ORDER_STATUSES.ON_SITE,
+];
+
+export const MASTER_DONE_ORDER_STATUSES = [
+  ORDER_STATUSES.COMPLETED,
+  ORDER_STATUSES.PAID,
+];
 
 export const getStatusLabel = (status) => {
-  const statusMap = {
-    searching: "Ищем мастера",
-    pending_user_confirmation: "Ожидает вашего решения",
-    assigned: "Мастер назначен",
-    on_the_way: "Мастер едет",
-    on_site: "Мастер на месте",
-    completed: "Работа выполнена",
-    paid: "Оплачено",
-  };
-
-  return statusMap[status] || status;
+  return ORDER_STATUS_LABELS[status] || status;
 };
 
 export const loadOrdersRequest = async () => {
@@ -24,7 +67,6 @@ export const loadOrdersRequest = async () => {
   }
 
   const res = await fetch(`${API_BASE_URL}/orders?user_id=${authUser.id}`);
-
   const data = await res.json();
 
   if (!res.ok) {

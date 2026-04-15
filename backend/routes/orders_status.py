@@ -12,17 +12,29 @@ from routes.orders_helpers import (
 from utils.file_utils import save_order_report_photos
 
 
-def update_order_status_by_master_service(
-    order_id: int,
-    status: str,
-    master_id: int,
-    db: Session,
-) -> OrderResponse:
-    allowed_statuses = ["assigned", "on_the_way", "on_site", "completed"]
+MASTER_ALLOWED_STATUSES = {
+    "assigned",
+    "on_the_way",
+    "on_site",
+    "completed",
+}
 
-    if status not in allowed_statuses:
-        raise HTTPException(status_code=400, detail="Invalid status")
+MASTER_ALLOWED_TRANSITIONS = {
+    "assigned": {"on_the_way"},
+    "on_the_way": {"on_site"},
+    "on_site": {"completed"},
+    "completed": set(),
+    "paid": set(),
+}
 
+REPORT_UPLOAD_ALLOWED_STATUSES = {
+    "on_site",
+    "completed",
+    "paid",
+}
+
+
+def get_master_or_404(master_id: int, db: Session) -> Account:
     master = (
         db.query(Account)
         .filter(Account.id == master_id, Account.role == "master")
@@ -32,8 +44,10 @@ def update_order_status_by_master_service(
     if not master:
         raise HTTPException(status_code=404, detail="Master not found")
 
-    ensure_master_is_approved(master)
+    return master
 
+
+def get_master_order_or_404(order_id: int, master_id: int, db: Session) -> Order:
     order = (
         db.query(Order)
         .options(
@@ -48,80 +62,58 @@ def update_order_status_by_master_service(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    allowed_transitions = {
-        "assigned": ["on_the_way"],
-        "on_the_way": ["on_site"],
-        "on_site": ["completed"],
-        "completed": [],
-        "paid": [],
-    }
+    return order
 
-    if status not in allowed_transitions.get(order.status, []):
+
+def get_user_or_404(user_id: int, db: Session) -> Account:
+    user = (
+        db.query(Account)
+        .filter(Account.id == user_id, Account.role == "user")
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
+
+
+def get_user_order_or_404(order_id: int, user_id: int, db: Session) -> Order:
+    order = (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.report_photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order_id, Order.user_id == user_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    return order
+
+
+def validate_master_status_change(order: Order, next_status: str) -> None:
+    if next_status not in MASTER_ALLOWED_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+
+    allowed_next_statuses = MASTER_ALLOWED_TRANSITIONS.get(order.status, set())
+
+    if next_status not in allowed_next_statuses:
         raise HTTPException(status_code=400, detail="Invalid transition")
 
-    if status == "completed" and not order.report_photos:
+    if next_status == "completed" and not order.report_photos:
         raise HTTPException(
             status_code=400,
             detail="Сначала загрузите фото-отчёт, затем завершайте заказ",
         )
 
-    order.status = status
 
-    if status == "completed":
-        if not order.price:
-            order.price = "5000 ₸"
-
-        master.completed_orders_count = (master.completed_orders_count or 0) + 1
-
-    db.commit()
-    db.refresh(order)
-
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.photos),
-            joinedload(Order.report_photos),
-            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
-        )
-        .filter(Order.id == order.id)
-        .first()
-    )
-
-    return build_order_response(order=order)
-
-
-async def upload_order_report_by_master_service(
-    order_id: int,
-    master_id: int,
-    photos: list[UploadFile] | None,
-    db: Session,
-) -> OrderResponse:
-    master = (
-        db.query(Account)
-        .filter(Account.id == master_id, Account.role == "master")
-        .first()
-    )
-
-    if not master:
-        raise HTTPException(status_code=404, detail="Master not found")
-
-    ensure_master_is_approved(master)
-
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.photos),
-            joinedload(Order.report_photos),
-            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
-        )
-        .filter(Order.id == order_id, Order.master_id == master_id)
-        .first()
-    )
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    if order.status not in ["on_site", "completed", "paid"]:
+def validate_report_upload(order: Order, photos: list[UploadFile] | None) -> list[UploadFile]:
+    if order.status not in REPORT_UPLOAD_ALLOWED_STATUSES:
         raise HTTPException(
             status_code=400,
             detail="Фото-отчёт можно загрузить только после начала выполнения работ",
@@ -143,6 +135,62 @@ async def upload_order_report_by_master_service(
             detail=f"Можно прикрепить не более {MAX_ORDER_REPORT_PHOTOS} фото отчёта",
         )
 
+    return valid_photos
+
+
+def refresh_master_order(order_id: int, db: Session) -> Order:
+    return (
+        db.query(Order)
+        .options(
+            joinedload(Order.photos),
+            joinedload(Order.report_photos),
+            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
+        )
+        .filter(Order.id == order_id)
+        .first()
+    )
+
+
+def update_order_status_by_master_service(
+    order_id: int,
+    status: str,
+    master_id: int,
+    db: Session,
+) -> OrderResponse:
+    master = get_master_or_404(master_id, db)
+    ensure_master_is_approved(master)
+
+    order = get_master_order_or_404(order_id, master_id, db)
+
+    validate_master_status_change(order, status)
+
+    order.status = status
+
+    if status == "completed":
+        if not order.price:
+            order.price = "5000 ₸"
+
+        master.completed_orders_count = (master.completed_orders_count or 0) + 1
+
+    db.commit()
+
+    refreshed_order = refresh_master_order(order.id, db)
+    return build_order_response(order=refreshed_order)
+
+
+async def upload_order_report_by_master_service(
+    order_id: int,
+    master_id: int,
+    photos: list[UploadFile] | None,
+    db: Session,
+) -> OrderResponse:
+    master = get_master_or_404(master_id, db)
+    ensure_master_is_approved(master)
+
+    order = get_master_order_or_404(order_id, master_id, db)
+
+    valid_photos = validate_report_upload(order, photos)
+
     await save_order_report_photos(
         valid_photos,
         order_id=order.id,
@@ -151,18 +199,8 @@ async def upload_order_report_by_master_service(
         OrderReportPhoto=OrderReportPhoto,
     )
 
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.photos),
-            joinedload(Order.report_photos),
-            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
-        )
-        .filter(Order.id == order.id)
-        .first()
-    )
-
-    return build_order_response(order=order)
+    refreshed_order = refresh_master_order(order.id, db)
+    return build_order_response(order=refreshed_order)
 
 
 def update_order_status_by_user_service(
@@ -174,48 +212,21 @@ def update_order_status_by_user_service(
     if status != "paid":
         raise HTTPException(status_code=400, detail="Invalid status")
 
-    user = (
-        db.query(Account)
-        .filter(Account.id == user_id, Account.role == "user")
-        .first()
-    )
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.photos),
-            joinedload(Order.report_photos),
-            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
-        )
-        .filter(Order.id == order_id, Order.user_id == user_id)
-        .first()
-    )
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+    get_user_or_404(user_id, db)
+    order = get_user_order_or_404(order_id, user_id, db)
 
     if order.status != "completed":
-        raise HTTPException(status_code=400, detail="Можно оплатить только завершённый заказ")
+        raise HTTPException(
+            status_code=400,
+            detail="Можно оплатить только завершённый заказ",
+        )
 
     order.status = "paid"
     db.commit()
-    db.refresh(order)
 
-    order = (
-        db.query(Order)
-        .options(
-            joinedload(Order.photos),
-            joinedload(Order.report_photos),
-            joinedload(Order.offers).joinedload(OrderResponseOffer.master),
-        )
-        .filter(Order.id == order.id)
-        .first()
-    )
+    refreshed_order = refresh_master_order(order.id, db)
 
     return build_order_response(
-        order=order,
+        order=refreshed_order,
         reviewed=is_order_reviewed(order.id, db),
     )

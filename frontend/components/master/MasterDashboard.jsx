@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import MasterProfileSection from "./MasterProfileSection";
 import MasterAvailableOrdersSection from "./MasterAvailableOrdersSection";
 import MasterOrdersSection from "./MasterOrdersSection";
+import {
+  MASTER_ACTIVE_ORDER_STATUSES,
+  MASTER_DONE_ORDER_STATUSES,
+} from "../../lib/orders";
 
 export default function MasterDashboard({
   masterProfile,
@@ -55,16 +59,16 @@ export default function MasterDashboard({
 
   const currentOrders = useMemo(
     () =>
-      masterOrders.filter(
-        (order) => order.status !== "completed" && order.status !== "paid",
+      masterOrders.filter((order) =>
+        MASTER_ACTIVE_ORDER_STATUSES.includes(order.status),
       ),
     [masterOrders],
   );
 
   const completedOrders = useMemo(
     () =>
-      masterOrders.filter(
-        (order) => order.status === "completed" || order.status === "paid",
+      masterOrders.filter((order) =>
+        MASTER_DONE_ORDER_STATUSES.includes(order.status),
       ),
     [masterOrders],
   );

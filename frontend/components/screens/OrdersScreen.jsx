@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
 import OrderCard from "../OrderCard";
+import {
+  ORDER_STATUSES,
+  USER_DONE_ORDER_STATUSES,
+} from "../../lib/orders";
 
 const ITEMS_PER_PAGE = 5;
 
@@ -13,7 +17,7 @@ export default function OrdersScreen({
   const [currentPage, setCurrentPage] = useState(1);
 
   const sentOrders = useMemo(
-    () => activeOrders.filter((order) => order.status === "searching"),
+    () => activeOrders.filter((order) => order.status === ORDER_STATUSES.SEARCHING),
     [activeOrders],
   );
 
@@ -21,15 +25,21 @@ export default function OrdersScreen({
     () =>
       activeOrders.filter(
         (order) =>
-          order.status === "pending_user_confirmation" ||
-          order.status === "assigned" ||
-          order.status === "on_the_way" ||
-          order.status === "on_site",
+          order.status === ORDER_STATUSES.PENDING_USER_CONFIRMATION ||
+          order.status === ORDER_STATUSES.ASSIGNED ||
+          order.status === ORDER_STATUSES.ON_THE_WAY ||
+          order.status === ORDER_STATUSES.ON_SITE,
       ),
     [activeOrders],
   );
 
-  const doneOrders = useMemo(() => completedOrders, [completedOrders]);
+  const doneOrders = useMemo(
+    () =>
+      completedOrders.filter((order) =>
+        USER_DONE_ORDER_STATUSES.includes(order.status),
+      ),
+    [completedOrders],
+  );
 
   const currentOrders = useMemo(() => {
     if (ordersTab === "sent") return sentOrders;

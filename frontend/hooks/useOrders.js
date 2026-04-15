@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { loadOrdersRequest, createOrderRequest } from "../lib/orders";
+import {
+  loadOrdersRequest,
+  createOrderRequest,
+  USER_ACTIVE_ORDER_STATUSES,
+  USER_DONE_ORDER_STATUSES,
+} from "../lib/orders";
 import { getStoredAuthUser } from "../lib/auth";
 
 export default function useOrders() {
@@ -122,12 +127,12 @@ export default function useOrders() {
     }
   };
 
-  const activeOrders = orders.filter(
-    (order) => order.status !== "completed" && order.status !== "paid",
+  const activeOrders = orders.filter((order) =>
+    USER_ACTIVE_ORDER_STATUSES.includes(order.status),
   );
 
-  const completedOrders = orders.filter(
-    (order) => order.status === "completed" || order.status === "paid",
+  const completedOrders = orders.filter((order) =>
+    USER_DONE_ORDER_STATUSES.includes(order.status),
   );
 
   const updateSelectedOrder = (updatedOrder) => {

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./masterConstants";
+import { API_BASE_URL } from "../../lib/constants";
 
 export default function MasterOrderPhotos({ photos = [], onOpenPhoto }) {
   if (!photos?.length) return null;

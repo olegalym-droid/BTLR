@@ -1,131 +1,88 @@
 import { useEffect, useState } from "react";
-import {
-  loginRequest,
-  registerRequest,
-  saveAuthData,
-  getStoredAuthUser,
-  loadMasterProfileRequest,
-  updateMasterProfileRequest,
-  uploadMasterAvatarRequest,
-  uploadMasterDocumentsRequest,
-  clearAuthData,
-} from "../lib/auth";
-import {
-  loadAvailableOrdersRequest,
-  loadMasterOrdersRequest,
-  assignOrderToMasterRequest,
-  updateOrderStatusByMasterRequest,
-  uploadOrderReportRequest,
-} from "../lib/orders";
+import { getStoredAuthUser, clearAuthData } from "../lib/auth";
+import useMasterAuth from "./useMasterAuth";
+import useMasterProfile from "./useMasterProfile";
+import useMasterOrders from "./useMasterOrders";
 
 export default function useMasterCabinet({ onLogout }) {
-  const [mode, setMode] = useState("login");
-  const [phone, setPhone] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState([]);
-
-  const [aboutMe, setAboutMe] = useState("");
-  const [experienceYears, setExperienceYears] = useState("");
-  const [workCity, setWorkCity] = useState("");
-
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [idCardFront, setIdCardFront] = useState(null);
-  const [idCardBack, setIdCardBack] = useState(null);
-  const [selfiePhoto, setSelfiePhoto] = useState(null);
-
-  const [reportPhotos, setReportPhotos] = useState([]);
-  const [reportTargetOrderId, setReportTargetOrderId] = useState(null);
-
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const [masterProfile, setMasterProfile] = useState(null);
-
-  const [availableOrders, setAvailableOrders] = useState([]);
-  const [masterOrders, setMasterOrders] = useState([]);
-
-  const [isAvailableLoading, setIsAvailableLoading] = useState(false);
-  const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
-  const [isAvatarLoading, setIsAvatarLoading] = useState(false);
-  const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
-  const [isReportUploading, setIsReportUploading] = useState(false);
-
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
-
   const [activeSection, setActiveSection] = useState("profile");
 
-  const hasUploadedAllDocuments = Boolean(
-    masterProfile?.id_card_front_path &&
-      masterProfile?.id_card_back_path &&
-      masterProfile?.selfie_photo_path,
-  );
+  const {
+    mode,
+    setMode,
+    phone,
+    setPhone,
+    password,
+    setPassword,
+    confirmPassword,
+    setConfirmPassword,
+    selectedCategories,
+    toggleCategory,
+    isLoading,
+    handleSubmit: submitMasterAuth,
+    resetMasterAuthState,
+  } = useMasterAuth();
 
-  const loadAvailableOrders = async (masterId) => {
-    try {
-      setIsAvailableLoading(true);
+  const {
+    masterProfile,
+    setMasterProfile,
+    fullName,
+    setFullName,
+    aboutMe,
+    setAboutMe,
+    experienceYears,
+    setExperienceYears,
+    workCity,
+    setWorkCity,
+    avatarFile,
+    setAvatarFile,
+    idCardFront,
+    setIdCardFront,
+    idCardBack,
+    setIdCardBack,
+    selfiePhoto,
+    setSelfiePhoto,
+    isAvatarLoading,
+    isDocumentsLoading,
+    hasUploadedAllDocuments,
+    loadMasterProfile,
+    handleSaveMasterProfile: saveMasterProfileRequest,
+    handleUploadAvatar: uploadAvatarRequest,
+    handleUploadDocuments: uploadDocumentsRequest,
+    resetMasterProfileState,
+  } = useMasterProfile();
 
-      const resolvedMasterId =
-        masterId || masterProfile?.id || getStoredAuthUser()?.id;
-
-      if (!resolvedMasterId) {
-        throw new Error("Мастер не авторизован");
-      }
-
-      const orders = await loadAvailableOrdersRequest(resolvedMasterId);
-      setAvailableOrders(Array.isArray(orders) ? orders : []);
-    } catch (error) {
-      console.error("Ошибка загрузки доступных заказов:", error);
-      setAvailableOrders([]);
-    } finally {
-      setIsAvailableLoading(false);
-    }
-  };
-
-  const loadMasterOrders = async (masterId) => {
-    try {
-      setIsMasterOrdersLoading(true);
-
-      const resolvedMasterId =
-        masterId || masterProfile?.id || getStoredAuthUser()?.id;
-
-      if (!resolvedMasterId) {
-        throw new Error("Мастер не авторизован");
-      }
-
-      const orders = await loadMasterOrdersRequest(resolvedMasterId);
-      setMasterOrders(Array.isArray(orders) ? orders : []);
-    } catch (error) {
-      console.error("Ошибка загрузки заказов мастера:", error);
-      setMasterOrders([]);
-    } finally {
-      setIsMasterOrdersLoading(false);
-    }
-  };
+  const {
+    availableOrders,
+    setAvailableOrders,
+    masterOrders,
+    reportPhotos,
+    setReportPhotos,
+    reportTargetOrderId,
+    setReportTargetOrderId,
+    isAvailableLoading,
+    isMasterOrdersLoading,
+    isReportUploading,
+    loadAvailableOrders,
+    loadMasterOrders,
+    handleTakeOrder: takeOrderRequest,
+    handleMasterStatusChange: changeMasterStatusRequest,
+    handleUploadOrderReport: uploadOrderReportRequest,
+    getStatusSuccessText,
+    resetMasterOrdersState,
+  } = useMasterOrders();
 
   const loadMasterData = async (masterId) => {
     try {
-      const profile = await loadMasterProfileRequest(masterId);
-      setMasterProfile(profile);
-
-      setFullName(profile.full_name || "");
-      setAboutMe(profile.about_me || "");
-      setExperienceYears(
-        profile.experience_years === null ||
-          profile.experience_years === undefined
-          ? ""
-          : String(profile.experience_years),
-      );
-      setWorkCity(profile.work_city || "");
+      await loadMasterProfile(masterId);
 
       await Promise.all([
         loadAvailableOrders(masterId),
         loadMasterOrders(masterId),
       ]);
-
-      return profile;
     } catch (error) {
       console.error("Ошибка загрузки мастера:", error);
       throw error;
@@ -144,79 +101,17 @@ export default function useMasterCabinet({ onLogout }) {
     }
   }, []);
 
-  const toggleCategory = (category) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((item) => item !== category)
-        : [...prev, category],
-    );
-  };
-
-  const validateForm = () => {
-    if (!phone || !password) {
-      alert("Заполни телефон и пароль");
-      return false;
-    }
-
-    if (phone.length < 12) {
-      alert("Введите корректный номер телефона");
-      return false;
-    }
-
-    if (password.length < 6) {
-      alert("Пароль должен быть не короче 6 символов");
-      return false;
-    }
-
-    if (mode === "register") {
-      if (!fullName.trim()) {
-        alert("Введите имя");
-        return false;
-      }
-
-      if (password !== confirmPassword) {
-        alert("Пароли не совпадают");
-        return false;
-      }
-
-      if (selectedCategories.length === 0) {
-        alert("Выберите хотя бы одну категорию");
-        return false;
-      }
-    }
-
-    return true;
-  };
-
   const handleSubmit = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
     try {
-      setIsLoading(true);
       setSuccessText("");
 
-      let authData;
+      const authData = await submitMasterAuth({
+        fullName,
+        onAuthSuccess: async (data) => {
+          await loadMasterData(data.id);
+        },
+      });
 
-      if (mode === "register") {
-        authData = await registerRequest({
-          role: "master",
-          phone,
-          password,
-          fullName,
-          categories: selectedCategories,
-        });
-      } else {
-        authData = await loginRequest({
-          role: "master",
-          phone,
-          password,
-        });
-      }
-
-      saveAuthData(authData);
-      await loadMasterData(authData.id);
       setIsLoggedIn(true);
 
       if (mode === "register") {
@@ -224,54 +119,18 @@ export default function useMasterCabinet({ onLogout }) {
       } else {
         setSuccessText("Вход мастера выполнен");
       }
+
+      return authData;
     } catch (error) {
       console.error("Ошибка авторизации мастера:", error);
       alert(error.message || "Ошибка авторизации");
-    } finally {
-      setIsLoading(false);
+      return null;
     }
   };
 
   const handleSaveMasterProfile = async () => {
     try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      if (!fullName.trim()) {
-        throw new Error("Введите имя");
-      }
-
-      const normalizedExperience =
-        String(experienceYears).trim() === ""
-          ? ""
-          : String(Number(experienceYears));
-
-      if (
-        normalizedExperience !== "" &&
-        (Number.isNaN(Number(experienceYears)) || Number(experienceYears) < 0)
-      ) {
-        throw new Error("Опыт должен быть числом 0 или больше");
-      }
-
-      const updatedProfile = await updateMasterProfileRequest({
-        masterId: masterProfile.id,
-        fullName: fullName.trim(),
-        aboutMe,
-        experienceYears: normalizedExperience,
-        workCity,
-      });
-
-      setMasterProfile(updatedProfile);
-      setFullName(updatedProfile.full_name || "");
-      setAboutMe(updatedProfile.about_me || "");
-      setExperienceYears(
-        updatedProfile.experience_years === null ||
-          updatedProfile.experience_years === undefined
-          ? ""
-          : String(updatedProfile.experience_years),
-      );
-      setWorkCity(updatedProfile.work_city || "");
+      await saveMasterProfileRequest();
       setSuccessText("Профиль мастера сохранён");
     } catch (error) {
       console.error("Ошибка сохранения профиля мастера:", error);
@@ -281,61 +140,21 @@ export default function useMasterCabinet({ onLogout }) {
 
   const handleUploadAvatar = async () => {
     try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      if (!avatarFile) {
-        throw new Error("Сначала выберите файл аватарки");
-      }
-
-      setIsAvatarLoading(true);
-
-      const updatedProfile = await uploadMasterAvatarRequest({
-        masterId: masterProfile.id,
-        avatar: avatarFile,
-      });
-
-      setMasterProfile(updatedProfile);
-      setAvatarFile(null);
+      await uploadAvatarRequest();
       setSuccessText("Аватарка обновлена");
     } catch (error) {
       console.error("Ошибка загрузки аватарки:", error);
       alert(error.message || "Не удалось загрузить аватарку");
-    } finally {
-      setIsAvatarLoading(false);
     }
   };
 
   const handleUploadDocuments = async () => {
     try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      if (!idCardFront && !idCardBack && !selfiePhoto) {
-        throw new Error("Выберите хотя бы один файл для загрузки");
-      }
-
-      setIsDocumentsLoading(true);
-
-      const updatedProfile = await uploadMasterDocumentsRequest({
-        masterId: masterProfile.id,
-        idCardFront,
-        idCardBack,
-        selfiePhoto,
-      });
-
-      setMasterProfile(updatedProfile);
-      setIdCardFront(null);
-      setIdCardBack(null);
-      setSelfiePhoto(null);
+      await uploadDocumentsRequest();
       setSuccessText("Документы загружены и отправлены на проверку");
     } catch (error) {
       console.error("Ошибка загрузки документов:", error);
       alert(error.message || "Не удалось загрузить документы");
-    } finally {
-      setIsDocumentsLoading(false);
     }
   };
 
@@ -345,13 +164,7 @@ export default function useMasterCabinet({ onLogout }) {
         throw new Error("Профиль мастера не загружен");
       }
 
-      await assignOrderToMasterRequest(orderId, masterProfile.id);
-
-      await Promise.all([
-        loadAvailableOrders(masterProfile.id),
-        loadMasterOrders(masterProfile.id),
-      ]);
-
+      await takeOrderRequest(masterProfile.id, orderId);
       setSuccessText("Заказ успешно принят");
     } catch (error) {
       console.error("Ошибка принятия заказа:", error);
@@ -365,27 +178,8 @@ export default function useMasterCabinet({ onLogout }) {
         throw new Error("Профиль мастера не загружен");
       }
 
-      const updatedOrder = await updateOrderStatusByMasterRequest({
-        orderId,
-        status,
-        masterId: masterProfile.id,
-      });
-
-      setMasterOrders((prev) =>
-        prev.map((order) =>
-          order.id === updatedOrder.id ? { ...updatedOrder } : order,
-        ),
-      );
-
-      if (status === "on_the_way") {
-        setSuccessText("Статус обновлён: мастер выехал");
-      } else if (status === "on_site") {
-        setSuccessText("Статус обновлён: мастер на месте");
-      } else if (status === "completed") {
-        setSuccessText("Заказ завершён");
-      } else {
-        setSuccessText("Статус заказа обновлён");
-      }
+      await changeMasterStatusRequest(masterProfile.id, orderId, status);
+      setSuccessText(getStatusSuccessText(status));
     } catch (error) {
       console.error("Ошибка смены статуса:", error);
       alert(error.message || "Не удалось обновить статус");
@@ -398,57 +192,23 @@ export default function useMasterCabinet({ onLogout }) {
         throw new Error("Профиль мастера не загружен");
       }
 
-      if (!Array.isArray(reportPhotos) || reportPhotos.length === 0) {
-        throw new Error("Сначала выберите фото отчёта");
-      }
-
-      setIsReportUploading(true);
-
-      const updatedOrder = await uploadOrderReportRequest({
-        orderId,
-        masterId: masterProfile.id,
-        photos: reportPhotos,
-      });
-
-      setMasterOrders((prev) =>
-        prev.map((order) =>
-          order.id === updatedOrder.id ? { ...updatedOrder } : order,
-        ),
-      );
-
-      setReportPhotos([]);
-      setReportTargetOrderId(null);
+      await uploadOrderReportRequest(masterProfile.id, orderId);
       setSuccessText("Фото-отчёт успешно загружен");
     } catch (error) {
       console.error("Ошибка загрузки фото-отчёта:", error);
       alert(error.message || "Не удалось загрузить фото-отчёт");
-    } finally {
-      setIsReportUploading(false);
     }
   };
 
   const logout = () => {
     clearAuthData();
     setIsLoggedIn(false);
-    setMasterProfile(null);
-    setAvailableOrders([]);
-    setMasterOrders([]);
-    setPhone("");
-    setFullName("");
-    setPassword("");
-    setConfirmPassword("");
-    setSelectedCategories([]);
-    setAboutMe("");
-    setExperienceYears("");
-    setWorkCity("");
-    setAvatarFile(null);
-    setIdCardFront(null);
-    setIdCardBack(null);
-    setSelfiePhoto(null);
-    setReportPhotos([]);
-    setReportTargetOrderId(null);
+
+    resetMasterAuthState();
+    resetMasterProfileState();
+    resetMasterOrdersState();
+
     setSuccessText("");
-    setMode("login");
     setOpenedPhoto(null);
     setActiveSection("profile");
 
@@ -495,6 +255,7 @@ export default function useMasterCabinet({ onLogout }) {
     isLoading,
     isLoggedIn,
     masterProfile,
+    setMasterProfile,
 
     availableOrders,
     setAvailableOrders,

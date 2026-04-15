@@ -1,10 +1,13 @@
 import { useMemo, useRef, useState } from "react";
-import { getStatusLabel } from "../../lib/orders";
+import {
+  getStatusLabel,
+  ORDER_STATUSES,
+} from "../../lib/orders";
+import { API_BASE_URL } from "../../lib/constants";
 import MasterOrderPhotos from "./MasterOrderPhotos";
 
 const ITEMS_PER_PAGE = 3;
 const MAX_REPORT_PHOTOS = 8;
-const API_BASE_URL = "http://127.0.0.1:8000";
 
 export default function MasterOrdersSection({
   title = "Мои заказы",
@@ -181,10 +184,10 @@ export default function MasterOrdersSection({
 
         {renderExistingReportPhotos(order)}
 
-        {order.status === "on_site" && (
+        {order.status === ORDER_STATUSES.ON_SITE && (
           <button
             type="button"
-            onClick={() => handleMasterStatusChange(order.id, "completed")}
+            onClick={() => handleMasterStatusChange(order.id, ORDER_STATUSES.COMPLETED)}
             disabled={!hasExistingReport}
             className="w-full rounded-xl bg-black py-3 text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -192,7 +195,7 @@ export default function MasterOrdersSection({
           </button>
         )}
 
-        {order.status === "on_site" && !hasExistingReport && (
+        {order.status === ORDER_STATUSES.ON_SITE && !hasExistingReport && (
           <p className="text-xs text-red-600">
             Чтобы завершить заказ, сначала загрузите хотя бы одно фото отчёта
           </p>
@@ -202,10 +205,12 @@ export default function MasterOrdersSection({
   };
 
   const renderMasterOrderAction = (order) => {
-    if (order.status === "assigned") {
+    if (order.status === ORDER_STATUSES.ASSIGNED) {
       return (
         <button
-          onClick={() => handleMasterStatusChange(order.id, "on_the_way")}
+          onClick={() =>
+            handleMasterStatusChange(order.id, ORDER_STATUSES.ON_THE_WAY)
+          }
           className="w-full rounded-xl bg-black py-3 text-white"
         >
           Выехал
@@ -213,10 +218,12 @@ export default function MasterOrdersSection({
       );
     }
 
-    if (order.status === "on_the_way") {
+    if (order.status === ORDER_STATUSES.ON_THE_WAY) {
       return (
         <button
-          onClick={() => handleMasterStatusChange(order.id, "on_site")}
+          onClick={() =>
+            handleMasterStatusChange(order.id, ORDER_STATUSES.ON_SITE)
+          }
           className="w-full rounded-xl bg-black py-3 text-white"
         >
           На месте
@@ -224,21 +231,24 @@ export default function MasterOrdersSection({
       );
     }
 
-    if (order.status === "on_site") {
+    if (order.status === ORDER_STATUSES.ON_SITE) {
       return renderReportUploader(order);
     }
 
-    if (order.status === "completed" || order.status === "paid") {
+    if (
+      order.status === ORDER_STATUSES.COMPLETED ||
+      order.status === ORDER_STATUSES.PAID
+    ) {
       return (
         <div className="space-y-4">
           <div
             className={`rounded-xl p-3 text-sm ${
-              order.status === "paid"
+              order.status === ORDER_STATUSES.PAID
                 ? "border border-green-300 bg-green-50 text-green-800"
                 : "border border-yellow-300 bg-yellow-50 text-yellow-900"
             }`}
           >
-            {order.status === "paid"
+            {order.status === ORDER_STATUSES.PAID
               ? "Заказ оплачен"
               : "Ожидает оплату от пользователя"}
           </div>

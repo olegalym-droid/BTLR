@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
-import { updateOrderStatusRequest, createReviewRequest } from "../lib/orders";
+import {
+  updateOrderStatusRequest,
+  createReviewRequest,
+  ORDER_PROGRESS_STEPS,
+  ORDER_STATUSES,
+} from "../lib/orders";
+import { API_BASE_URL } from "../lib/constants";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
 const REVIEW_COMMENT_MAX_LENGTH = 300;
 
 export default function OrderDetails({
@@ -26,15 +31,7 @@ export default function OrderDetails({
 
   if (!selectedOrder) return null;
 
-  const statusSteps = [
-    { key: "searching", label: "Поиск" },
-    { key: "pending_user_confirmation", label: "Выбор" },
-    { key: "assigned", label: "Назначен" },
-    { key: "on_the_way", label: "Едет" },
-    { key: "on_site", label: "На месте" },
-    { key: "completed", label: "Готово" },
-    { key: "paid", label: "Оплачено" },
-  ];
+  const statusSteps = ORDER_PROGRESS_STEPS;
 
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
@@ -61,7 +58,7 @@ export default function OrderDetails({
 
       const updatedOrder = await updateOrderStatusRequest({
         orderId: selectedOrder.id,
-        status: "paid",
+        status: ORDER_STATUSES.PAID,
       });
 
       onStatusChange(updatedOrder);
@@ -162,7 +159,9 @@ export default function OrderDetails({
   };
 
   const showReviewForm =
-    selectedOrder.status === "paid" && !selectedOrder.reviewed && !submitted;
+    selectedOrder.status === ORDER_STATUSES.PAID &&
+    !selectedOrder.reviewed &&
+    !submitted;
 
   return (
     <>
@@ -343,7 +342,8 @@ export default function OrderDetails({
                   </div>
                 </div>
 
-                {selectedOrder.status === "pending_user_confirmation" &&
+                {selectedOrder.status ===
+                  ORDER_STATUSES.PENDING_USER_CONFIRMATION &&
                   selectedOrder.offers?.length > 0 && (
                     <div className="space-y-4">
                       <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-4">
@@ -435,7 +435,7 @@ export default function OrderDetails({
                     </div>
                   )}
 
-                {selectedOrder.status === "completed" && (
+                {selectedOrder.status === ORDER_STATUSES.COMPLETED && (
                   <div className="space-y-3">
                     <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
                       <p className="text-sm text-gray-700 sm:text-base">
@@ -519,7 +519,7 @@ export default function OrderDetails({
                   </div>
                 )}
 
-                {selectedOrder.status === "paid" && !showReviewForm && (
+                {selectedOrder.status === ORDER_STATUSES.PAID && !showReviewForm && (
                   <div className="rounded-2xl bg-green-50 p-4 text-center">
                     <p className="text-lg font-semibold text-black">
                       Спасибо за отзыв 🙌
