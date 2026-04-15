@@ -116,15 +116,27 @@ export const loadMasterOrdersRequest = async (masterId) => {
   return data;
 };
 
-export const assignOrderToMasterRequest = async (orderId, masterId) => {
+export const assignOrderToMasterRequest = async (
+  orderId,
+  masterId,
+  offeredPrice = "",
+) => {
   const resolvedMasterId = masterId || getStoredAuthUser()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
   }
 
+  const params = new URLSearchParams({
+    master_id: String(resolvedMasterId),
+  });
+
+  if (String(offeredPrice).trim()) {
+    params.set("offered_price", String(offeredPrice).trim());
+  }
+
   const res = await fetch(
-    `${API_BASE_URL}/orders/${orderId}/assign?master_id=${resolvedMasterId}`,
+    `${API_BASE_URL}/orders/${orderId}/assign?${params.toString()}`,
     {
       method: "PUT",
     },
@@ -210,6 +222,7 @@ export const createOrderRequest = async ({
   category,
   serviceName,
   description,
+  clientPrice,
   address,
   selectedDate,
   selectedTime,
@@ -221,6 +234,12 @@ export const createOrderRequest = async ({
     throw new Error("Пользователь не авторизован");
   }
 
+  const normalizedClientPrice = String(clientPrice || "").trim();
+
+  if (!normalizedClientPrice) {
+    throw new Error("Укажите вашу цену");
+  }
+
   const scheduledAt = `${selectedDate} ${selectedTime}`;
   const formData = new FormData();
 
@@ -228,6 +247,7 @@ export const createOrderRequest = async ({
   formData.append("category", category);
   formData.append("service_name", serviceName);
   formData.append("description", description);
+  formData.append("client_price", normalizedClientPrice);
   formData.append("address", address);
   formData.append("scheduled_at", scheduledAt);
 

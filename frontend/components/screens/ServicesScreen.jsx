@@ -9,6 +9,8 @@ export default function ServicesScreen({
   availableServices,
   description,
   setDescription,
+  clientPrice,
+  setClientPrice,
   address,
   setAddress,
   selectedDate,
@@ -35,6 +37,8 @@ export default function ServicesScreen({
         availableServices={availableServices}
         description={description}
         setDescription={setDescription}
+        clientPrice={clientPrice}
+        setClientPrice={setClientPrice}
         address={address}
         setAddress={setAddress}
         selectedDate={selectedDate}

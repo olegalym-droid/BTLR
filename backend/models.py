@@ -88,7 +88,8 @@ class Order(Base):
     status = Column(String, nullable=False, default="searching")
     master_name = Column(String, nullable=True)
     master_rating = Column(Float, nullable=True)
-    price = Column(String, nullable=True)
+    price = Column(String, nullable=True)  # итоговая/выбранная цена
+    client_price = Column(String, nullable=True)  # цена, предложенная пользователем
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -131,6 +132,7 @@ class OrderResponseOffer(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
     master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
     status = Column(String, nullable=False, default="pending")
+    offered_price = Column(String, nullable=True)  # цена мастера в отклике
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     order = relationship("Order", back_populates="offers", foreign_keys=[order_id])

@@ -30,6 +30,7 @@ def build_order_response(
             OrderOfferResponse(
                 id=offer.id,
                 status=offer.status,
+                offered_price=offer.offered_price,
                 master=OfferMasterResponse(
                     id=offer.master.id,
                     full_name=offer.master.full_name,
@@ -55,6 +56,7 @@ def build_order_response(
         master_name=order.master_name,
         master_rating=order.master_rating,
         price=order.price,
+        client_price=order.client_price,
         reviewed=reviewed,
         offers=offers,
         photos=order.photos,

@@ -76,6 +76,7 @@ export default function useOrders() {
     category,
     serviceName,
     description,
+    clientPrice,
     address,
     selectedDate,
     selectedTime,
@@ -93,6 +94,7 @@ export default function useOrders() {
       !category ||
       !serviceName ||
       !description ||
+      !clientPrice ||
       !address ||
       !selectedDate ||
       !selectedTime
@@ -106,6 +108,7 @@ export default function useOrders() {
         category,
         serviceName,
         description,
+        clientPrice,
         address,
         selectedDate,
         selectedTime,

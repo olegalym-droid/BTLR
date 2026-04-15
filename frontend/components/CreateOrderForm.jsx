@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const DESCRIPTION_MAX_LENGTH = 300;
 const ADDRESS_MAX_LENGTH = 180;
+const CLIENT_PRICE_MAX_LENGTH = 20;
 const MAX_ORDER_PHOTOS = 4;
 
 const generateTimeSlots = (startHour = 8, endHour = 22) => {
@@ -37,6 +38,8 @@ export default function CreateOrderForm({
   availableServices,
   description,
   setDescription,
+  clientPrice,
+  setClientPrice,
   address,
   setAddress,
   selectedDate,
@@ -113,6 +116,10 @@ export default function CreateOrderForm({
     setDescription(event.target.value.slice(0, DESCRIPTION_MAX_LENGTH));
   };
 
+  const handleClientPriceChange = (event) => {
+    setClientPrice(event.target.value.slice(0, CLIENT_PRICE_MAX_LENGTH));
+  };
+
   const handleAddressChange = (event) => {
     setAddress(event.target.value.slice(0, ADDRESS_MAX_LENGTH));
   };
@@ -125,6 +132,7 @@ export default function CreateOrderForm({
         category,
         serviceName,
         description,
+        clientPrice,
         address,
         selectedDate,
         selectedTime,
@@ -299,6 +307,23 @@ export default function CreateOrderForm({
               />
               <p className="text-right text-xs text-gray-500">
                 {description.length}/{DESCRIPTION_MAX_LENGTH}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-black sm:text-base">
+                Ваша цена
+              </label>
+              <input
+                type="text"
+                placeholder="Например: 7000 ₸"
+                value={clientPrice}
+                onChange={handleClientPriceChange}
+                maxLength={CLIENT_PRICE_MAX_LENGTH}
+                className="w-full rounded-xl border border-gray-300 p-4 text-black outline-none placeholder:text-gray-400 focus:border-black"
+              />
+              <p className="text-xs text-gray-500">
+                Укажите сумму, за которую хотите выполнить работу
               </p>
             </div>
 

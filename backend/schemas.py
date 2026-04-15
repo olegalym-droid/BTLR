@@ -47,6 +47,7 @@ class OrderCreateRequest(BaseModel):
     description: str
     address: str
     scheduled_at: str
+    client_price: str | None = None
 
 
 class MasterCategoryResponse(BaseModel):
@@ -101,6 +102,7 @@ class OfferMasterResponse(BaseModel):
 class OrderOfferResponse(BaseModel):
     id: int
     status: str
+    offered_price: str | None = None
     master: OfferMasterResponse
 
     class Config:
@@ -120,6 +122,7 @@ class OrderResponse(BaseModel):
     master_name: str | None = None
     master_rating: float | None = None
     price: str | None = None
+    client_price: str | None = None
     reviewed: bool = False
     offers: list[OrderOfferResponse] = []
     photos: list[OrderPhotoResponse] = []

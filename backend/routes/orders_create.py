@@ -17,6 +17,7 @@ async def create_order_service(
     description: str,
     address: str,
     scheduled_at: str,
+    client_price: str | None,
     photos: list[UploadFile] | None,
     db: Session,
 ) -> OrderResponse:
@@ -44,6 +45,13 @@ async def create_order_service(
     if not scheduled_at.strip():
         raise HTTPException(status_code=400, detail="Дата и время обязательны")
 
+    normalized_client_price = (client_price or "").strip()
+    if not normalized_client_price:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите вашу цену за работу",
+        )
+
     valid_photos = []
     if photos:
         valid_photos = [photo for photo in photos if photo and photo.filename]
@@ -66,6 +74,7 @@ async def create_order_service(
         master_name=None,
         master_rating=None,
         price=None,
+        client_price=normalized_client_price,
         created_at=datetime.utcnow(),
     )
 

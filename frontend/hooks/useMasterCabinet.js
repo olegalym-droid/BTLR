@@ -77,12 +77,15 @@ export default function useMasterCabinet({ onLogout }) {
 
   const loadMasterData = async (masterId) => {
     try {
-      await loadMasterProfile(masterId);
+      const profile = await loadMasterProfile(masterId);
 
-      await Promise.all([
-        loadAvailableOrders(masterId),
-        loadMasterOrders(masterId),
-      ]);
+      await loadMasterOrders(masterId);
+
+      if (profile?.verification_status === "approved") {
+        await loadAvailableOrders(masterId);
+      } else {
+        setAvailableOrders([]);
+      }
     } catch (error) {
       console.error("Ошибка загрузки мастера:", error);
       throw error;
@@ -152,23 +155,27 @@ export default function useMasterCabinet({ onLogout }) {
     try {
       await uploadDocumentsRequest();
       setSuccessText("Документы загружены и отправлены на проверку");
+
+      if (masterProfile?.id) {
+        await loadMasterData(masterProfile.id);
+      }
     } catch (error) {
       console.error("Ошибка загрузки документов:", error);
       alert(error.message || "Не удалось загрузить документы");
     }
   };
 
-  const handleTakeOrder = async (orderId) => {
+  const handleTakeOrder = async (orderId, offeredPrice = "") => {
     try {
       if (!masterProfile?.id) {
         throw new Error("Профиль мастера не загружен");
       }
 
-      await takeOrderRequest(masterProfile.id, orderId);
-      setSuccessText("Заказ успешно принят");
+      await takeOrderRequest(masterProfile.id, orderId, offeredPrice);
+      setSuccessText("Отклик на заказ успешно отправлен");
     } catch (error) {
       console.error("Ошибка принятия заказа:", error);
-      alert(error.message || "Не удалось взять заказ");
+      alert(error.message || "Не удалось отправить отклик");
     }
   };
 

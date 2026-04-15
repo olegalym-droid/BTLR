@@ -57,12 +57,12 @@ export default function useMasterOrders() {
     }
   };
 
-  const handleTakeOrder = async (masterId, orderId) => {
+  const handleTakeOrder = async (masterId, orderId, offeredPrice = "") => {
     if (!masterId) {
       throw new Error("Профиль мастера не загружен");
     }
 
-    await assignOrderToMasterRequest(orderId, masterId);
+    await assignOrderToMasterRequest(orderId, masterId, offeredPrice);
 
     await Promise.all([
       loadAvailableOrders(masterId),

@@ -43,11 +43,13 @@ def get_master_orders(master_id: int, db: Session = Depends(get_db)):
 def assign_order_to_master(
     order_id: int,
     master_id: int,
+    offered_price: str | None = None,
     db: Session = Depends(get_db),
 ):
     return assign_order_to_master_service(
         order_id=order_id,
         master_id=master_id,
+        offered_price=offered_price,
         db=db,
     )
 
@@ -125,6 +127,7 @@ async def create_order(
     description: str = Form(...),
     address: str = Form(...),
     scheduled_at: str = Form(...),
+    client_price: str = Form(...),
     photos: list[UploadFile] | None = File(default=None),
     db: Session = Depends(get_db),
 ):
@@ -135,6 +138,7 @@ async def create_order(
         description=description,
         address=address,
         scheduled_at=scheduled_at,
+        client_price=client_price,
         photos=photos,
         db=db,
     )

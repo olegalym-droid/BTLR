@@ -63,6 +63,7 @@ def confirm_master_for_order_service(
     order.master_id = selected_offer.master.id
     order.master_name = selected_offer.master.full_name
     order.master_rating = selected_offer.master.rating
+    order.price = selected_offer.offered_price or order.client_price
     order.status = ASSIGNED
 
     for offer in order.offers:

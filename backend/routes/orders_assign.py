@@ -18,6 +18,7 @@ from order_statuses import (
 def assign_order_to_master_service(
     order_id: int,
     master_id: int,
+    offered_price: str | None,
     db: Session,
 ) -> OrderResponse:
     master = get_master_or_404(master_id, db, with_categories=True)
@@ -64,10 +65,21 @@ def assign_order_to_master_service(
             detail="Вы уже откликнулись на этот заказ",
         )
 
+    normalized_offered_price = (offered_price or "").strip()
+    if not normalized_offered_price:
+        normalized_offered_price = (order.client_price or "").strip()
+
+    if not normalized_offered_price:
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось определить цену отклика мастера",
+        )
+
     new_offer = OrderResponseOffer(
         order_id=order.id,
         master_id=master.id,
         status="pending",
+        offered_price=normalized_offered_price,
     )
 
     db.add(new_offer)

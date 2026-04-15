@@ -247,6 +247,17 @@ export default function OrderDetails({
                   </div>
                 </div>
 
+                <div className="space-y-3">
+                  <h2 className="text-base font-semibold text-black sm:text-lg">
+                    Цена пользователя
+                  </h2>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="break-words text-lg font-semibold text-black sm:text-xl [overflow-wrap:anywhere]">
+                      {selectedOrder.client_price || "Не указана"}
+                    </p>
+                  </div>
+                </div>
+
                 {selectedOrder.photos?.length > 0 && (
                   <div className="space-y-3">
                     <div>
@@ -401,6 +412,17 @@ export default function OrderDetails({
                                     <p className="text-sm text-gray-700 sm:text-base">
                                       ⭐ Рейтинг: {master?.rating ?? 0}
                                     </p>
+
+                                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                      <p className="text-xs text-gray-500">
+                                        Цена мастера
+                                      </p>
+                                      <p className="mt-1 text-lg font-semibold text-black break-words [overflow-wrap:anywhere]">
+                                        {offer.offered_price ||
+                                          selectedOrder.client_price ||
+                                          "Не указана"}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
 
@@ -442,7 +464,7 @@ export default function OrderDetails({
                         Работа завершена
                       </p>
                       <p className="mt-1 break-words text-xl font-semibold text-black [overflow-wrap:anywhere]">
-                        Сумма: {selectedOrder.price || "5000 ₸"}
+                        Сумма: {selectedOrder.price || "Цена не указана"}
                       </p>
                     </div>
 

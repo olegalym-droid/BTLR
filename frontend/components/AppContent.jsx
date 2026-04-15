@@ -47,6 +47,8 @@ export default function AppContent({
     setServiceName,
     description,
     setDescription,
+    clientPrice,
+    setClientPrice,
     address,
     setAddress,
     selectedDate,
@@ -196,6 +198,8 @@ export default function AppContent({
         availableServices={availableServices}
         description={description}
         setDescription={setDescription}
+        clientPrice={clientPrice}
+        setClientPrice={setClientPrice}
         address={address}
         setAddress={setAddress}
         selectedDate={selectedDate}
