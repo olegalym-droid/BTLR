@@ -61,6 +61,13 @@ class Account(Base):
         foreign_keys="OrderReportPhoto.master_id",
     )
 
+    complaints = relationship(
+        "Complaint",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Complaint.user_id",
+    )
+
 
 class MasterCategory(Base):
     __tablename__ = "master_categories"
@@ -88,8 +95,8 @@ class Order(Base):
     status = Column(String, nullable=False, default="searching")
     master_name = Column(String, nullable=True)
     master_rating = Column(Float, nullable=True)
-    price = Column(String, nullable=True)  # итоговая/выбранная цена
-    client_price = Column(String, nullable=True)  # цена, предложенная пользователем
+    price = Column(String, nullable=True)
+    client_price = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -124,6 +131,13 @@ class Order(Base):
         foreign_keys="OrderResponseOffer.order_id",
     )
 
+    complaints = relationship(
+        "Complaint",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        foreign_keys="Complaint.order_id",
+    )
+
 
 class OrderResponseOffer(Base):
     __tablename__ = "order_response_offers"
@@ -132,7 +146,7 @@ class OrderResponseOffer(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
     master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
     status = Column(String, nullable=False, default="pending")
-    offered_price = Column(String, nullable=True)  # цена мастера в отклике
+    offered_price = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     order = relationship("Order", back_populates="offers", foreign_keys=[order_id])
@@ -180,3 +194,17 @@ class Review(Base):
     comment = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Complaint(Base):
+    __tablename__ = "complaints"
+
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    text = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="new")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    order = relationship("Order", back_populates="complaints", foreign_keys=[order_id])
+    user = relationship("Account", back_populates="complaints", foreign_keys=[user_id])

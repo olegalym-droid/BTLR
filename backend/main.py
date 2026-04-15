@@ -8,6 +8,7 @@ from routes.orders import router as orders_router
 from routes.masters import router as masters_router
 from routes.reviews import router as reviews_router
 from routes.admin import router as admin_router
+from routes.complaints import router as complaints_router
 
 
 def create_app() -> FastAPI:
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
     app.include_router(masters_router)
     app.include_router(reviews_router)
     app.include_router(admin_router)
+    app.include_router(complaints_router)
 
     return app
 

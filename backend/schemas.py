@@ -130,3 +130,35 @@ class OrderResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ComplaintCreateRequest(BaseModel):
+    order_id: int
+    user_id: int
+    text: str
+
+
+class ComplaintOrderInfoResponse(BaseModel):
+    id: int
+    service_name: str
+    category: str
+    status: str
+    price: str | None = None
+    client_price: str | None = None
+    master_name: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class ComplaintResponse(BaseModel):
+    id: int
+    order_id: int
+    user_id: int
+    text: str
+    status: str
+    user_name: str | None = None
+    order: ComplaintOrderInfoResponse | None = None
+
+    class Config:
+        from_attributes = True
