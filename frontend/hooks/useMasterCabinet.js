@@ -1,14 +1,21 @@
-import { useEffect, useState } from "react";
-import { getStoredAuthUser, clearAuthData } from "../lib/auth";
+import { useEffect } from "react";
 import useMasterAuth from "./useMasterAuth";
-import useMasterProfile from "./useMasterProfile";
-import useMasterOrders from "./useMasterOrders";
+import useMasterSession from "./useMasterSession";
+import useMasterData from "./useMasterData";
 
 export default function useMasterCabinet({ onLogout }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [successText, setSuccessText] = useState("");
-  const [openedPhoto, setOpenedPhoto] = useState(null);
-  const [activeSection, setActiveSection] = useState("profile");
+  const {
+    isLoggedIn,
+    setIsLoggedIn,
+    successText,
+    setSuccessText,
+    openedPhoto,
+    setOpenedPhoto,
+    activeSection,
+    setActiveSection,
+    loadStoredMaster,
+    logoutMasterSession,
+  } = useMasterSession();
 
   const {
     mode,
@@ -48,14 +55,9 @@ export default function useMasterCabinet({ onLogout }) {
     isAvatarLoading,
     isDocumentsLoading,
     hasUploadedAllDocuments,
-    loadMasterProfile,
     handleSaveMasterProfile: saveMasterProfileRequest,
     handleUploadAvatar: uploadAvatarRequest,
     handleUploadDocuments: uploadDocumentsRequest,
-    resetMasterProfileState,
-  } = useMasterProfile();
-
-  const {
     availableOrders,
     setAvailableOrders,
     masterOrders,
@@ -72,30 +74,14 @@ export default function useMasterCabinet({ onLogout }) {
     handleMasterStatusChange: changeMasterStatusRequest,
     handleUploadOrderReport: uploadOrderReportRequest,
     getStatusSuccessText,
-    resetMasterOrdersState,
-  } = useMasterOrders();
-
-  const loadMasterData = async (masterId) => {
-    try {
-      const profile = await loadMasterProfile(masterId);
-
-      await loadMasterOrders(masterId);
-
-      if (profile?.verification_status === "approved") {
-        await loadAvailableOrders(masterId);
-      } else {
-        setAvailableOrders([]);
-      }
-    } catch (error) {
-      console.error("Ошибка загрузки мастера:", error);
-      throw error;
-    }
-  };
+    loadMasterData,
+    resetMasterDataState,
+  } = useMasterData();
 
   useEffect(() => {
-    const authUser = getStoredAuthUser();
+    const authUser = loadStoredMaster();
 
-    if (authUser?.id && authUser.role === "master") {
+    if (authUser?.id) {
       loadMasterData(authUser.id)
         .then(() => setIsLoggedIn(true))
         .catch((error) =>
@@ -208,20 +194,10 @@ export default function useMasterCabinet({ onLogout }) {
   };
 
   const logout = () => {
-    clearAuthData();
-    setIsLoggedIn(false);
-
-    resetMasterAuthState();
-    resetMasterProfileState();
-    resetMasterOrdersState();
-
-    setSuccessText("");
-    setOpenedPhoto(null);
-    setActiveSection("profile");
-
-    if (onLogout) {
-      onLogout();
-    }
+    logoutMasterSession({
+      onLogout,
+      resetters: [resetMasterAuthState, resetMasterDataState],
+    });
   };
 
   return {

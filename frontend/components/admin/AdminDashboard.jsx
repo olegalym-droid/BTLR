@@ -1,10 +1,13 @@
 import AdminMastersSection from "./AdminMastersSection";
+import AdminComplaintsSection from "./AdminComplaintsSection";
 
 export default function AdminDashboard({
   pendingMasters,
   selectedMaster,
   setSelectedMaster,
   handleApproveMaster,
+  complaints,
+  updateComplaintStatus,
   isLoading,
   successText,
   logout,
@@ -29,6 +32,12 @@ export default function AdminDashboard({
           </div>
         )}
       </div>
+
+      <AdminComplaintsSection
+        complaints={complaints}
+        isLoading={isLoading}
+        updateComplaintStatus={updateComplaintStatus}
+      />
 
       <AdminMastersSection
         pendingMasters={pendingMasters}

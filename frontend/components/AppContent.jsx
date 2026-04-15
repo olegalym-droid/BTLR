@@ -1,11 +1,7 @@
-import OrderDetails from "./OrderDetails";
-import UnifiedAuth from "./auth/UnifiedAuth";
-import ProfileScreen from "./screens/ProfileScreen";
-import ServicesScreen from "./screens/ServicesScreen";
-import OrdersScreen from "./screens/OrdersScreen";
-import SuccessScreen from "./screens/SuccessScreen";
-import MasterPlaceholderScreen from "./screens/MasterPlaceholderScreen";
-import AdminDashboard from "./admin/AdminDashboard";
+import AuthGate from "./AuthGate";
+import UserAppView from "./UserAppView";
+import AdminAppView from "./AdminAppView";
+import MasterAppView from "./MasterAppView";
 
 export default function AppContent({
   session,
@@ -74,156 +70,96 @@ export default function AppContent({
     pendingMasters,
     selectedMaster,
     setSelectedMaster,
+    complaints,
     successText: adminSuccessText,
     handleApproveMaster,
     isLoading: isAdminLoading,
     logout: adminLogout,
     loginWithCredentials,
+    updateComplaintStatus,
   } = adminState;
 
   if (!selectedRole) {
     return (
-      <UnifiedAuth
-        onUserOrMasterSuccess={(role) => {
-          handleAuthSuccess();
-          setSelectedRole(role);
-          setIsAuthenticated(true);
-        }}
-        onAdminSuccess={async (login, password) => {
-          await loginWithCredentials(login, password);
-          setSelectedRole("admin");
-        }}
+      <AuthGate
+        handleAuthSuccess={handleAuthSuccess}
+        setSelectedRole={setSelectedRole}
+        setIsAuthenticated={setIsAuthenticated}
+        loginWithCredentials={loginWithCredentials}
       />
     );
   }
 
   if (selectedRole === "master") {
     return (
-      <MasterPlaceholderScreen
-        onBack={() => {
-          setIsAuthenticated(false);
-          setSelectedRole(null);
-        }}
-        onLogout={() => {
-          setIsAuthenticated(false);
-          setSelectedRole(null);
-        }}
+      <MasterAppView
+        setIsAuthenticated={setIsAuthenticated}
+        setSelectedRole={setSelectedRole}
       />
     );
   }
 
   if (selectedRole === "admin") {
-    if (!isAdminLoggedIn) {
-      return (
-        <UnifiedAuth
-          onUserOrMasterSuccess={(role) => {
-            handleAuthSuccess();
-            setSelectedRole(role);
-            setIsAuthenticated(true);
-          }}
-          onAdminSuccess={async (login, password) => {
-            await loginWithCredentials(login, password);
-            setSelectedRole("admin");
-          }}
-        />
-      );
-    }
-
     return (
-      <AdminDashboard
+      <AdminAppView
+        isAdminLoggedIn={isAdminLoggedIn}
         pendingMasters={pendingMasters}
         selectedMaster={selectedMaster}
         setSelectedMaster={setSelectedMaster}
+        complaints={complaints}
+        adminSuccessText={adminSuccessText}
         handleApproveMaster={handleApproveMaster}
-        isLoading={isAdminLoading}
-        successText={adminSuccessText}
-        logout={() => {
-          adminLogout();
-          setSelectedRole(null);
-        }}
+        isAdminLoading={isAdminLoading}
+        adminLogout={adminLogout}
+        loginWithCredentials={loginWithCredentials}
+        updateComplaintStatus={updateComplaintStatus}
+        setSelectedRole={setSelectedRole}
+        handleAuthSuccess={handleAuthSuccess}
+        setIsAuthenticated={setIsAuthenticated}
       />
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <UnifiedAuth
-        onUserOrMasterSuccess={(role) => {
-          handleAuthSuccess();
-          setSelectedRole(role);
-          setIsAuthenticated(true);
-        }}
-        onAdminSuccess={async (login, password) => {
-          await loginWithCredentials(login, password);
-          setSelectedRole("admin");
-        }}
-      />
-    );
-  }
-
-  if (orderCreated) {
-    return (
-      <SuccessScreen
-        onGoToOrders={() => {
-          setOrderCreated(false);
-          setActiveTab("orders");
-        }}
-        onBackToServices={() => {
-          setOrderCreated(false);
-          setActiveTab("services");
-        }}
-      />
-    );
-  }
-
-  if (selectedOrder) {
-    return (
-      <OrderDetails
-        selectedOrder={selectedOrder}
-        getStatusLabel={getStatusLabel}
-        onBack={() => setSelectedOrder(null)}
-        onStatusChange={updateSelectedOrder}
-      />
-    );
-  }
-
-  if (activeTab === "services") {
-    return (
-      <ServicesScreen
-        categories={categories}
-        category={category}
-        setCategory={setCategory}
-        serviceName={serviceName}
-        setServiceName={setServiceName}
-        availableServices={availableServices}
-        description={description}
-        setDescription={setDescription}
-        clientPrice={clientPrice}
-        setClientPrice={setClientPrice}
-        address={address}
-        setAddress={setAddress}
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-        selectedTime={selectedTime}
-        setSelectedTime={setSelectedTime}
-        createOrder={createOrder}
-      />
-    );
-  }
-
-  if (activeTab === "orders") {
-    return (
-      <OrdersScreen
-        activeOrders={activeOrders}
-        completedOrders={completedOrders}
-        getStatusLabel={getStatusLabel}
-        setSelectedOrder={setSelectedOrder}
+      <AuthGate
+        handleAuthSuccess={handleAuthSuccess}
+        setSelectedRole={setSelectedRole}
+        setIsAuthenticated={setIsAuthenticated}
+        loginWithCredentials={loginWithCredentials}
       />
     );
   }
 
   return (
-    <ProfileScreen
+    <UserAppView
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      orderCreated={orderCreated}
+      setOrderCreated={setOrderCreated}
+      selectedOrder={selectedOrder}
+      setSelectedOrder={setSelectedOrder}
+      updateSelectedOrder={updateSelectedOrder}
+      activeOrders={activeOrders}
+      completedOrders={completedOrders}
+      categories={categories}
+      category={category}
+      setCategory={setCategory}
+      serviceName={serviceName}
+      setServiceName={setServiceName}
+      availableServices={availableServices}
+      description={description}
+      setDescription={setDescription}
+      clientPrice={clientPrice}
+      setClientPrice={setClientPrice}
+      address={address}
+      setAddress={setAddress}
+      selectedDate={selectedDate}
+      setSelectedDate={setSelectedDate}
+      selectedTime={selectedTime}
+      setSelectedTime={setSelectedTime}
+      createOrder={createOrder}
+      getStatusLabel={getStatusLabel}
       profile={profile}
       setProfile={setProfile}
       newAddressForm={newAddressForm}

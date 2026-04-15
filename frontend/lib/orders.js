@@ -296,6 +296,52 @@ export const updateOrderStatusRequest = async ({ orderId, status }) => {
   return data;
 };
 
+export const confirmMasterForOrderRequest = async ({ orderId, offerId }) => {
+  const authUser = getStoredAuthUser();
+
+  if (!authUser?.id) {
+    throw new Error("Пользователь не авторизован");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/orders/${orderId}/confirm-master?user_id=${authUser.id}&offer_id=${offerId}`,
+    {
+      method: "PUT",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось выбрать мастера");
+  }
+
+  return data;
+};
+
+export const rejectMasterForOrderRequest = async ({ orderId, offerId }) => {
+  const authUser = getStoredAuthUser();
+
+  if (!authUser?.id) {
+    throw new Error("Пользователь не авторизован");
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/orders/${orderId}/reject-master?user_id=${authUser.id}&offer_id=${offerId}`,
+    {
+      method: "PUT",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось отклонить мастера");
+  }
+
+  return data;
+};
+
 export const createReviewRequest = async ({
   orderId,
   rating,
@@ -322,6 +368,38 @@ export const createReviewRequest = async ({
 
   if (!res.ok) {
     throw new Error(data.detail || "Не удалось отправить отзыв");
+  }
+
+  return data;
+};
+
+export const createComplaintRequest = async ({ orderId, text }) => {
+  const authUser = getStoredAuthUser();
+
+  if (!authUser?.id) {
+    throw new Error("Пользователь не авторизован");
+  }
+
+  if (!text || !text.trim()) {
+    throw new Error("Опишите проблему");
+  }
+
+  const res = await fetch(`${API_BASE_URL}/complaints`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      order_id: orderId,
+      user_id: authUser.id,
+      text: text.trim(),
+    }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось отправить жалобу");
   }
 
   return data;

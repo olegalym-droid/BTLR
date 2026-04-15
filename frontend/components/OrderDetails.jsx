@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
 import {
-  updateOrderStatusRequest,
-  createReviewRequest,
   ORDER_PROGRESS_STEPS,
   ORDER_STATUSES,
 } from "../lib/orders";
 import { API_BASE_URL } from "../lib/constants";
+import useOrderDetailsActions from "../hooks/useOrderDetailsActions";
 
 const REVIEW_COMMENT_MAX_LENGTH = 300;
+const COMPLAINT_MAX_LENGTH = 1000;
 
 export default function OrderDetails({
   selectedOrder,
@@ -15,19 +14,34 @@ export default function OrderDetails({
   onBack,
   onStatusChange,
 }) {
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-  const [processingOfferId, setProcessingOfferId] = useState(null);
-  const [openedPhoto, setOpenedPhoto] = useState(null);
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-
-  useEffect(() => {
-    setSubmitted(false);
-    setRating(0);
-    setComment("");
-  }, [selectedOrder?.id]);
+  const {
+    rating,
+    setRating,
+    comment,
+    submitted,
+    isPaying,
+    processingOfferId,
+    openedPhoto,
+    setOpenedPhoto,
+    isSubmittingReview,
+    showComplaintForm,
+    setShowComplaintForm,
+    complaintText,
+    isSubmittingComplaint,
+    complaintSubmitted,
+    handlePay,
+    handleConfirmMaster,
+    handleRejectMaster,
+    handleCommentChange,
+    handleComplaintChange,
+    handleSubmitReview,
+    handleSubmitComplaint,
+    showReviewForm,
+    canComplain,
+  } = useOrderDetailsActions({
+    selectedOrder,
+    onStatusChange,
+  });
 
   if (!selectedOrder) return null;
 
@@ -36,132 +50,6 @@ export default function OrderDetails({
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
   );
-
-  const getCurrentUserId = () => {
-    try {
-      const authUserRaw = localStorage.getItem("auth_user");
-      const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
-
-      if (!authUser?.id) {
-        throw new Error("Пользователь не авторизован");
-      }
-
-      return authUser.id;
-    } catch {
-      throw new Error("Не удалось определить пользователя");
-    }
-  };
-
-  const handlePay = async () => {
-    try {
-      setIsPaying(true);
-
-      const updatedOrder = await updateOrderStatusRequest({
-        orderId: selectedOrder.id,
-        status: ORDER_STATUSES.PAID,
-      });
-
-      onStatusChange(updatedOrder);
-    } catch (error) {
-      console.error("Ошибка оплаты:", error);
-      alert(error.message || "Не удалось обновить оплату");
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
-  const handleConfirmMaster = async (offerId) => {
-    try {
-      setProcessingOfferId(offerId);
-
-      const userId = getCurrentUserId();
-
-      const response = await fetch(
-        `${API_BASE_URL}/orders/${selectedOrder.id}/confirm-master?user_id=${userId}&offer_id=${offerId}`,
-        {
-          method: "PUT",
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Не удалось выбрать мастера");
-      }
-
-      onStatusChange(data);
-    } catch (error) {
-      console.error("Ошибка подтверждения мастера:", error);
-      alert(error.message || "Не удалось выбрать мастера");
-    } finally {
-      setProcessingOfferId(null);
-    }
-  };
-
-  const handleRejectMaster = async (offerId) => {
-    try {
-      setProcessingOfferId(offerId);
-
-      const userId = getCurrentUserId();
-
-      const response = await fetch(
-        `${API_BASE_URL}/orders/${selectedOrder.id}/reject-master?user_id=${userId}&offer_id=${offerId}`,
-        {
-          method: "PUT",
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Не удалось отклонить мастера");
-      }
-
-      onStatusChange(data);
-    } catch (error) {
-      console.error("Ошибка отклонения мастера:", error);
-      alert(error.message || "Не удалось отклонить мастера");
-    } finally {
-      setProcessingOfferId(null);
-    }
-  };
-
-  const handleCommentChange = (event) => {
-    setComment(event.target.value.slice(0, REVIEW_COMMENT_MAX_LENGTH));
-  };
-
-  const handleSubmitReview = async () => {
-    if (rating === 0) {
-      alert("Поставьте оценку");
-      return;
-    }
-
-    try {
-      setIsSubmittingReview(true);
-
-      await createReviewRequest({
-        orderId: selectedOrder.id,
-        rating,
-        comment: comment.trim(),
-      });
-
-      setSubmitted(true);
-      onStatusChange({
-        ...selectedOrder,
-        reviewed: true,
-      });
-    } catch (error) {
-      console.error("Ошибка отправки отзыва:", error);
-      alert(error.message || "Не удалось отправить отзыв");
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
-  const showReviewForm =
-    selectedOrder.status === ORDER_STATUSES.PAID &&
-    !selectedOrder.reviewed &&
-    !submitted;
 
   return (
     <>
@@ -456,6 +344,75 @@ export default function OrderDetails({
                       </div>
                     </div>
                   )}
+
+                {canComplain && (
+                  <div className="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+                    <div>
+                      <h2 className="text-base font-semibold text-black sm:text-lg">
+                        Проблема с заказом
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-700">
+                        Если мастер не приехал, был грубым, повредил что-то или
+                        выполнил работу некачественно — отправьте жалобу
+                        администратору.
+                      </p>
+                    </div>
+
+                    {!showComplaintForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowComplaintForm(true)}
+                        className="w-full rounded-xl border border-red-300 bg-white px-4 py-3 text-sm text-red-700 sm:text-base"
+                      >
+                        Проблема с заказом
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <textarea
+                          placeholder="Опишите проблему: например, мастер не приехал, был грубым, сломал мебель, сделал некачественно и т.д."
+                          value={complaintText}
+                          onChange={handleComplaintChange}
+                          maxLength={COMPLAINT_MAX_LENGTH}
+                          className="min-h-[140px] w-full rounded-xl border border-red-200 p-4 text-sm text-black placeholder:text-gray-400 outline-none focus:border-red-400 sm:text-base"
+                        />
+
+                        <p className="text-right text-xs text-gray-500">
+                          {complaintText.length}/{COMPLAINT_MAX_LENGTH}
+                        </p>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={handleSubmitComplaint}
+                            disabled={isSubmittingComplaint}
+                            className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm text-white disabled:opacity-60 sm:text-base"
+                          >
+                            {isSubmittingComplaint
+                              ? "Отправка..."
+                              : "Отправить жалобу"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowComplaintForm(false);
+                            }}
+                            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-black sm:text-base"
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {complaintSubmitted && (
+                      <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+                        Жалоба уже отправлена администратору по этому заказу в
+                        рамках текущей сессии.
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {selectedOrder.status === ORDER_STATUSES.COMPLETED && (
                   <div className="space-y-3">

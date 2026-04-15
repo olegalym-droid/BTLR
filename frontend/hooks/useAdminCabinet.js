@@ -1,73 +1,41 @@
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "../lib/constants";
+import { adminLoginRequest } from "../lib/admin";
+import useAdminData from "./useAdminData";
 
 export default function useAdminCabinet({ onLogout }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [pendingMasters, setPendingMasters] = useState([]);
-  const [selectedMaster, setSelectedMaster] = useState(null);
-  const [successText, setSuccessText] = useState("");
 
-  const getAdminHeaders = (adminLoginArg, adminPasswordArg) => {
-    const storedLogin =
-      adminLoginArg || localStorage.getItem("admin_login") || "";
-    const storedPassword =
-      adminPasswordArg || localStorage.getItem("admin_password") || "";
-
-    return {
-      "X-Admin-Login": storedLogin,
-      "X-Admin-Password": storedPassword,
-    };
-  };
-
-  const loadPendingMasters = async (
-    adminLoginArg = null,
-    adminPasswordArg = null,
-  ) => {
-    const response = await fetch(`${API_BASE_URL}/admin/masters/pending`, {
-      headers: getAdminHeaders(adminLoginArg, adminPasswordArg),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || "Не удалось загрузить мастеров");
-    }
-
-    setPendingMasters(Array.isArray(data) ? data : []);
-
-    setSelectedMaster((prev) => {
-      if (!prev) return null;
-      return data.find((item) => item.id === prev.id) || null;
-    });
-
-    return data;
-  };
+  const {
+    pendingMasters,
+    selectedMaster,
+    setSelectedMaster,
+    complaints,
+    successText,
+    setSuccessText,
+    loadPendingMasters,
+    loadComplaints,
+    handleApproveMaster: approveMasterAction,
+    updateComplaintStatus: updateComplaintStatusAction,
+    resetAdminDataState,
+  } = useAdminData();
 
   const loginWithCredentials = async (adminLogin, adminPassword) => {
-    const response = await fetch(`${API_BASE_URL}/admin/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        login: adminLogin,
-        password: adminPassword,
-      }),
+    await adminLoginRequest({
+      login: adminLogin,
+      password: adminPassword,
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.detail || "Ошибка входа администратора");
-    }
 
     localStorage.setItem("admin_login", adminLogin);
     localStorage.setItem("admin_password", adminPassword);
 
-    await loadPendingMasters(adminLogin, adminPassword);
+    await Promise.all([
+      loadPendingMasters(adminLogin, adminPassword),
+      loadComplaints(adminLogin, adminPassword),
+    ]);
+
     setIsLoggedIn(true);
     setSuccessText("Вход администратора выполнен");
   };
@@ -86,30 +54,22 @@ export default function useAdminCabinet({ onLogout }) {
 
   const handleApproveMaster = async (masterId) => {
     try {
-      setIsLoading(true);
-      setSuccessText("");
-
-      const response = await fetch(
-        `${API_BASE_URL}/admin/masters/${masterId}/approve`,
-        {
-          method: "PUT",
-          headers: getAdminHeaders(),
-        },
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Не удалось одобрить мастера");
-      }
-
-      await loadPendingMasters();
-      setSelectedMaster(null);
-      setSuccessText("Мастер успешно одобрен");
+      await approveMasterAction(masterId, setIsLoading);
     } catch (error) {
       alert(error.message || "Не удалось одобрить мастера");
-    } finally {
-      setIsLoading(false);
+    }
+  };
+
+  const updateComplaintStatus = async (complaintId, status) => {
+    try {
+      return await updateComplaintStatusAction(
+        complaintId,
+        status,
+        setIsLoading,
+      );
+    } catch (error) {
+      alert(error.message || "Не удалось обновить статус жалобы");
+      throw error;
     }
   };
 
@@ -126,7 +86,11 @@ export default function useAdminCabinet({ onLogout }) {
     const autoLogin = async () => {
       try {
         setIsLoading(true);
-        await loadPendingMasters(storedLogin, storedPassword);
+
+        await Promise.all([
+          loadPendingMasters(storedLogin, storedPassword),
+          loadComplaints(storedLogin, storedPassword),
+        ]);
 
         if (!isMounted) return;
 
@@ -159,9 +123,7 @@ export default function useAdminCabinet({ onLogout }) {
     setLogin("");
     setPassword("");
     setIsLoggedIn(false);
-    setPendingMasters([]);
-    setSelectedMaster(null);
-    setSuccessText("");
+    resetAdminDataState();
 
     if (onLogout) {
       onLogout();
@@ -178,11 +140,14 @@ export default function useAdminCabinet({ onLogout }) {
     pendingMasters,
     selectedMaster,
     setSelectedMaster,
+    complaints,
     successText,
     handleLogin,
     handleApproveMaster,
     loadPendingMasters,
+    loadComplaints,
     loginWithCredentials,
+    updateComplaintStatus,
     logout,
   };
 }
