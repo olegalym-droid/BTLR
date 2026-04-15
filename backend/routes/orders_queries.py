@@ -10,6 +10,10 @@ from routes.orders_helpers import (
     get_master_or_404,
     ensure_master_is_approved,
 )
+from order_statuses import (
+    SEARCHING,
+    PENDING_USER_CONFIRMATION,
+)
 
 
 def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
@@ -65,7 +69,7 @@ def get_available_orders_for_master(
         )
         .filter(
             Order.master_id.is_(None),
-            Order.status.in_(["searching", "pending_user_confirmation"]),
+            Order.status.in_([SEARCHING, PENDING_USER_CONFIRMATION]),
         )
     )
 

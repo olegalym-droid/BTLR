@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session, joinedload
 from models import Order, Account, OrderResponseOffer
 from schemas import OrderResponse
 from routes.orders_helpers import build_order_response, is_order_reviewed
+from order_statuses import (
+    PENDING_USER_CONFIRMATION,
+    SEARCHING,
+    ASSIGNED,
+)
 
 
 def confirm_master_for_order_service(
@@ -35,7 +40,7 @@ def confirm_master_for_order_service(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.status != "pending_user_confirmation":
+    if order.status != PENDING_USER_CONFIRMATION:
         raise HTTPException(
             status_code=400,
             detail="Этот заказ сейчас не ожидает выбора мастера",
@@ -58,7 +63,7 @@ def confirm_master_for_order_service(
     order.master_id = selected_offer.master.id
     order.master_name = selected_offer.master.full_name
     order.master_rating = selected_offer.master.rating
-    order.status = "assigned"
+    order.status = ASSIGNED
 
     for offer in order.offers:
         offer.status = "accepted" if offer.id == offer_id else "rejected"
@@ -112,7 +117,7 @@ def reject_master_for_order_service(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    if order.status != "pending_user_confirmation":
+    if order.status != PENDING_USER_CONFIRMATION:
         raise HTTPException(status_code=400, detail="Нельзя отклонить")
 
     selected_offer = next(
@@ -133,7 +138,7 @@ def reject_master_for_order_service(
         for offer in order.offers
     )
 
-    order.status = "pending_user_confirmation" if has_pending else "searching"
+    order.status = PENDING_USER_CONFIRMATION if has_pending else SEARCHING
 
     db.commit()
     db.refresh(order)

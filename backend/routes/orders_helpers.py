@@ -8,7 +8,6 @@ from schemas import (
     OfferMasterResponse,
 )
 
-
 MAX_ORDER_PHOTOS = 4
 MAX_ORDER_REPORT_PHOTOS = 8
 

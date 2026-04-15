@@ -7,6 +7,7 @@ from utils.file_utils import save_order_photos
 from models import Order, OrderPhoto, Account, OrderResponseOffer
 from schemas import OrderResponse
 from routes.orders_helpers import MAX_ORDER_PHOTOS, build_order_response
+from order_statuses import SEARCHING
 
 
 async def create_order_service(
@@ -61,7 +62,7 @@ async def create_order_service(
         description=description.strip(),
         address=address.strip(),
         scheduled_at=scheduled_at.strip(),
-        status="searching",
+        status=SEARCHING,
         master_name=None,
         master_rating=None,
         price=None,
