@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getStatusLabel,
   ORDER_STATUSES,
@@ -26,7 +26,37 @@ export default function MasterOrdersSection({
   onOpenPhoto,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [copiedPhonesByOrder, setCopiedPhonesByOrder] = useState({});
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+    const touchCapable =
+      "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+    const updateDeviceState = () => {
+      setIsMobileDevice(mobileQuery.matches || touchCapable);
+    };
+
+    updateDeviceState();
+
+    if (typeof mobileQuery.addEventListener === "function") {
+      mobileQuery.addEventListener("change", updateDeviceState);
+      return () => {
+        mobileQuery.removeEventListener("change", updateDeviceState);
+      };
+    }
+
+    mobileQuery.addListener(updateDeviceState);
+    return () => {
+      mobileQuery.removeListener(updateDeviceState);
+    };
+  }, []);
 
   const totalPages = Math.ceil(masterOrders.length / ITEMS_PER_PAGE) || 1;
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -63,6 +93,115 @@ export default function MasterOrdersSection({
 
   const removeReportPhoto = (indexToRemove) => {
     setReportPhotos((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleCopyPhone = async (orderId, phone) => {
+    const normalizedPhone = String(phone || "").trim();
+
+    if (!normalizedPhone) {
+      return;
+    }
+
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(normalizedPhone);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = normalizedPhone;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+
+      setCopiedPhonesByOrder((prev) => ({
+        ...prev,
+        [orderId]: true,
+      }));
+
+      setTimeout(() => {
+        setCopiedPhonesByOrder((prev) => ({
+          ...prev,
+          [orderId]: false,
+        }));
+      }, 2000);
+    } catch (error) {
+      console.error("Не удалось скопировать номер:", error);
+      alert("Не удалось скопировать номер");
+    }
+  };
+
+  const renderClientContactBlock = (order) => {
+    const normalizedPhone = String(order.user_phone || "").trim();
+
+    if (!normalizedPhone) {
+      return null;
+    }
+
+    const whatsappPhone = normalizedPhone.replace(/[^\d]/g, "");
+    const whatsappUrl =
+      whatsappPhone.length >= 10 ? `https://wa.me/${whatsappPhone}` : null;
+    const messageLinkHref = whatsappUrl || `tel:${normalizedPhone}`;
+    const messageLinkLabel = whatsappUrl
+      ? "Написать клиенту"
+      : "Связаться с клиентом";
+
+    return (
+      <div className="space-y-3 rounded-xl border border-gray-200 p-4">
+        <div>
+          <p className="text-sm font-medium text-black">Связь с клиентом</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Можно быстро написать клиенту или связаться по номеру
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <a
+            href={messageLinkHref}
+            target={whatsappUrl ? "_blank" : undefined}
+            rel={whatsappUrl ? "noreferrer" : undefined}
+            className="w-full rounded-xl bg-black py-3 text-center text-white"
+          >
+            {messageLinkLabel}
+          </a>
+
+          {isMobileDevice ? (
+            <a
+              href={`tel:${normalizedPhone}`}
+              className="w-full rounded-xl border border-gray-300 py-3 text-center text-black"
+            >
+              Позвонить клиенту
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleCopyPhone(order.id, normalizedPhone)}
+              className="w-full rounded-xl border border-gray-300 py-3 text-black"
+            >
+              {copiedPhonesByOrder[order.id]
+                ? "Номер скопирован"
+                : "Скопировать номер"}
+            </button>
+          )}
+        </div>
+
+        {!isMobileDevice && (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <p className="text-xs text-gray-500">Телефон клиента</p>
+            <p className="mt-1 break-words text-sm font-medium text-black [overflow-wrap:anywhere]">
+              {normalizedPhone}
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderExistingReportPhotos = (order) => {
@@ -410,6 +549,8 @@ export default function MasterOrdersSection({
                 💰 {order.price}
               </p>
             )}
+
+            {renderClientContactBlock(order)}
 
             {renderMasterOrderAction(order)}
           </div>

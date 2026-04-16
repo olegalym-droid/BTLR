@@ -31,6 +31,7 @@ def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.user),
             joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
@@ -65,6 +66,8 @@ def get_available_orders_for_master(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(
@@ -125,6 +128,8 @@ def get_orders_for_master(master_id: int, db: Session) -> list[OrderResponse]:
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(
@@ -159,6 +164,8 @@ def get_single_order_for_user(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order_id, Order.user_id == user_id)

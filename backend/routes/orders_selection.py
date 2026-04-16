@@ -31,6 +31,7 @@ def confirm_master_for_order_service(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order_id, Order.user_id == user_id)
@@ -77,6 +78,7 @@ def confirm_master_for_order_service(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order.id)
@@ -109,6 +111,7 @@ def reject_master_for_order_service(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order_id, Order.user_id == user_id)
@@ -149,6 +152,7 @@ def reject_master_for_order_service(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == order.id)

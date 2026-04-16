@@ -51,6 +51,7 @@ def get_master_order_or_404(order_id: int, master_id: int, db: Session) -> Order
     order = (
         db.query(Order)
         .options(
+            joinedload(Order.user),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -82,6 +83,7 @@ def get_user_order_or_404(order_id: int, user_id: int, db: Session) -> Order:
     order = (
         db.query(Order)
         .options(
+            joinedload(Order.user),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -142,6 +144,7 @@ def refresh_master_order(order_id: int, db: Session) -> Order:
     return (
         db.query(Order)
         .options(
+            joinedload(Order.user),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),

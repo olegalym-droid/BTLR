@@ -121,6 +121,8 @@ class OrderResponse(BaseModel):
     status: str
     master_name: str | None = None
     master_rating: float | None = None
+    master_phone: str | None = None
+    user_phone: str | None = None
     price: str | None = None
     client_price: str | None = None
     reviewed: bool = False

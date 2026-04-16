@@ -55,6 +55,8 @@ def build_order_response(
         status=order.status,
         master_name=order.master_name,
         master_rating=order.master_rating,
+        master_phone=order.master.phone if order.master else None,
+        user_phone=order.user.phone if order.user else None,
         price=order.price,
         client_price=order.client_price,
         reviewed=reviewed,

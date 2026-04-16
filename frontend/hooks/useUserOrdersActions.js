@@ -1,72 +1,83 @@
-import { useEffect, useState } from "react";
-import { loadOrdersRequest } from "../lib/orders";
-import { getStoredAuthUser } from "../lib/auth";
+import { createOrderRequest } from "../lib/orders";
 
-export default function useUserOrdersData() {
-  const [orders, setOrders] = useState(() => {
-    const authUser = getStoredAuthUser();
-    return authUser?.id && authUser.role === "user" ? [] : [];
-  });
+export default function useUserOrdersActions({
+  loadOrders,
+  setOrderCreated,
+}) {
+  const createOrder = async ({
+    category,
+    serviceName,
+    description,
+    clientPrice,
+    address,
+    selectedDate,
+    selectedTime,
+    photos = [],
+    onSuccess,
+  }) => {
+    if (!category) {
+      alert("Выберите категорию");
+      return false;
+    }
 
-  const loadOrders = async () => {
-    const authUser = getStoredAuthUser();
+    if (!serviceName) {
+      alert("Выберите услугу");
+      return false;
+    }
 
-    if (!authUser?.id || authUser.role !== "user") {
-      return;
+    if (!description.trim()) {
+      alert("Опишите задачу");
+      return false;
+    }
+
+    if (!clientPrice.trim()) {
+      alert("Укажите вашу цену");
+      return false;
+    }
+
+    if (!address.trim()) {
+      alert("Укажите адрес");
+      return false;
+    }
+
+    if (!selectedDate) {
+      alert("Выберите дату");
+      return false;
+    }
+
+    if (!selectedTime) {
+      alert("Выберите время");
+      return false;
     }
 
     try {
-      const data = await loadOrdersRequest();
-      setOrders(Array.isArray(data) ? data : []);
+      await createOrderRequest({
+        category,
+        serviceName,
+        description: description.trim(),
+        clientPrice: clientPrice.trim(),
+        address: address.trim(),
+        selectedDate,
+        selectedTime,
+        photos,
+      });
+
+      await loadOrders();
+      setOrderCreated(true);
+
+      if (typeof onSuccess === "function") {
+        onSuccess();
+      }
+
+      return true;
     } catch (error) {
-      console.error("Ошибка загрузки заявок:", error);
-      setOrders([]);
+      console.error("Ошибка создания заявки:", error);
+      alert(error.message || "Не удалось отправить заявку");
+      return false;
     }
   };
 
-  useEffect(() => {
-    const authUser = getStoredAuthUser();
-
-    if (!authUser?.id || authUser.role !== "user") {
-      return;
-    }
-
-    let isMounted = true;
-
-    const runLoadOrders = async () => {
-      try {
-        const data = await loadOrdersRequest();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setOrders(Array.isArray(data) ? data : []);
-      } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
-        console.error("Ошибка загрузки заявок:", error);
-        setOrders([]);
-      }
-    };
-
-    runLoadOrders();
-
-    const interval = setInterval(() => {
-      runLoadOrders();
-    }, 5000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
   return {
-    orders,
-    setOrders,
-    loadOrders,
+    createOrder,
   };
 }

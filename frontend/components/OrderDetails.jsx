@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   ORDER_PROGRESS_STEPS,
   ORDER_STATUSES,
@@ -43,6 +44,37 @@ export default function OrderDetails({
     onStatusChange,
   });
 
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const mobileQuery = window.matchMedia("(max-width: 768px)");
+    const touchCapable =
+      "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
+    const updateDeviceState = () => {
+      setIsMobileDevice(mobileQuery.matches || touchCapable);
+    };
+
+    updateDeviceState();
+
+    if (typeof mobileQuery.addEventListener === "function") {
+      mobileQuery.addEventListener("change", updateDeviceState);
+      return () => mobileQuery.removeEventListener("change", updateDeviceState);
+    }
+
+    mobileQuery.addListener(updateDeviceState);
+    return () => mobileQuery.removeListener(updateDeviceState);
+  }, []);
+
+  useEffect(() => {
+    setCopiedPhone(false);
+  }, [selectedOrder?.id]);
+
   if (!selectedOrder) return null;
 
   const statusSteps = ORDER_PROGRESS_STEPS;
@@ -50,6 +82,54 @@ export default function OrderDetails({
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
   );
+
+  const canContactMaster =
+    Boolean(selectedOrder.master_id) &&
+    Boolean(selectedOrder.master_phone) &&
+    selectedOrder.status !== ORDER_STATUSES.SEARCHING &&
+    selectedOrder.status !== ORDER_STATUSES.PENDING_USER_CONFIRMATION;
+
+  const normalizedPhone = String(selectedOrder.master_phone || "").trim();
+  const whatsappPhone = normalizedPhone.replace(/[^\d]/g, "");
+  const whatsappUrl =
+    whatsappPhone.length >= 10 ? `https://wa.me/${whatsappPhone}` : null;
+  const messageLinkHref = whatsappUrl || `tel:${normalizedPhone}`;
+  const messageLinkLabel = whatsappUrl
+    ? "Написать мастеру"
+    : "Связаться с мастером";
+
+  const handleCopyPhone = async () => {
+    if (!normalizedPhone) return;
+
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(normalizedPhone);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = normalizedPhone;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+
+      setCopiedPhone(true);
+
+      setTimeout(() => {
+        setCopiedPhone(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Не удалось скопировать номер:", error);
+      alert("Не удалось скопировать номер");
+    }
+  };
 
   return (
     <>
@@ -238,6 +318,47 @@ export default function OrderDetails({
                         Сумма: {selectedOrder.price}
                       </p>
                     )}
+
+                    {canContactMaster && (
+                      <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <a
+                            href={messageLinkHref}
+                            target={whatsappUrl ? "_blank" : undefined}
+                            rel={whatsappUrl ? "noreferrer" : undefined}
+                            className="w-full rounded-xl bg-black px-4 py-3 text-center text-sm text-white sm:text-base"
+                          >
+                            {messageLinkLabel}
+                          </a>
+
+                          {isMobileDevice ? (
+                            <a
+                              href={`tel:${normalizedPhone}`}
+                              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-center text-sm text-black sm:text-base"
+                            >
+                              Позвонить мастеру
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleCopyPhone}
+                              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-center text-sm text-black sm:text-base"
+                            >
+                              {copiedPhone ? "Номер скопирован" : "Скопировать номер"}
+                            </button>
+                          )}
+                        </div>
+
+                        {!isMobileDevice && (
+                          <div className="rounded-xl border border-gray-200 bg-white p-3">
+                            <p className="text-xs text-gray-500">Телефон мастера</p>
+                            <p className="mt-1 break-words text-sm font-medium text-black sm:text-base [overflow-wrap:anywhere]">
+                              {normalizedPhone}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -305,7 +426,7 @@ export default function OrderDetails({
                                       <p className="text-xs text-gray-500">
                                         Цена мастера
                                       </p>
-                                      <p className="mt-1 text-lg font-semibold text-black break-words [overflow-wrap:anywhere]">
+                                      <p className="mt-1 break-words text-lg font-semibold text-black [overflow-wrap:anywhere]">
                                         {offer.offered_price ||
                                           selectedOrder.client_price ||
                                           "Не указана"}
