@@ -28,6 +28,9 @@ class Account(Base):
     id_card_back_path = Column(String, nullable=True)
     selfie_photo_path = Column(String, nullable=True)
 
+    balance_amount = Column(String, nullable=False, default="0")
+    available_withdraw_amount = Column(String, nullable=False, default="0")
+
     orders = relationship(
         "Order",
         back_populates="user",
@@ -73,6 +76,20 @@ class Account(Base):
         back_populates="user",
         cascade="all, delete-orphan",
         foreign_keys="Notification.user_id",
+    )
+
+    schedules = relationship(
+        "MasterSchedule",
+        back_populates="master",
+        cascade="all, delete-orphan",
+        foreign_keys="MasterSchedule.master_id",
+    )
+
+    withdrawal_requests = relationship(
+        "MasterWithdrawalRequest",
+        back_populates="master",
+        cascade="all, delete-orphan",
+        foreign_keys="MasterWithdrawalRequest.master_id",
     )
 
 
@@ -239,19 +256,39 @@ class Notification(Base):
     user = relationship("Account", back_populates="notifications", foreign_keys=[user_id])
     order = relationship("Order", back_populates="notifications", foreign_keys=[order_id])
 
+
 class MasterSchedule(Base):
     __tablename__ = "master_schedules"
 
     id = Column(Integer, primary_key=True, index=True)
     master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
 
-    # день недели: 0 = понедельник, 6 = воскресенье
     weekday = Column(Integer, nullable=False)
-
-    # время в формате "09:00"
     start_time = Column(String, nullable=False)
     end_time = Column(String, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    master = relationship("Account")
+    master = relationship(
+        "Account",
+        back_populates="schedules",
+        foreign_keys=[master_id],
+    )
+
+
+class MasterWithdrawalRequest(Base):
+    __tablename__ = "master_withdrawal_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    master_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    amount = Column(String, nullable=False)
+    card_number = Column(String, nullable=False)
+    card_holder_name = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    master = relationship(
+        "Account",
+        back_populates="withdrawal_requests",
+        foreign_keys=[master_id],
+    )

@@ -34,6 +34,21 @@ REPORT_UPLOAD_ALLOWED_STATUSES = {
 }
 
 
+def parse_amount_to_int(raw_value: str | None) -> int:
+    if not raw_value:
+        return 0
+
+    cleaned = (
+        str(raw_value)
+        .replace("₸", "")
+        .replace(" ", "")
+        .replace(",", "")
+        .strip()
+    )
+
+    return int(cleaned) if cleaned.isdigit() else 0
+
+
 def get_master_or_404(master_id: int, db: Session) -> Account:
     master = (
         db.query(Account)
@@ -52,6 +67,7 @@ def get_master_order_or_404(order_id: int, master_id: int, db: Session) -> Order
         db.query(Order)
         .options(
             joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -84,6 +100,7 @@ def get_user_order_or_404(order_id: int, user_id: int, db: Session) -> Order:
         db.query(Order)
         .options(
             joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -145,6 +162,7 @@ def refresh_master_order(order_id: int, db: Session) -> Order:
         db.query(Order)
         .options(
             joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -171,7 +189,7 @@ def update_order_status_by_master_service(
 
     if status == "completed":
         if not order.price:
-            order.price = "5000 ₸"
+            order.price = "5000"
 
         master.completed_orders_count = (master.completed_orders_count or 0) + 1
 
@@ -225,6 +243,18 @@ def update_order_status_by_user_service(
         )
 
     order.status = "paid"
+
+    if order.master is not None:
+        order_amount = parse_amount_to_int(order.price or order.client_price)
+        current_balance = parse_amount_to_int(order.master.balance_amount)
+        current_available = parse_amount_to_int(order.master.available_withdraw_amount)
+
+        next_balance = current_balance + order_amount
+        next_available = current_available + order_amount
+
+        order.master.balance_amount = str(next_balance)
+        order.master.available_withdraw_amount = str(next_available)
+
     db.commit()
 
     refreshed_order = refresh_master_order(order.id, db)

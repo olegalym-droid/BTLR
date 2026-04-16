@@ -11,6 +11,7 @@ from routes.admin import router as admin_router
 from routes.complaints import router as complaints_router
 from routes.notifications import router as notifications_router
 from routes.schedules import router as schedules_router
+from routes.wallet import router as wallet_router
 
 
 def create_app() -> FastAPI:
@@ -40,6 +41,7 @@ def create_app() -> FastAPI:
     app.include_router(complaints_router)
     app.include_router(notifications_router)
     app.include_router(schedules_router)
+    app.include_router(wallet_router)
 
     return app
 

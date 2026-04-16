@@ -10,6 +10,40 @@ from routes.orders_helpers import MAX_ORDER_PHOTOS, build_order_response
 from order_statuses import SEARCHING
 
 
+def normalize_price_value(raw_price: str | None) -> str:
+    normalized = (raw_price or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите вашу цену за работу",
+        )
+
+    cleaned = normalized.replace("₸", "").replace(" ", "").replace(",", "")
+
+    if not cleaned.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна содержать только цифры",
+        )
+
+    amount = int(cleaned)
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна быть больше нуля",
+        )
+
+    if amount > 10000000:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена слишком большая",
+        )
+
+    return str(amount)
+
+
 async def create_order_service(
     user_id: int,
     category: str,
@@ -45,12 +79,7 @@ async def create_order_service(
     if not scheduled_at.strip():
         raise HTTPException(status_code=400, detail="Дата и время обязательны")
 
-    normalized_client_price = (client_price or "").strip()
-    if not normalized_client_price:
-        raise HTTPException(
-            status_code=400,
-            detail="Укажите вашу цену за работу",
-        )
+    normalized_client_price = normalize_price_value(client_price)
 
     valid_photos = []
     if photos:
@@ -89,6 +118,8 @@ async def create_order_service(
         .options(
             joinedload(Order.photos),
             joinedload(Order.report_photos),
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
         )
         .filter(Order.id == new_order.id)

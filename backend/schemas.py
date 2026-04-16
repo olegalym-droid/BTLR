@@ -178,3 +178,28 @@ class NotificationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MasterBalanceResponse(BaseModel):
+    master_id: int
+    balance_amount: str
+    available_withdraw_amount: str
+
+
+class MasterWithdrawalRequestCreate(BaseModel):
+    amount: str
+    card_number: str
+    card_holder_name: str
+
+
+class MasterWithdrawalRequestResponse(BaseModel):
+    id: int
+    master_id: int
+    amount: str
+    card_number: str
+    card_holder_name: str
+    status: str
+    created_at: str
+
+    class Config:
+        from_attributes = True

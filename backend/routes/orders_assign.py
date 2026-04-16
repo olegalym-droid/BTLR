@@ -15,6 +15,45 @@ from order_statuses import (
 )
 
 
+def normalize_price_value(raw_price: str | None) -> str:
+    normalized = (raw_price or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите цену отклика",
+        )
+
+    cleaned = (
+        normalized
+        .replace("₸", "")
+        .replace(" ", "")
+        .replace(",", "")
+    )
+
+    if not cleaned.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна содержать только цифры",
+        )
+
+    amount = int(cleaned)
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна быть больше нуля",
+        )
+
+    if amount > 10000000:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена слишком большая",
+        )
+
+    return str(amount)
+
+
 def assign_order_to_master_service(
     order_id: int,
     master_id: int,
@@ -67,15 +106,19 @@ def assign_order_to_master_service(
             detail="Вы уже откликнулись на этот заказ",
         )
 
-    normalized_offered_price = (offered_price or "").strip()
-    if not normalized_offered_price:
-        normalized_offered_price = (order.client_price or "").strip()
+    raw_offered_price = (offered_price or "").strip()
+    raw_client_price = (order.client_price or "").strip()
 
-    if not normalized_offered_price:
-        raise HTTPException(
-            status_code=400,
-            detail="Не удалось определить цену отклика мастера",
-        )
+    if raw_offered_price:
+        normalized_offered_price = normalize_price_value(raw_offered_price)
+    else:
+        if not raw_client_price:
+            raise HTTPException(
+                status_code=400,
+                detail="Не удалось определить цену отклика мастера",
+            )
+
+        normalized_offered_price = normalize_price_value(raw_client_price)
 
     new_offer = OrderResponseOffer(
         order_id=order.id,
@@ -90,7 +133,13 @@ def assign_order_to_master_service(
         order.status = PENDING_USER_CONFIRMATION
 
     if order.user_id:
-        is_custom_price = normalized_offered_price != (order.client_price or "").strip()
+        normalized_client_price = (
+            normalize_price_value(raw_client_price)
+            if raw_client_price
+            else ""
+        )
+
+        is_custom_price = normalized_offered_price != normalized_client_price
 
         if is_custom_price:
             notification_title = "Мастер предложил свою цену"

@@ -79,7 +79,26 @@ export const saveAuthData = ({ id, role, phone, full_name }) => {
     const profileKey = `resident_profile_${id}`;
     const existingProfileRaw = localStorage.getItem(profileKey);
 
+    let shouldResetProfile = false;
+
     if (!existingProfileRaw) {
+      shouldResetProfile = true;
+    } else {
+      try {
+        const existingProfile = JSON.parse(existingProfileRaw);
+
+        const savedPhone = String(existingProfile?.phone || "").trim();
+        const currentPhone = String(phone || "").trim();
+
+        if (savedPhone !== currentPhone) {
+          shouldResetProfile = true;
+        }
+      } catch (error) {
+        shouldResetProfile = true;
+      }
+    }
+
+    if (shouldResetProfile) {
       localStorage.setItem(
         profileKey,
         JSON.stringify({
