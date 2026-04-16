@@ -44,6 +44,17 @@ export default function UserAppView({
   handleLogout,
   formatPhoneInput,
 }) {
+  const handleOpenOrderFromNotification = (orderId) => {
+    const allOrders = [...activeOrders, ...completedOrders];
+    const matchedOrder = allOrders.find((order) => order.id === orderId);
+
+    setActiveTab("orders");
+
+    if (matchedOrder) {
+      setSelectedOrder(matchedOrder);
+    }
+  };
+
   if (orderCreated) {
     return (
       <SuccessScreen
@@ -118,6 +129,7 @@ export default function UserAppView({
       saveProfile={saveProfile}
       handleLogout={handleLogout}
       formatPhoneInput={formatPhoneInput}
+      onOpenOrder={handleOpenOrderFromNotification}
     />
   );
 }

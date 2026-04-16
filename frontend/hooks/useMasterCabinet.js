@@ -74,6 +74,15 @@ export default function useMasterCabinet({ onLogout }) {
     handleMasterStatusChange: changeMasterStatusRequest,
     handleUploadOrderReport: uploadOrderReportRequest,
     getStatusSuccessText,
+    scheduleItems,
+    setScheduleItems,
+    scheduleForm,
+    setScheduleForm,
+    isScheduleLoading,
+    isScheduleSaving,
+    addScheduleItem,
+    removeScheduleItem,
+    saveMasterSchedule: saveMasterScheduleRequest,
     loadMasterData,
     resetMasterDataState,
   } = useMasterData();
@@ -193,6 +202,30 @@ export default function useMasterCabinet({ onLogout }) {
     }
   };
 
+  const handleSaveMasterSchedule = async () => {
+    try {
+      if (!masterProfile?.id) {
+        throw new Error("Профиль мастера не загружен");
+      }
+
+      await saveMasterScheduleRequest(masterProfile.id);
+      setSuccessText("График работы сохранён");
+    } catch (error) {
+      console.error("Ошибка сохранения графика:", error);
+      alert(error.message || "Не удалось сохранить график работы");
+    }
+  };
+
+  const handleAddScheduleItem = () => {
+    try {
+      addScheduleItem();
+      setSuccessText("Слот добавлен в график");
+    } catch (error) {
+      console.error("Ошибка добавления слота:", error);
+      alert(error.message || "Не удалось добавить слот");
+    }
+  };
+
   const logout = () => {
     logoutMasterSession({
       onLogout,
@@ -235,6 +268,11 @@ export default function useMasterCabinet({ onLogout }) {
     reportTargetOrderId,
     setReportTargetOrderId,
 
+    scheduleItems,
+    setScheduleItems,
+    scheduleForm,
+    setScheduleForm,
+
     isLoading,
     isLoggedIn,
     masterProfile,
@@ -249,6 +287,8 @@ export default function useMasterCabinet({ onLogout }) {
     isAvatarLoading,
     isDocumentsLoading,
     isReportUploading,
+    isScheduleLoading,
+    isScheduleSaving,
 
     hasUploadedAllDocuments,
 
@@ -266,6 +306,9 @@ export default function useMasterCabinet({ onLogout }) {
     handleTakeOrder,
     handleMasterStatusChange,
     handleUploadOrderReport,
+    handleAddScheduleItem,
+    handleSaveMasterSchedule,
+    removeScheduleItem,
     loadAvailableOrders,
     loadMasterOrders,
     logout,

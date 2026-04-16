@@ -1,8 +1,10 @@
+from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
-from models import Account, Order, OrderResponseOffer
+from models import Account, Order, OrderResponseOffer, MasterSchedule
 from schemas import OrderResponse
 from routes.orders_helpers import (
     build_order_response,
@@ -14,6 +16,53 @@ from order_statuses import (
     SEARCHING,
     PENDING_USER_CONFIRMATION,
 )
+
+
+def parse_order_datetime(value: str) -> datetime | None:
+    raw_value = (value or "").strip()
+    if not raw_value:
+        return None
+
+    formats = [
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M",
+        "%d.%m.%Y %H:%M",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(raw_value, fmt)
+        except ValueError:
+            continue
+
+    return None
+
+
+def master_can_work_at_order_time(
+    master_id: int,
+    scheduled_at: str,
+    db: Session,
+) -> bool:
+    order_dt = parse_order_datetime(scheduled_at)
+
+    if order_dt is None:
+        return False
+
+    weekday = order_dt.weekday()
+    order_time = order_dt.strftime("%H:%M")
+
+    matching_schedule = (
+        db.query(MasterSchedule)
+        .filter(
+            MasterSchedule.master_id == master_id,
+            MasterSchedule.weekday == weekday,
+            MasterSchedule.start_time <= order_time,
+            MasterSchedule.end_time >= order_time,
+        )
+        .first()
+    )
+
+    return matching_schedule is not None
 
 
 def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
@@ -91,6 +140,9 @@ def get_available_orders_for_master(
         )
 
         if already_offered:
+            continue
+
+        if not master_can_work_at_order_time(master_id, order.scheduled_at, db):
             continue
 
         result.append(

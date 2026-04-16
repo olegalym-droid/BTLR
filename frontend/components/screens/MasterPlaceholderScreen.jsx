@@ -52,6 +52,15 @@ export default function MasterPlaceholderScreen({ onBack, onLogout }) {
         setOpenedPhoto={master.setOpenedPhoto}
         activeSection={master.activeSection}
         setActiveSection={master.setActiveSection}
+        scheduleItems={master.scheduleItems}
+        setScheduleItems={master.setScheduleItems}
+        scheduleForm={master.scheduleForm}
+        setScheduleForm={master.setScheduleForm}
+        isScheduleLoading={master.isScheduleLoading}
+        isScheduleSaving={master.isScheduleSaving}
+        handleAddScheduleItem={master.handleAddScheduleItem}
+        handleSaveMasterSchedule={master.handleSaveMasterSchedule}
+        removeScheduleItem={master.removeScheduleItem}
       />
     );
   }

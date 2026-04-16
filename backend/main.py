@@ -9,6 +9,8 @@ from routes.masters import router as masters_router
 from routes.reviews import router as reviews_router
 from routes.admin import router as admin_router
 from routes.complaints import router as complaints_router
+from routes.notifications import router as notifications_router
+from routes.schedules import router as schedules_router
 
 
 def create_app() -> FastAPI:
@@ -36,12 +38,10 @@ def create_app() -> FastAPI:
     app.include_router(reviews_router)
     app.include_router(admin_router)
     app.include_router(complaints_router)
+    app.include_router(notifications_router)
+    app.include_router(schedules_router)
 
     return app
 
 
 app = create_app()
-
-from fastapi.staticfiles import StaticFiles
-
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

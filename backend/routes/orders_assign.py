@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
-from models import Order, OrderResponseOffer
+from models import Order, OrderResponseOffer, Notification
 from schemas import OrderResponse
 from routes.orders_helpers import (
     build_order_response,
@@ -27,6 +27,8 @@ def assign_order_to_master_service(
     order = (
         db.query(Order)
         .options(
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
@@ -87,12 +89,43 @@ def assign_order_to_master_service(
     if order.status == SEARCHING:
         order.status = PENDING_USER_CONFIRMATION
 
+    if order.user_id:
+        is_custom_price = normalized_offered_price != (order.client_price or "").strip()
+
+        if is_custom_price:
+            notification_title = "Мастер предложил свою цену"
+            notification_message = (
+                f"Мастер {master.full_name or 'без имени'} откликнулся на заказ "
+                f"«{order.service_name}» и предложил цену {normalized_offered_price}."
+            )
+            notification_type = "master_offered_price"
+        else:
+            notification_title = "Новый отклик мастера"
+            notification_message = (
+                f"Мастер {master.full_name or 'без имени'} откликнулся на заказ "
+                f"«{order.service_name}»."
+            )
+            notification_type = "master_response"
+
+        db.add(
+            Notification(
+                user_id=order.user_id,
+                order_id=order.id,
+                type=notification_type,
+                title=notification_title,
+                message=notification_message,
+                is_read=False,
+            )
+        )
+
     db.commit()
     db.refresh(order)
 
     order = (
         db.query(Order)
         .options(
+            joinedload(Order.user),
+            joinedload(Order.master),
             joinedload(Order.photos),
             joinedload(Order.report_photos),
             joinedload(Order.offers).joinedload(OrderResponseOffer.master),
