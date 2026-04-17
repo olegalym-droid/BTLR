@@ -55,8 +55,51 @@ export const MASTER_DONE_ORDER_STATUSES = [
   ORDER_STATUSES.PAID,
 ];
 
+export const MIN_ORDER_PRICE = 100;
+export const MAX_ORDER_PRICE = 10_000_000;
+export const MIN_OFFER_PRICE = 100;
+export const MAX_OFFER_PRICE = 10_000_000;
+
 export const getStatusLabel = (status) => {
   return ORDER_STATUS_LABELS[status] || status;
+};
+
+export const parsePriceToNumber = (value) => {
+  const cleaned = String(value || "").replace(/[^\d]/g, "");
+  return cleaned ? Number(cleaned) : 0;
+};
+
+export const formatPriceInput = (value) => {
+  const amount = parsePriceToNumber(value);
+  return amount ? amount.toLocaleString("ru-RU") : "";
+};
+
+export const normalizePriceForRequest = (value) => {
+  const amount = parsePriceToNumber(value);
+  return amount ? String(amount) : "";
+};
+
+export const validatePriceRange = ({
+  value,
+  min,
+  max,
+  emptyMessage,
+}) => {
+  const amount = parsePriceToNumber(value);
+
+  if (!amount) {
+    throw new Error(emptyMessage);
+  }
+
+  if (amount < min) {
+    throw new Error(`Минимальная цена — ${min} ₸`);
+  }
+
+  if (amount > max) {
+    throw new Error(`Максимальная цена — ${max} ₸`);
+  }
+
+  return String(amount);
 };
 
 export const loadOrdersRequest = async () => {
@@ -131,8 +174,17 @@ export const assignOrderToMasterRequest = async (
     master_id: String(resolvedMasterId),
   });
 
-  if (String(offeredPrice).trim()) {
-    params.set("offered_price", String(offeredPrice).trim());
+  const normalizedOfferedPrice = String(offeredPrice || "").trim();
+
+  if (normalizedOfferedPrice) {
+    const validatedPrice = validatePriceRange({
+      value: normalizedOfferedPrice,
+      min: MIN_OFFER_PRICE,
+      max: MAX_OFFER_PRICE,
+      emptyMessage: "Укажите цену отклика",
+    });
+
+    params.set("offered_price", validatedPrice);
   }
 
   const res = await fetch(
@@ -234,11 +286,12 @@ export const createOrderRequest = async ({
     throw new Error("Пользователь не авторизован");
   }
 
-  const normalizedClientPrice = String(clientPrice || "").trim();
-
-  if (!normalizedClientPrice) {
-    throw new Error("Укажите вашу цену");
-  }
+  const normalizedClientPrice = validatePriceRange({
+    value: clientPrice,
+    min: MIN_ORDER_PRICE,
+    max: MAX_ORDER_PRICE,
+    emptyMessage: "Укажите вашу цену",
+  });
 
   const scheduledAt = `${selectedDate} ${selectedTime}`;
   const formData = new FormData();

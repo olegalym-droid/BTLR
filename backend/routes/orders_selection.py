@@ -11,6 +11,45 @@ from order_statuses import (
 )
 
 
+def normalize_price_value(raw_price: str | None) -> str:
+    normalized = (raw_price or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Не удалось определить итоговую цену заказа",
+        )
+
+    cleaned = (
+        normalized
+        .replace("₸", "")
+        .replace(" ", "")
+        .replace(",", "")
+    )
+
+    if not cleaned.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна содержать только цифры",
+        )
+
+    amount = int(cleaned)
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена должна быть больше нуля",
+        )
+
+    if amount > 10000000:
+        raise HTTPException(
+            status_code=400,
+            detail="Цена слишком большая",
+        )
+
+    return str(amount)
+
+
 def confirm_master_for_order_service(
     order_id: int,
     user_id: int,
@@ -61,10 +100,14 @@ def confirm_master_for_order_service(
     if selected_offer.master is None:
         raise HTTPException(status_code=400, detail="Мастер не найден")
 
+    final_price = normalize_price_value(
+        selected_offer.offered_price or order.client_price,
+    )
+
     order.master_id = selected_offer.master.id
     order.master_name = selected_offer.master.full_name
     order.master_rating = selected_offer.master.rating
-    order.price = selected_offer.offered_price or order.client_price
+    order.price = final_price
     order.status = ASSIGNED
 
     for offer in order.offers:

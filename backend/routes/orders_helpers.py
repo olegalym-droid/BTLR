@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,22 @@ MAX_ORDER_PHOTOS = 4
 MAX_ORDER_REPORT_PHOTOS = 8
 
 
+def calculate_offer_priority(offer) -> tuple:
+    master = offer.master
+
+    rating = float(master.rating or 0) if master else 0.0
+    completed_orders = float(master.completed_orders_count or 0) if master else 0.0
+    experience_years = float(master.experience_years or 0) if master else 0.0
+    created_at = offer.created_at or datetime.min
+
+    return (
+        rating,
+        completed_orders,
+        experience_years,
+        created_at,
+    )
+
+
 def build_order_response(
     order: Order,
     reviewed: bool = False,
@@ -21,11 +39,19 @@ def build_order_response(
     if short_address:
         address = order.address.split(",")[0].strip() if order.address else ""
 
-    offers = []
-    for offer in order.offers:
-        if offer.status != "pending" or offer.master is None:
-            continue
+    pending_offers = [
+        offer
+        for offer in order.offers
+        if offer.status == "pending" and offer.master is not None
+    ]
 
+    pending_offers.sort(
+        key=calculate_offer_priority,
+        reverse=True,
+    )
+
+    offers = []
+    for offer in pending_offers:
         offers.append(
             OrderOfferResponse(
                 id=offer.id,

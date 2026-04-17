@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,16 +17,26 @@ from routes.schedules import router as schedules_router
 from routes.wallet import router as wallet_router
 
 
+load_dotenv()
+
+
+def get_allowed_origins() -> list[str]:
+    raw_value = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+    origins = [item.strip() for item in raw_value.split(",") if item.strip()]
+    return origins or ["http://localhost:3000"]
+
+
 def create_app() -> FastAPI:
     app = FastAPI()
 
     Base.metadata.create_all(bind=engine)
 
-    app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+    if os.path.isdir("uploads"):
+        app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=get_allowed_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -32,6 +45,15 @@ def create_app() -> FastAPI:
     @app.get("/")
     def root():
         return {"message": "Backend is running"}
+
+    @app.get("/health")
+    def health():
+        return {
+            "ok": True,
+            "allowed_origins": get_allowed_origins(),
+            "admin_login_configured": bool(os.getenv("ADMIN_LOGIN")),
+            "admin_password_configured": bool(os.getenv("ADMIN_PASSWORD")),
+        }
 
     app.include_router(auth_router)
     app.include_router(orders_router)

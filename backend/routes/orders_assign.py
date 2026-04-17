@@ -14,6 +14,9 @@ from order_statuses import (
     PENDING_USER_CONFIRMATION,
 )
 
+MAX_OFFER_PRICE = 10_000_000
+MIN_OFFER_PRICE = 100
+
 
 def normalize_price_value(raw_price: str | None) -> str:
     normalized = (raw_price or "").strip()
@@ -39,16 +42,16 @@ def normalize_price_value(raw_price: str | None) -> str:
 
     amount = int(cleaned)
 
-    if amount <= 0:
+    if amount < MIN_OFFER_PRICE:
         raise HTTPException(
             status_code=400,
-            detail="Цена должна быть больше нуля",
+            detail=f"Минимальная цена — {MIN_OFFER_PRICE} ₸",
         )
 
-    if amount > 10000000:
+    if amount > MAX_OFFER_PRICE:
         raise HTTPException(
             status_code=400,
-            detail="Цена слишком большая",
+            detail=f"Максимальная цена — {MAX_OFFER_PRICE} ₸",
         )
 
     return str(amount)
@@ -145,7 +148,7 @@ def assign_order_to_master_service(
             notification_title = "Мастер предложил свою цену"
             notification_message = (
                 f"Мастер {master.full_name or 'без имени'} откликнулся на заказ "
-                f"«{order.service_name}» и предложил цену {normalized_offered_price}."
+                f"«{order.service_name}» и предложил цену {normalized_offered_price} ₸."
             )
             notification_type = "master_offered_price"
         else:

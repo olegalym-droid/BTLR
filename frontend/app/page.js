@@ -38,6 +38,7 @@ export default function Home() {
     completedOrders,
     updateSelectedOrder,
     loadOrders,
+    orders,
   } = useOrders();
 
   const {
@@ -90,8 +91,6 @@ export default function Home() {
 
   useEffect(() => {
     const authUser = getStoredAuthUser();
-    const adminLogin = localStorage.getItem("admin_login");
-    const adminPassword = localStorage.getItem("admin_password");
 
     if (authUser?.id && authUser?.role) {
       setIsAuthenticated(true);
@@ -99,8 +98,17 @@ export default function Home() {
       return;
     }
 
-    if (adminLogin && adminPassword) {
-      setSelectedRole("admin");
+    if (typeof window !== "undefined") {
+      const adminLogin =
+        window.sessionStorage.getItem("admin_login") ||
+        window.localStorage.getItem("admin_login");
+      const adminPassword =
+        window.sessionStorage.getItem("admin_password") ||
+        window.localStorage.getItem("admin_password");
+
+      if (adminLogin && adminPassword) {
+        setSelectedRole("admin");
+      }
     }
   }, [setIsAuthenticated, setSelectedRole]);
 
@@ -151,6 +159,44 @@ export default function Home() {
 
     if (tab === "orders") {
       await loadOrders();
+    }
+  };
+
+  const handleOpenOrderFromNotification = async (orderId) => {
+    if (!orderId) {
+      return;
+    }
+
+    await loadOrders();
+
+    const authUser = getStoredAuthUser();
+    if (!authUser?.id || authUser.role !== "user") {
+      return;
+    }
+
+    setActiveTab("orders");
+    setOrderCreated(false);
+
+    const freshOrders = [...orders];
+    let foundOrder = freshOrders.find((item) => item.id === orderId);
+
+    if (!foundOrder) {
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/orders/${orderId}?user_id=${authUser.id}`,
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          foundOrder = data;
+        }
+      } catch (error) {
+        console.error("Ошибка открытия заказа из уведомления:", error);
+      }
+    }
+
+    if (foundOrder) {
+      setSelectedOrder(foundOrder);
     }
   };
 
@@ -219,6 +265,7 @@ export default function Home() {
               removeAddress,
               setPrimaryAddress,
               saveProfile,
+              onOpenOrder: handleOpenOrderFromNotification,
             }}
             adminState={adminState}
             categories={categories}

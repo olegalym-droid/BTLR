@@ -1,13 +1,26 @@
 import { API_BASE_URL } from "./constants";
 
+const getStoredAdminValue = (key, fallback = "") => {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  const sessionValue = window.sessionStorage.getItem(key);
+  if (sessionValue) {
+    return sessionValue;
+  }
+
+  return window.localStorage.getItem(key) || fallback;
+};
+
 export const getAdminHeaders = (
   adminLoginArg = null,
   adminPasswordArg = null,
 ) => {
   const storedLogin =
-    adminLoginArg || localStorage.getItem("admin_login") || "";
+    adminLoginArg ?? getStoredAdminValue("admin_login", "");
   const storedPassword =
-    adminPasswordArg || localStorage.getItem("admin_password") || "";
+    adminPasswordArg ?? getStoredAdminValue("admin_password", "");
 
   return {
     "X-Admin-Login": storedLogin,

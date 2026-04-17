@@ -65,6 +65,30 @@ def master_can_work_at_order_time(
     return matching_schedule is not None
 
 
+def calculate_order_priority(order: Order) -> tuple:
+    created_at = order.created_at or datetime.min
+
+    price_value = 0
+    raw_price = order.client_price or order.price or "0"
+    cleaned_price = (
+        str(raw_price)
+        .replace("₸", "")
+        .replace(" ", "")
+        .replace(",", "")
+        .strip()
+    )
+    if cleaned_price.isdigit():
+        price_value = int(cleaned_price)
+
+    offers_count = len([offer for offer in order.offers if offer.status == "pending"])
+
+    return (
+        created_at,
+        price_value,
+        -offers_count,
+    )
+
+
 def get_orders_for_user(user_id: int, db: Session) -> list[OrderResponse]:
     user = (
         db.query(Account)
@@ -130,9 +154,9 @@ def get_available_orders_for_master(
     else:
         return []
 
-    orders = query.order_by(Order.created_at.desc()).all()
+    orders = query.all()
 
-    result = []
+    filtered_orders = []
     for order in orders:
         already_offered = any(
             offer.master_id == master_id and offer.status == "pending"
@@ -145,6 +169,15 @@ def get_available_orders_for_master(
         if not master_can_work_at_order_time(master_id, order.scheduled_at, db):
             continue
 
+        filtered_orders.append(order)
+
+    filtered_orders.sort(
+        key=lambda order: calculate_order_priority(order),
+        reverse=True,
+    )
+
+    result = []
+    for order in filtered_orders:
         result.append(
             build_order_response(
                 order=order,

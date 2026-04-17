@@ -1,7 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
-from models import Order, Account, OrderResponseOffer, OrderReportPhoto
+from models import Order, Account, OrderResponseOffer, OrderReportPhoto, Notification
 from schemas import OrderResponse
 from routes.orders_helpers import (
     build_order_response,
@@ -10,28 +10,13 @@ from routes.orders_helpers import (
     MAX_ORDER_REPORT_PHOTOS,
 )
 from utils.file_utils import save_order_report_photos
-
-
-MASTER_ALLOWED_STATUSES = {
-    "assigned",
-    "on_the_way",
-    "on_site",
-    "completed",
-}
-
-MASTER_ALLOWED_TRANSITIONS = {
-    "assigned": {"on_the_way"},
-    "on_the_way": {"on_site"},
-    "on_site": {"completed"},
-    "completed": set(),
-    "paid": set(),
-}
-
-REPORT_UPLOAD_ALLOWED_STATUSES = {
-    "on_site",
-    "completed",
-    "paid",
-}
+from order_statuses import (
+    COMPLETED,
+    PAID,
+    MASTER_ALLOWED_STATUSES,
+    MASTER_ALLOWED_TRANSITIONS,
+    REPORT_UPLOAD_ALLOWED_STATUSES,
+)
 
 
 def parse_amount_to_int(raw_value: str | None) -> int:
@@ -47,6 +32,30 @@ def parse_amount_to_int(raw_value: str | None) -> int:
     )
 
     return int(cleaned) if cleaned.isdigit() else 0
+
+
+def normalize_amount_to_storage(raw_value: str | None) -> str:
+    amount = parse_amount_to_int(raw_value)
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Сумма должна быть больше нуля",
+        )
+
+    return str(amount)
+
+
+def get_order_final_amount(order: Order) -> str:
+    raw_amount = order.price or order.client_price
+
+    if not raw_amount:
+        raise HTTPException(
+            status_code=400,
+            detail="У заказа не указана цена",
+        )
+
+    return normalize_amount_to_storage(raw_amount)
 
 
 def get_master_or_404(master_id: int, db: Session) -> Account:
@@ -124,7 +133,7 @@ def validate_master_status_change(order: Order, next_status: str) -> None:
     if next_status not in allowed_next_statuses:
         raise HTTPException(status_code=400, detail="Invalid transition")
 
-    if next_status == "completed" and not order.report_photos:
+    if next_status == COMPLETED and not order.report_photos:
         raise HTTPException(
             status_code=400,
             detail="Сначала загрузите фото-отчёт, затем завершайте заказ",
@@ -172,6 +181,26 @@ def refresh_master_order(order_id: int, db: Session) -> Order:
     )
 
 
+def create_order_completed_notification(order: Order) -> Notification | None:
+    if not order.user_id:
+        return None
+
+    final_amount = order.price or order.client_price or ""
+    amount_text = f" на сумму {final_amount} ₸" if final_amount else ""
+
+    return Notification(
+        user_id=order.user_id,
+        order_id=order.id,
+        type="order_completed_payment_required",
+        title="Заказ завершён, требуется оплата",
+        message=(
+            f"Мастер завершил заказ «{order.service_name}»{amount_text}. "
+            f"Подтвердите оплату в карточке заказа."
+        ),
+        is_read=False,
+    )
+
+
 def update_order_status_by_master_service(
     order_id: int,
     status: str,
@@ -185,13 +214,15 @@ def update_order_status_by_master_service(
 
     validate_master_status_change(order, status)
 
-    order.status = status
-
-    if status == "completed":
-        if not order.price:
-            order.price = "5000"
-
+    if status == COMPLETED:
+        order.price = get_order_final_amount(order)
         master.completed_orders_count = (master.completed_orders_count or 0) + 1
+
+        notification = create_order_completed_notification(order)
+        if notification is not None:
+            db.add(notification)
+
+    order.status = status
 
     db.commit()
 
@@ -230,30 +261,40 @@ def update_order_status_by_user_service(
     user_id: int,
     db: Session,
 ) -> OrderResponse:
-    if status != "paid":
+    if status != PAID:
         raise HTTPException(status_code=400, detail="Invalid status")
 
     get_user_or_404(user_id, db)
     order = get_user_order_or_404(order_id, user_id, db)
 
-    if order.status != "completed":
+    if order.status == PAID:
+        raise HTTPException(
+            status_code=400,
+            detail="Заказ уже оплачен",
+        )
+
+    if order.status != COMPLETED:
         raise HTTPException(
             status_code=400,
             detail="Можно оплатить только завершённый заказ",
         )
 
-    order.status = "paid"
+    if order.master is None:
+        raise HTTPException(
+            status_code=400,
+            detail="У заказа нет назначенного мастера",
+        )
 
-    if order.master is not None:
-        order_amount = parse_amount_to_int(order.price or order.client_price)
-        current_balance = parse_amount_to_int(order.master.balance_amount)
-        current_available = parse_amount_to_int(order.master.available_withdraw_amount)
+    payout_amount = parse_amount_to_int(get_order_final_amount(order))
 
-        next_balance = current_balance + order_amount
-        next_available = current_available + order_amount
+    current_balance = parse_amount_to_int(order.master.balance_amount)
+    current_available = parse_amount_to_int(order.master.available_withdraw_amount)
 
-        order.master.balance_amount = str(next_balance)
-        order.master.available_withdraw_amount = str(next_available)
+    order.status = PAID
+    order.price = str(payout_amount)
+
+    order.master.balance_amount = str(current_balance + payout_amount)
+    order.master.available_withdraw_amount = str(current_available + payout_amount)
 
     db.commit()
 

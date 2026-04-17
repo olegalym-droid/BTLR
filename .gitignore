@@ -40,3 +40,7 @@ backend/app.db
 # Uploads
 # ======================
 backend/uploads/
+
+# env файлы
+.env
+.env.*

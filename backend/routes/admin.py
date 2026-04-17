@@ -1,3 +1,5 @@
+import os
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
@@ -21,9 +23,6 @@ from routes.orders_helpers import build_order_response, is_order_reviewed
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_LOGIN = "admin"
-ADMIN_PASSWORD = "123456"
-
 ALLOWED_COMPLAINT_STATUSES = {"new", "in_progress", "resolved", "rejected"}
 ALLOWED_WITHDRAWAL_STATUSES = {"pending", "approved", "rejected"}
 
@@ -41,12 +40,33 @@ class WithdrawalStatusUpdateRequest(BaseModel):
     status: str
 
 
+def get_admin_credentials() -> tuple[str, str]:
+    admin_login = os.getenv("ADMIN_LOGIN", "").strip()
+    admin_password = os.getenv("ADMIN_PASSWORD", "").strip()
+
+    if not admin_login or not admin_password:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Данные администратора не настроены. "
+                "Укажите ADMIN_LOGIN и ADMIN_PASSWORD в переменных окружения."
+            ),
+        )
+
+    return admin_login, admin_password
+
+
 def verify_admin(
     x_admin_login: str | None = Header(default=None),
     x_admin_password: str | None = Header(default=None),
 ):
-    if x_admin_login != ADMIN_LOGIN or x_admin_password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Неверные данные администратора")
+    admin_login, admin_password = get_admin_credentials()
+
+    if x_admin_login != admin_login or x_admin_password != admin_password:
+        raise HTTPException(
+            status_code=401,
+            detail="Неверные данные администратора",
+        )
 
 
 def parse_amount_to_int(raw_value: str | None) -> int:
@@ -62,6 +82,44 @@ def parse_amount_to_int(raw_value: str | None) -> int:
     )
 
     return int(cleaned) if cleaned.isdigit() else 0
+
+
+def detect_card_brand(card_number: str | None) -> str:
+    normalized = "".join(symbol for symbol in str(card_number or "") if symbol.isdigit())
+
+    if not normalized:
+        return "unknown"
+
+    if normalized.startswith("4"):
+        return "visa"
+
+    if len(normalized) >= 2 and 51 <= int(normalized[:2]) <= 55:
+        return "mastercard"
+
+    if len(normalized) >= 4 and 2221 <= int(normalized[:4]) <= 2720:
+        return "mastercard"
+
+    return "unknown"
+
+
+def mask_card_number(card_number: str | None) -> str:
+    normalized = "".join(symbol for symbol in str(card_number or "") if symbol.isdigit())
+
+    if not normalized:
+        return ""
+
+    if len(normalized) <= 4:
+        return normalized
+
+    visible_last = normalized[-4:]
+    masked_prefix = "*" * max(len(normalized) - 4, 0)
+    combined = f"{masked_prefix}{visible_last}"
+
+    parts = []
+    for index in range(0, len(combined), 4):
+        parts.append(combined[index:index + 4])
+
+    return " ".join(parts)
 
 
 def build_complaint_response(complaint: Complaint) -> ComplaintResponse:
@@ -92,11 +150,15 @@ def build_complaint_response(complaint: Complaint) -> ComplaintResponse:
 def serialize_withdrawal_request(
     item: MasterWithdrawalRequest,
 ) -> MasterWithdrawalRequestResponse:
+    card_number = item.card_number or ""
+
     return MasterWithdrawalRequestResponse(
         id=item.id,
         master_id=item.master_id,
         amount=item.amount,
-        card_number=item.card_number,
+        card_number=card_number,
+        masked_card_number=mask_card_number(card_number),
+        card_brand=detect_card_brand(card_number),
         card_holder_name=item.card_holder_name,
         status=item.status,
         created_at=item.created_at.isoformat() if item.created_at else "",
@@ -105,8 +167,16 @@ def serialize_withdrawal_request(
 
 @router.post("/login")
 def admin_login(payload: AdminLoginRequest):
-    if payload.login != ADMIN_LOGIN or payload.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    admin_login_value, admin_password_value = get_admin_credentials()
+
+    if (
+        payload.login != admin_login_value
+        or payload.password != admin_password_value
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный логин или пароль",
+        )
 
     return {
         "ok": True,
@@ -317,7 +387,10 @@ def update_complaint_status(
     normalized_status = (payload.status or "").strip()
 
     if normalized_status not in ALLOWED_COMPLAINT_STATUSES:
-        raise HTTPException(status_code=400, detail="Недопустимый статус жалобы")
+        raise HTTPException(
+            status_code=400,
+            detail="Недопустимый статус жалобы",
+        )
 
     complaint.status = normalized_status
     db.commit()
@@ -373,7 +446,10 @@ def update_withdrawal_status(
     )
 
     if not withdrawal:
-        raise HTTPException(status_code=404, detail="Заявка на вывод не найдена")
+        raise HTTPException(
+            status_code=404,
+            detail="Заявка на вывод не найдена",
+        )
 
     next_status = (payload.status or "").strip()
 

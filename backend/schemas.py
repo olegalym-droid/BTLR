@@ -196,7 +196,8 @@ class MasterWithdrawalRequestResponse(BaseModel):
     id: int
     master_id: int
     amount: str
-    card_number: str
+    masked_card_number: str | None = None
+    card_brand: str | None = None
     card_holder_name: str
     status: str
     created_at: str

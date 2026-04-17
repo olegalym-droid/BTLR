@@ -10,6 +10,10 @@ from routes.orders_helpers import MAX_ORDER_PHOTOS, build_order_response
 from order_statuses import SEARCHING
 
 
+MAX_ORDER_PRICE = 10_000_000
+MIN_ORDER_PRICE = 100
+
+
 def normalize_price_value(raw_price: str | None) -> str:
     normalized = (raw_price or "").strip()
 
@@ -29,19 +33,115 @@ def normalize_price_value(raw_price: str | None) -> str:
 
     amount = int(cleaned)
 
-    if amount <= 0:
+    if amount < MIN_ORDER_PRICE:
         raise HTTPException(
             status_code=400,
-            detail="Цена должна быть больше нуля",
+            detail=f"Минимальная цена — {MIN_ORDER_PRICE} ₸",
         )
 
-    if amount > 10000000:
+    if amount > MAX_ORDER_PRICE:
         raise HTTPException(
             status_code=400,
-            detail="Цена слишком большая",
+            detail=f"Максимальная цена — {MAX_ORDER_PRICE} ₸",
         )
 
     return str(amount)
+
+
+def validate_text(
+    value: str | None,
+    *,
+    field_name: str,
+    min_len: int,
+    max_len: int,
+    empty_detail: str,
+) -> str:
+    normalized = (value or "").strip()
+
+    if not normalized:
+        raise HTTPException(status_code=400, detail=empty_detail)
+
+    if len(normalized) < min_len:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} слишком короткое",
+        )
+
+    if len(normalized) > max_len:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{field_name} слишком длинное",
+        )
+
+    return normalized
+
+
+def validate_category(value: str | None) -> str:
+    return validate_text(
+        value,
+        field_name="Категория",
+        min_len=2,
+        max_len=100,
+        empty_detail="Категория обязательна",
+    )
+
+
+def validate_service_name(value: str | None) -> str:
+    return validate_text(
+        value,
+        field_name="Название услуги",
+        min_len=3,
+        max_len=100,
+        empty_detail="Название услуги обязательно",
+    )
+
+
+def validate_description(value: str | None) -> str:
+    return validate_text(
+        value,
+        field_name="Описание",
+        min_len=5,
+        max_len=1000,
+        empty_detail="Описание обязательно",
+    )
+
+
+def validate_address(value: str | None) -> str:
+    return validate_text(
+        value,
+        field_name="Адрес",
+        min_len=5,
+        max_len=300,
+        empty_detail="Адрес обязателен",
+    )
+
+
+def normalize_scheduled_at(raw_value: str | None) -> str:
+    normalized = (raw_value or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Дата и время обязательны",
+        )
+
+    formats = [
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M",
+        "%d.%m.%Y %H:%M",
+    ]
+
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(normalized, fmt)
+            return parsed.strftime("%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+
+    raise HTTPException(
+        status_code=400,
+        detail="Некорректный формат даты и времени",
+    )
 
 
 async def create_order_service(
@@ -64,21 +164,11 @@ async def create_order_service(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not category.strip():
-        raise HTTPException(status_code=400, detail="Категория обязательна")
-
-    if not service_name.strip():
-        raise HTTPException(status_code=400, detail="Название услуги обязательно")
-
-    if not description.strip():
-        raise HTTPException(status_code=400, detail="Описание обязательно")
-
-    if not address.strip():
-        raise HTTPException(status_code=400, detail="Адрес обязателен")
-
-    if not scheduled_at.strip():
-        raise HTTPException(status_code=400, detail="Дата и время обязательны")
-
+    normalized_category = validate_category(category)
+    normalized_service_name = validate_service_name(service_name)
+    normalized_description = validate_description(description)
+    normalized_address = validate_address(address)
+    normalized_scheduled_at = normalize_scheduled_at(scheduled_at)
     normalized_client_price = normalize_price_value(client_price)
 
     valid_photos = []
@@ -94,11 +184,11 @@ async def create_order_service(
     new_order = Order(
         user_id=user_id,
         master_id=None,
-        category=category.strip(),
-        service_name=service_name.strip(),
-        description=description.strip(),
-        address=address.strip(),
-        scheduled_at=scheduled_at.strip(),
+        category=normalized_category,
+        service_name=normalized_service_name,
+        description=normalized_description,
+        address=normalized_address,
+        scheduled_at=normalized_scheduled_at,
         status=SEARCHING,
         master_name=None,
         master_rating=None,

@@ -2,8 +2,13 @@ import { useEffect } from "react";
 import useMasterAuth from "./useMasterAuth";
 import useMasterSession from "./useMasterSession";
 import useMasterData from "./useMasterData";
+import useMasterCabinetActions from "./useMasterCabinetActions";
 
 export default function useMasterCabinet({ onLogout }) {
+  const session = useMasterSession();
+  const auth = useMasterAuth();
+  const data = useMasterData();
+
   const {
     isLoggedIn,
     setIsLoggedIn,
@@ -15,7 +20,7 @@ export default function useMasterCabinet({ onLogout }) {
     setActiveSection,
     loadStoredMaster,
     logoutMasterSession,
-  } = useMasterSession();
+  } = session;
 
   const {
     mode,
@@ -31,7 +36,7 @@ export default function useMasterCabinet({ onLogout }) {
     isLoading,
     handleSubmit: submitMasterAuth,
     resetMasterAuthState,
-  } = useMasterAuth();
+  } = auth;
 
   const {
     masterProfile,
@@ -85,7 +90,30 @@ export default function useMasterCabinet({ onLogout }) {
     saveMasterSchedule: saveMasterScheduleRequest,
     loadMasterData,
     resetMasterDataState,
-  } = useMasterData();
+  } = data;
+
+  const actions = useMasterCabinetActions({
+    mode,
+    fullName,
+    masterProfile,
+    onLogout,
+    setIsLoggedIn,
+    setSuccessText,
+    submitMasterAuth,
+    loadMasterData,
+    saveMasterProfileRequest,
+    uploadAvatarRequest,
+    uploadDocumentsRequest,
+    takeOrderRequest,
+    changeMasterStatusRequest,
+    uploadOrderReportRequest,
+    saveMasterScheduleRequest,
+    addScheduleItem,
+    getStatusSuccessText,
+    logoutMasterSession,
+    resetMasterAuthState,
+    resetMasterDataState,
+  });
 
   useEffect(() => {
     const authUser = loadStoredMaster();
@@ -99,147 +127,12 @@ export default function useMasterCabinet({ onLogout }) {
     }
   }, []);
 
-  const handleSubmit = async () => {
-    try {
-      setSuccessText("");
-
-      const authData = await submitMasterAuth({
-        fullName,
-        onAuthSuccess: async (data) => {
-          await loadMasterData(data.id);
-        },
-      });
-
-      setIsLoggedIn(true);
-
-      if (mode === "register") {
-        setSuccessText("Регистрация мастера выполнена");
-      } else {
-        setSuccessText("Вход мастера выполнен");
-      }
-
-      return authData;
-    } catch (error) {
-      console.error("Ошибка авторизации мастера:", error);
-      alert(error.message || "Ошибка авторизации");
-      return null;
-    }
-  };
-
-  const handleSaveMasterProfile = async () => {
-    try {
-      await saveMasterProfileRequest();
-      setSuccessText("Профиль мастера сохранён");
-    } catch (error) {
-      console.error("Ошибка сохранения профиля мастера:", error);
-      alert(error.message || "Не удалось сохранить профиль мастера");
-    }
-  };
-
-  const handleUploadAvatar = async () => {
-    try {
-      await uploadAvatarRequest();
-      setSuccessText("Аватарка обновлена");
-    } catch (error) {
-      console.error("Ошибка загрузки аватарки:", error);
-      alert(error.message || "Не удалось загрузить аватарку");
-    }
-  };
-
-  const handleUploadDocuments = async () => {
-    try {
-      await uploadDocumentsRequest();
-      setSuccessText("Документы загружены и отправлены на проверку");
-
-      if (masterProfile?.id) {
-        await loadMasterData(masterProfile.id);
-      }
-    } catch (error) {
-      console.error("Ошибка загрузки документов:", error);
-      alert(error.message || "Не удалось загрузить документы");
-    }
-  };
-
-  const handleTakeOrder = async (orderId, offeredPrice = "") => {
-    try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      await takeOrderRequest(masterProfile.id, orderId, offeredPrice);
-      setSuccessText("Отклик на заказ успешно отправлен");
-    } catch (error) {
-      console.error("Ошибка принятия заказа:", error);
-      alert(error.message || "Не удалось отправить отклик");
-    }
-  };
-
-  const handleMasterStatusChange = async (orderId, status) => {
-    try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      await changeMasterStatusRequest(masterProfile.id, orderId, status);
-      setSuccessText(getStatusSuccessText(status));
-    } catch (error) {
-      console.error("Ошибка смены статуса:", error);
-      alert(error.message || "Не удалось обновить статус");
-    }
-  };
-
-  const handleUploadOrderReport = async (orderId) => {
-    try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      await uploadOrderReportRequest(masterProfile.id, orderId);
-      setSuccessText("Фото-отчёт успешно загружен");
-    } catch (error) {
-      console.error("Ошибка загрузки фото-отчёта:", error);
-      alert(error.message || "Не удалось загрузить фото-отчёт");
-    }
-  };
-
-  const handleSaveMasterSchedule = async () => {
-    try {
-      if (!masterProfile?.id) {
-        throw new Error("Профиль мастера не загружен");
-      }
-
-      await saveMasterScheduleRequest(masterProfile.id);
-      setSuccessText("График работы сохранён");
-    } catch (error) {
-      console.error("Ошибка сохранения графика:", error);
-      alert(error.message || "Не удалось сохранить график работы");
-    }
-  };
-
-  const handleAddScheduleItem = () => {
-    try {
-      addScheduleItem();
-      setSuccessText("Слот добавлен в график");
-    } catch (error) {
-      console.error("Ошибка добавления слота:", error);
-      alert(error.message || "Не удалось добавить слот");
-    }
-  };
-
-  const logout = () => {
-    logoutMasterSession({
-      onLogout,
-      resetters: [resetMasterAuthState, resetMasterDataState],
-    });
-  };
-
   return {
+    // auth
     mode,
     setMode,
     phone,
     setPhone,
-    fullName,
-    setFullName,
     password,
     setPassword,
     confirmPassword,
@@ -247,6 +140,7 @@ export default function useMasterCabinet({ onLogout }) {
     selectedCategories,
     toggleCategory,
 
+    // profile
     aboutMe,
     setAboutMe,
     experienceYears,
@@ -254,6 +148,7 @@ export default function useMasterCabinet({ onLogout }) {
     workCity,
     setWorkCity,
 
+    // files
     avatarFile,
     setAvatarFile,
     idCardFront,
@@ -263,21 +158,23 @@ export default function useMasterCabinet({ onLogout }) {
     selfiePhoto,
     setSelfiePhoto,
 
+    // reports
     reportPhotos,
     setReportPhotos,
     reportTargetOrderId,
     setReportTargetOrderId,
 
+    // schedule
     scheduleItems,
     setScheduleItems,
     scheduleForm,
     setScheduleForm,
 
+    // state
     isLoading,
     isLoggedIn,
     masterProfile,
     setMasterProfile,
-
     availableOrders,
     setAvailableOrders,
     masterOrders,
@@ -299,18 +196,11 @@ export default function useMasterCabinet({ onLogout }) {
     activeSection,
     setActiveSection,
 
-    handleSubmit,
-    handleSaveMasterProfile,
-    handleUploadAvatar,
-    handleUploadDocuments,
-    handleTakeOrder,
-    handleMasterStatusChange,
-    handleUploadOrderReport,
-    handleAddScheduleItem,
-    handleSaveMasterSchedule,
+    // actions
+    ...actions,
+
     removeScheduleItem,
     loadAvailableOrders,
     loadMasterOrders,
-    logout,
   };
 }

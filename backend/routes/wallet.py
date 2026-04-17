@@ -78,14 +78,101 @@ def parse_amount_to_int(raw_value: str | None) -> int:
     return int(cleaned) if cleaned.isdigit() else 0
 
 
+def normalize_card_number(raw_value: str) -> str:
+    normalized = (raw_value or "").strip()
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите номер карты",
+        )
+
+    cleaned = "".join(symbol for symbol in normalized if symbol.isdigit())
+
+    if not cleaned:
+        raise HTTPException(
+            status_code=400,
+            detail="Номер карты должен содержать цифры",
+        )
+
+    if len(cleaned) < 12 or len(cleaned) > 19:
+        raise HTTPException(
+            status_code=400,
+            detail="Некорректный номер карты",
+        )
+
+    return cleaned
+
+
+def detect_card_brand(card_number: str) -> str:
+    if not card_number:
+        return "unknown"
+
+    if card_number.startswith("4"):
+        return "visa"
+
+    if len(card_number) >= 2 and 51 <= int(card_number[:2]) <= 55:
+        return "mastercard"
+
+    if len(card_number) >= 4 and 2221 <= int(card_number[:4]) <= 2720:
+        return "mastercard"
+
+    return "unknown"
+
+
+def mask_card_number(card_number: str) -> str:
+    if not card_number:
+        return ""
+
+    if len(card_number) <= 4:
+        return card_number
+
+    visible_last = card_number[-4:]
+    masked_prefix = "*" * max(len(card_number) - 4, 0)
+    combined = f"{masked_prefix}{visible_last}"
+
+    parts = []
+    for index in range(0, len(combined), 4):
+        parts.append(combined[index:index + 4])
+
+    return " ".join(parts)
+
+
+def normalize_card_holder_name(raw_value: str) -> str:
+    normalized = " ".join((raw_value or "").strip().split())
+
+    if not normalized:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите имя владельца карты",
+        )
+
+    if len(normalized) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Слишком короткое имя владельца карты",
+        )
+
+    if len(normalized) > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Слишком длинное имя владельца карты",
+        )
+
+    return normalized
+
+
 def serialize_withdrawal_request(
     item: MasterWithdrawalRequest,
 ) -> MasterWithdrawalRequestResponse:
+    card_number = item.card_number or ""
+
     return MasterWithdrawalRequestResponse(
         id=item.id,
         master_id=item.master_id,
         amount=item.amount,
-        card_number=item.card_number,
+        masked_card_number=mask_card_number(card_number),
+        card_brand=detect_card_brand(card_number),
         card_holder_name=item.card_holder_name,
         status=item.status,
         created_at=item.created_at.isoformat() if item.created_at else "",
@@ -147,26 +234,10 @@ def create_master_withdrawal(
     amount_value = parse_amount_to_int(normalized_amount)
     available_value = parse_amount_to_int(master.available_withdraw_amount)
 
-    card_number = (payload.card_number or "").strip()
-    card_holder_name = (payload.card_holder_name or "").strip()
-
-    if not card_number:
-        raise HTTPException(
-            status_code=400,
-            detail="Укажите номер карты",
-        )
-
-    if len(card_number.replace(" ", "")) < 8:
-        raise HTTPException(
-            status_code=400,
-            detail="Некорректный номер карты",
-        )
-
-    if not card_holder_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Укажите имя владельца карты",
-        )
+    normalized_card_number = normalize_card_number(payload.card_number)
+    normalized_card_holder_name = normalize_card_holder_name(
+        payload.card_holder_name,
+    )
 
     if amount_value > available_value:
         raise HTTPException(
@@ -177,8 +248,8 @@ def create_master_withdrawal(
     new_item = MasterWithdrawalRequest(
         master_id=master.id,
         amount=normalized_amount,
-        card_number=card_number,
-        card_holder_name=card_holder_name,
+        card_number=normalized_card_number,
+        card_holder_name=normalized_card_holder_name,
         status="pending",
         created_at=datetime.utcnow(),
     )

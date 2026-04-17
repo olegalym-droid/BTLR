@@ -25,14 +25,57 @@ export default function useAdminCabinet({ onLogout }) {
     resetAdminDataState,
   } = useAdminData();
 
+  const saveAdminSession = (adminLogin, adminPassword) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.setItem("admin_login", adminLogin);
+    window.sessionStorage.setItem("admin_password", adminPassword);
+
+    window.localStorage.removeItem("admin_login");
+    window.localStorage.removeItem("admin_password");
+  };
+
+  const clearAdminSession = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.sessionStorage.removeItem("admin_login");
+    window.sessionStorage.removeItem("admin_password");
+
+    window.localStorage.removeItem("admin_login");
+    window.localStorage.removeItem("admin_password");
+  };
+
+  const getStoredAdminSession = () => {
+    if (typeof window === "undefined") {
+      return {
+        login: "",
+        password: "",
+      };
+    }
+
+    return {
+      login:
+        window.sessionStorage.getItem("admin_login") ||
+        window.localStorage.getItem("admin_login") ||
+        "",
+      password:
+        window.sessionStorage.getItem("admin_password") ||
+        window.localStorage.getItem("admin_password") ||
+        "",
+    };
+  };
+
   const loginWithCredentials = async (adminLogin, adminPassword) => {
     await adminLoginRequest({
       login: adminLogin,
       password: adminPassword,
     });
 
-    localStorage.setItem("admin_login", adminLogin);
-    localStorage.setItem("admin_password", adminPassword);
+    saveAdminSession(adminLogin, adminPassword);
 
     await Promise.all([
       loadPendingMasters(adminLogin, adminPassword),
@@ -91,10 +134,9 @@ export default function useAdminCabinet({ onLogout }) {
   };
 
   useEffect(() => {
-    const storedLogin = localStorage.getItem("admin_login");
-    const storedPassword = localStorage.getItem("admin_password");
+    const stored = getStoredAdminSession();
 
-    if (!storedLogin || !storedPassword) {
+    if (!stored.login || !stored.password) {
       return;
     }
 
@@ -105,21 +147,21 @@ export default function useAdminCabinet({ onLogout }) {
         setIsLoading(true);
 
         await Promise.all([
-          loadPendingMasters(storedLogin, storedPassword),
-          loadComplaints(storedLogin, storedPassword),
-          loadWithdrawalRequests(storedLogin, storedPassword),
+          loadPendingMasters(stored.login, stored.password),
+          loadComplaints(stored.login, stored.password),
+          loadWithdrawalRequests(stored.login, stored.password),
         ]);
 
         if (!isMounted) return;
 
-        setLogin(storedLogin);
-        setPassword(storedPassword);
+        saveAdminSession(stored.login, stored.password);
+        setLogin(stored.login);
+        setPassword(stored.password);
         setIsLoggedIn(true);
       } catch (error) {
         if (!isMounted) return;
 
-        localStorage.removeItem("admin_login");
-        localStorage.removeItem("admin_password");
+        clearAdminSession();
         setIsLoggedIn(false);
       } finally {
         if (isMounted) {
@@ -136,8 +178,7 @@ export default function useAdminCabinet({ onLogout }) {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem("admin_login");
-    localStorage.removeItem("admin_password");
+    clearAdminSession();
     setLogin("");
     setPassword("");
     setIsLoggedIn(false);

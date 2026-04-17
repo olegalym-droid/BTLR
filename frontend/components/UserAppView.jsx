@@ -43,8 +43,14 @@ export default function UserAppView({
   saveProfile,
   handleLogout,
   formatPhoneInput,
+  onOpenOrder,
 }) {
   const handleOpenOrderFromNotification = (orderId) => {
+    if (typeof onOpenOrder === "function") {
+      onOpenOrder(orderId);
+      return;
+    }
+
     const allOrders = [...activeOrders, ...completedOrders];
     const matchedOrder = allOrders.find((order) => order.id === orderId);
 
