@@ -2,14 +2,17 @@ import { useState } from "react";
 import {
   loadPendingMastersRequest,
   loadComplaintsRequest,
+  loadWithdrawalRequestsRequest,
   approveMasterRequest,
   updateComplaintStatusRequest,
+  updateWithdrawalStatusRequest,
 } from "../lib/admin";
 
 export default function useAdminData() {
   const [pendingMasters, setPendingMasters] = useState([]);
   const [selectedMaster, setSelectedMaster] = useState(null);
   const [complaints, setComplaints] = useState([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
   const [successText, setSuccessText] = useState("");
 
   const loadPendingMasters = async (
@@ -37,6 +40,18 @@ export default function useAdminData() {
   ) => {
     const data = await loadComplaintsRequest(adminLoginArg, adminPasswordArg);
     setComplaints(data);
+    return data;
+  };
+
+  const loadWithdrawalRequests = async (
+    adminLoginArg = null,
+    adminPasswordArg = null,
+  ) => {
+    const data = await loadWithdrawalRequestsRequest(
+      adminLoginArg,
+      adminPasswordArg,
+    );
+    setWithdrawalRequests(data);
     return data;
   };
 
@@ -86,10 +101,46 @@ export default function useAdminData() {
     }
   };
 
+  const updateWithdrawalStatus = async (
+    withdrawalId,
+    status,
+    setIsLoading,
+  ) => {
+    try {
+      setIsLoading(true);
+      setSuccessText("");
+
+      const data = await updateWithdrawalStatusRequest({
+        withdrawalId,
+        status,
+      });
+
+      setWithdrawalRequests((prev) =>
+        prev.map((item) =>
+          item.id === withdrawalId ? { ...item, status: data.status } : item,
+        ),
+      );
+
+      const statusTextMap = {
+        approved: "Заявка на вывод одобрена",
+        rejected: "Заявка на вывод отклонена",
+      };
+
+      setSuccessText(
+        statusTextMap[data.status] || "Статус заявки на вывод обновлён",
+      );
+
+      return data;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const resetAdminDataState = () => {
     setPendingMasters([]);
     setSelectedMaster(null);
     setComplaints([]);
+    setWithdrawalRequests([]);
     setSuccessText("");
   };
 
@@ -100,12 +151,16 @@ export default function useAdminData() {
     setSelectedMaster,
     complaints,
     setComplaints,
+    withdrawalRequests,
+    setWithdrawalRequests,
     successText,
     setSuccessText,
     loadPendingMasters,
     loadComplaints,
+    loadWithdrawalRequests,
     handleApproveMaster,
     updateComplaintStatus,
+    updateWithdrawalStatus,
     resetAdminDataState,
   };
 }

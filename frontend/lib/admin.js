@@ -70,6 +70,23 @@ export const loadComplaintsRequest = async (
   return Array.isArray(data) ? data : [];
 };
 
+export const loadWithdrawalRequestsRequest = async (
+  adminLoginArg = null,
+  adminPasswordArg = null,
+) => {
+  const response = await fetch(`${API_BASE_URL}/admin/withdrawals`, {
+    headers: getAdminHeaders(adminLoginArg, adminPasswordArg),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить заявки на вывод");
+  }
+
+  return Array.isArray(data) ? data : [];
+};
+
 export const approveMasterRequest = async (masterId) => {
   const response = await fetch(
     `${API_BASE_URL}/admin/masters/${masterId}/approve`,
@@ -108,6 +125,33 @@ export const updateComplaintStatusRequest = async ({
 
   if (!response.ok) {
     throw new Error(data.detail || "Не удалось обновить статус жалобы");
+  }
+
+  return data;
+};
+
+export const updateWithdrawalStatusRequest = async ({
+  withdrawalId,
+  status,
+}) => {
+  const response = await fetch(
+    `${API_BASE_URL}/admin/withdrawals/${withdrawalId}/status`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAdminHeaders(),
+      },
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail || "Не удалось обновить статус заявки на вывод",
+    );
   }
 
   return data;

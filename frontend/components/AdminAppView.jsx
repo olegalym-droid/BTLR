@@ -1,4 +1,4 @@
-import AuthGate from "./AuthGate";
+import AdminLogin from "./admin/AdminLogin";
 import AdminDashboard from "./admin/AdminDashboard";
 
 export default function AdminAppView({
@@ -7,23 +7,33 @@ export default function AdminAppView({
   selectedMaster,
   setSelectedMaster,
   complaints,
+  withdrawalRequests,
   adminSuccessText,
   handleApproveMaster,
   isAdminLoading,
   adminLogout,
   loginWithCredentials,
   updateComplaintStatus,
+  updateWithdrawalStatus,
   setSelectedRole,
-  handleAuthSuccess,
-  setIsAuthenticated,
 }) {
+  const handleLogin = async (login, password) => {
+    await loginWithCredentials(login, password);
+  };
+
+  const handleLogout = () => {
+    adminLogout();
+
+    if (typeof setSelectedRole === "function") {
+      setSelectedRole(null);
+    }
+  };
+
   if (!isAdminLoggedIn) {
     return (
-      <AuthGate
-        handleAuthSuccess={handleAuthSuccess}
-        setSelectedRole={setSelectedRole}
-        setIsAuthenticated={setIsAuthenticated}
-        loginWithCredentials={loginWithCredentials}
+      <AdminLogin
+        onLogin={handleLogin}
+        isLoading={isAdminLoading}
       />
     );
   }
@@ -33,15 +43,14 @@ export default function AdminAppView({
       pendingMasters={pendingMasters}
       selectedMaster={selectedMaster}
       setSelectedMaster={setSelectedMaster}
-      handleApproveMaster={handleApproveMaster}
       complaints={complaints}
-      updateComplaintStatus={updateComplaintStatus}
-      isLoading={isAdminLoading}
+      withdrawalRequests={withdrawalRequests}
       successText={adminSuccessText}
-      logout={() => {
-        adminLogout();
-        setSelectedRole(null);
-      }}
+      isLoading={isAdminLoading}
+      handleApproveMaster={handleApproveMaster}
+      updateComplaintStatus={updateComplaintStatus}
+      updateWithdrawalStatus={updateWithdrawalStatus}
+      logout={handleLogout}
     />
   );
 }

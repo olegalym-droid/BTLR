@@ -3,12 +3,19 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from models import Account, Order, OrderResponseOffer, Complaint
+from models import (
+    Account,
+    Order,
+    OrderResponseOffer,
+    Complaint,
+    MasterWithdrawalRequest,
+)
 from schemas import (
     MasterProfileResponse,
     OrderResponse,
     ComplaintResponse,
     ComplaintOrderInfoResponse,
+    MasterWithdrawalRequestResponse,
 )
 from routes.orders_helpers import build_order_response, is_order_reviewed
 
@@ -18,6 +25,7 @@ ADMIN_LOGIN = "admin"
 ADMIN_PASSWORD = "123456"
 
 ALLOWED_COMPLAINT_STATUSES = {"new", "in_progress", "resolved", "rejected"}
+ALLOWED_WITHDRAWAL_STATUSES = {"pending", "approved", "rejected"}
 
 
 class AdminLoginRequest(BaseModel):
@@ -29,12 +37,31 @@ class ComplaintStatusUpdateRequest(BaseModel):
     status: str
 
 
+class WithdrawalStatusUpdateRequest(BaseModel):
+    status: str
+
+
 def verify_admin(
     x_admin_login: str | None = Header(default=None),
     x_admin_password: str | None = Header(default=None),
 ):
     if x_admin_login != ADMIN_LOGIN or x_admin_password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Неверные данные администратора")
+
+
+def parse_amount_to_int(raw_value: str | None) -> int:
+    if not raw_value:
+        return 0
+
+    cleaned = (
+        str(raw_value)
+        .replace("₸", "")
+        .replace(" ", "")
+        .replace(",", "")
+        .strip()
+    )
+
+    return int(cleaned) if cleaned.isdigit() else 0
 
 
 def build_complaint_response(complaint: Complaint) -> ComplaintResponse:
@@ -59,6 +86,20 @@ def build_complaint_response(complaint: Complaint) -> ComplaintResponse:
         status=complaint.status,
         user_name=complaint.user.full_name if complaint.user else None,
         order=order_info,
+    )
+
+
+def serialize_withdrawal_request(
+    item: MasterWithdrawalRequest,
+) -> MasterWithdrawalRequestResponse:
+    return MasterWithdrawalRequestResponse(
+        id=item.id,
+        master_id=item.master_id,
+        amount=item.amount,
+        card_number=item.card_number,
+        card_holder_name=item.card_holder_name,
+        status=item.status,
+        created_at=item.created_at.isoformat() if item.created_at else "",
     )
 
 
@@ -293,3 +334,90 @@ def update_complaint_status(
     )
 
     return build_complaint_response(complaint)
+
+
+@router.get(
+    "/withdrawals",
+    response_model=list[MasterWithdrawalRequestResponse],
+)
+def get_withdrawal_requests(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    items = (
+        db.query(MasterWithdrawalRequest)
+        .order_by(
+            MasterWithdrawalRequest.created_at.desc(),
+            MasterWithdrawalRequest.id.desc(),
+        )
+        .all()
+    )
+
+    return [serialize_withdrawal_request(item) for item in items]
+
+
+@router.put(
+    "/withdrawals/{withdrawal_id}/status",
+    response_model=MasterWithdrawalRequestResponse,
+)
+def update_withdrawal_status(
+    withdrawal_id: int,
+    payload: WithdrawalStatusUpdateRequest,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    withdrawal = (
+        db.query(MasterWithdrawalRequest)
+        .filter(MasterWithdrawalRequest.id == withdrawal_id)
+        .first()
+    )
+
+    if not withdrawal:
+        raise HTTPException(status_code=404, detail="Заявка на вывод не найдена")
+
+    next_status = (payload.status or "").strip()
+
+    if next_status not in ALLOWED_WITHDRAWAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail="Недопустимый статус заявки на вывод",
+        )
+
+    if withdrawal.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="Можно обработать только заявку со статусом pending",
+        )
+
+    master = (
+        db.query(Account)
+        .filter(Account.id == withdrawal.master_id, Account.role == "master")
+        .first()
+    )
+
+    if not master:
+        raise HTTPException(status_code=404, detail="Мастер не найден")
+
+    amount_value = parse_amount_to_int(withdrawal.amount)
+
+    if next_status == "approved":
+        current_balance = parse_amount_to_int(master.balance_amount)
+
+        if amount_value > current_balance:
+            raise HTTPException(
+                status_code=400,
+                detail="Недостаточно средств на общем балансе мастера",
+            )
+
+        master.balance_amount = str(current_balance - amount_value)
+
+    elif next_status == "rejected":
+        current_available = parse_amount_to_int(master.available_withdraw_amount)
+        master.available_withdraw_amount = str(current_available + amount_value)
+
+    withdrawal.status = next_status
+
+    db.commit()
+    db.refresh(withdrawal)
+
+    return serialize_withdrawal_request(withdrawal)

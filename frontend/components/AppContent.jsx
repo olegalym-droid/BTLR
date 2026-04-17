@@ -71,12 +71,14 @@ export default function AppContent({
     selectedMaster,
     setSelectedMaster,
     complaints,
+    withdrawalRequests,
     successText: adminSuccessText,
     handleApproveMaster,
     isLoading: isAdminLoading,
     logout: adminLogout,
     loginWithCredentials,
     updateComplaintStatus,
+    updateWithdrawalStatus,
   } = adminState;
 
   if (!selectedRole) {
@@ -107,12 +109,14 @@ export default function AppContent({
         selectedMaster={selectedMaster}
         setSelectedMaster={setSelectedMaster}
         complaints={complaints}
+        withdrawalRequests={withdrawalRequests}
         adminSuccessText={adminSuccessText}
         handleApproveMaster={handleApproveMaster}
         isAdminLoading={isAdminLoading}
         adminLogout={adminLogout}
         loginWithCredentials={loginWithCredentials}
         updateComplaintStatus={updateComplaintStatus}
+        updateWithdrawalStatus={updateWithdrawalStatus}
         setSelectedRole={setSelectedRole}
         handleAuthSuccess={handleAuthSuccess}
         setIsAuthenticated={setIsAuthenticated}

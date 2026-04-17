@@ -13,12 +13,15 @@ export default function useAdminCabinet({ onLogout }) {
     selectedMaster,
     setSelectedMaster,
     complaints,
+    withdrawalRequests,
     successText,
     setSuccessText,
     loadPendingMasters,
     loadComplaints,
+    loadWithdrawalRequests,
     handleApproveMaster: approveMasterAction,
     updateComplaintStatus: updateComplaintStatusAction,
+    updateWithdrawalStatus: updateWithdrawalStatusAction,
     resetAdminDataState,
   } = useAdminData();
 
@@ -34,6 +37,7 @@ export default function useAdminCabinet({ onLogout }) {
     await Promise.all([
       loadPendingMasters(adminLogin, adminPassword),
       loadComplaints(adminLogin, adminPassword),
+      loadWithdrawalRequests(adminLogin, adminPassword),
     ]);
 
     setIsLoggedIn(true);
@@ -73,6 +77,19 @@ export default function useAdminCabinet({ onLogout }) {
     }
   };
 
+  const updateWithdrawalStatus = async (withdrawalId, status) => {
+    try {
+      return await updateWithdrawalStatusAction(
+        withdrawalId,
+        status,
+        setIsLoading,
+      );
+    } catch (error) {
+      alert(error.message || "Не удалось обновить статус заявки на вывод");
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const storedLogin = localStorage.getItem("admin_login");
     const storedPassword = localStorage.getItem("admin_password");
@@ -90,6 +107,7 @@ export default function useAdminCabinet({ onLogout }) {
         await Promise.all([
           loadPendingMasters(storedLogin, storedPassword),
           loadComplaints(storedLogin, storedPassword),
+          loadWithdrawalRequests(storedLogin, storedPassword),
         ]);
 
         if (!isMounted) return;
@@ -141,13 +159,16 @@ export default function useAdminCabinet({ onLogout }) {
     selectedMaster,
     setSelectedMaster,
     complaints,
+    withdrawalRequests,
     successText,
     handleLogin,
     handleApproveMaster,
     loadPendingMasters,
     loadComplaints,
+    loadWithdrawalRequests,
     loginWithCredentials,
     updateComplaintStatus,
+    updateWithdrawalStatus,
     logout,
   };
 }
