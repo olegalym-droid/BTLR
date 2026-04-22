@@ -1,6 +1,11 @@
 import { AVAILABLE_CATEGORIES } from "./masterConstants";
 import { formatPhoneInput } from "../../lib/profile";
 
+const INPUT_CLASSNAME =
+  "w-full rounded-xl border border-gray-400 bg-white px-4 py-3 text-sm font-medium text-black placeholder:text-gray-500 outline-none focus:border-black";
+const SECONDARY_BUTTON_CLASSNAME =
+  "w-full rounded-xl border border-gray-400 bg-white py-3 text-sm font-semibold text-black transition hover:bg-gray-50";
+
 export default function MasterAuthForm({
   mode,
   setMode,
@@ -20,33 +25,64 @@ export default function MasterAuthForm({
   onBack,
 }) {
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="w-full max-w-md rounded-3xl border bg-white p-6 shadow space-y-4">
-        <h1 className="text-xl font-bold text-center text-black">
-          {mode === "login" ? "Вход мастера" : "Регистрация мастера"}
-        </h1>
+    <div className="flex min-h-[80vh] items-center justify-center">
+      <div className="w-full max-w-md space-y-5 rounded-3xl border border-gray-300 bg-white p-6 shadow">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-bold text-black">
+            {mode === "login" ? "Вход мастера" : "Регистрация мастера"}
+          </h1>
+          <p className="text-sm font-medium text-gray-700">
+            {mode === "login"
+              ? "Войдите в кабинет мастера"
+              : "Заполните данные для регистрации мастера"}
+          </p>
+        </div>
 
         {successText && (
-          <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+          <div className="rounded-xl border border-green-300 bg-green-50 p-3 text-sm font-semibold text-green-800">
             {successText}
           </div>
         )}
 
+        <div className="grid grid-cols-2 rounded-2xl border border-gray-300 bg-gray-50 p-1">
+          <button
+            type="button"
+            onClick={() => setMode("login")}
+            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              mode === "login" ? "bg-black text-white" : "text-black"
+            }`}
+          >
+            Вход
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMode("register")}
+            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+              mode === "register" ? "bg-black text-white" : "text-black"
+            }`}
+          >
+            Регистрация
+          </button>
+        </div>
+
         {mode === "register" && (
           <input
+            type="text"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            placeholder="Имя"
-            className="w-full rounded-lg border p-3 text-black"
+            placeholder="Имя мастера"
+            className={INPUT_CLASSNAME}
             maxLength={50}
           />
         )}
 
         <input
+          type="text"
           value={phone}
           onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
           placeholder="Телефон"
-          className="w-full rounded-lg border p-3 text-black"
+          className={INPUT_CLASSNAME}
           inputMode="tel"
           maxLength={16}
         />
@@ -56,7 +92,7 @@ export default function MasterAuthForm({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Пароль"
-          className="w-full rounded-lg border p-3 text-black"
+          className={INPUT_CLASSNAME}
           maxLength={50}
         />
 
@@ -66,14 +102,14 @@ export default function MasterAuthForm({
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Повтор пароля"
-            className="w-full rounded-lg border p-3 text-black"
+            className={INPUT_CLASSNAME}
             maxLength={50}
           />
         )}
 
         {mode === "register" && (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-black">
+            <p className="text-sm font-semibold text-black">
               Выберите категории услуг
             </p>
 
@@ -86,10 +122,10 @@ export default function MasterAuthForm({
                     key={category}
                     type="button"
                     onClick={() => toggleCategory(category)}
-                    className={`rounded-lg border px-3 py-2 text-sm transition ${
+                    className={`rounded-xl border px-3 py-3 text-sm font-semibold transition ${
                       isSelected
-                        ? "bg-black text-white border-black"
-                        : "bg-white text-black border-gray-300"
+                        ? "border-black bg-black text-white"
+                        : "border-gray-300 bg-white text-black hover:border-gray-400"
                     }`}
                   >
                     {category}
@@ -97,13 +133,21 @@ export default function MasterAuthForm({
                 );
               })}
             </div>
+
+            <div className="rounded-2xl border border-gray-300 bg-gray-50 p-3 text-xs font-medium text-gray-700">
+              Выбрано категорий:{" "}
+              <span className="font-bold text-black">
+                {selectedCategories.length}
+              </span>
+            </div>
           </div>
         )}
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={isLoading}
-          className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-60"
+          className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white transition disabled:opacity-60"
         >
           {isLoading
             ? "Загрузка..."
@@ -113,9 +157,9 @@ export default function MasterAuthForm({
         </button>
 
         <button
-          onClick={() => setMode(mode === "login" ? "register" : "login")}
-          className="w-full text-sm underline text-gray-700"
           type="button"
+          onClick={() => setMode(mode === "login" ? "register" : "login")}
+          className="w-full text-sm font-semibold text-gray-800 underline underline-offset-2"
         >
           {mode === "login"
             ? "Нет аккаунта? Зарегистрироваться"
@@ -123,8 +167,9 @@ export default function MasterAuthForm({
         </button>
 
         <button
+          type="button"
           onClick={onBack}
-          className="w-full rounded-xl border py-3 text-black"
+          className={SECONDARY_BUTTON_CLASSNAME}
         >
           Назад
         </button>

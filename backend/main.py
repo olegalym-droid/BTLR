@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -17,7 +18,10 @@ from routes.schedules import router as schedules_router
 from routes.wallet import router as wallet_router
 
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
 
 
 def get_allowed_origins() -> list[str]:
@@ -31,8 +35,9 @@ def create_app() -> FastAPI:
 
     Base.metadata.create_all(bind=engine)
 
-    if os.path.isdir("uploads"):
-        app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+    uploads_dir = BASE_DIR / "uploads"
+    if uploads_dir.is_dir():
+        app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
     app.add_middleware(
         CORSMiddleware,
@@ -53,6 +58,8 @@ def create_app() -> FastAPI:
             "allowed_origins": get_allowed_origins(),
             "admin_login_configured": bool(os.getenv("ADMIN_LOGIN")),
             "admin_password_configured": bool(os.getenv("ADMIN_PASSWORD")),
+            "env_path": str(ENV_PATH),
+            "env_exists": ENV_PATH.exists(),
         }
 
     app.include_router(auth_router)

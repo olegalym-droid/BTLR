@@ -1,7 +1,14 @@
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
-from models import Order, Account, OrderResponseOffer, OrderReportPhoto, Notification
+from models import (
+    Order,
+    Account,
+    OrderResponseOffer,
+    OrderReportPhoto,
+    Notification,
+    Complaint,
+)
 from schemas import OrderResponse
 from routes.orders_helpers import (
     build_order_response,
@@ -17,6 +24,8 @@ from order_statuses import (
     MASTER_ALLOWED_TRANSITIONS,
     REPORT_UPLOAD_ALLOWED_STATUSES,
 )
+
+ACTIVE_COMPLAINT_BLOCKING_STATUSES = {"new", "in_progress"}
 
 
 def parse_amount_to_int(raw_value: str | None) -> int:
@@ -201,6 +210,19 @@ def create_order_completed_notification(order: Order) -> Notification | None:
     )
 
 
+def has_active_payment_blocking_complaint(order_id: int, db: Session) -> bool:
+    active_complaint = (
+        db.query(Complaint)
+        .filter(
+            Complaint.order_id == order_id,
+            Complaint.status.in_(ACTIVE_COMPLAINT_BLOCKING_STATUSES),
+        )
+        .first()
+    )
+
+    return active_complaint is not None
+
+
 def update_order_status_by_master_service(
     order_id: int,
     status: str,
@@ -283,6 +305,15 @@ def update_order_status_by_user_service(
         raise HTTPException(
             status_code=400,
             detail="У заказа нет назначенного мастера",
+        )
+
+    if has_active_payment_blocking_complaint(order.id, db):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "По этому заказу есть активная жалоба. "
+                "Оплата временно заблокирована до решения администратора."
+            ),
         )
 
     payout_amount = parse_amount_to_int(get_order_final_amount(order))

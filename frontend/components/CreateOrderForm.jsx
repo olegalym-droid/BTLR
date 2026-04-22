@@ -117,7 +117,12 @@ export default function CreateOrderForm({
   };
 
   const handleClientPriceChange = (event) => {
-    setClientPrice(event.target.value.slice(0, CLIENT_PRICE_MAX_LENGTH));
+    const raw = String(event.target.value || "");
+    const digits = raw.replace(/[^\d]/g, "");
+    const limited = digits.slice(0, CLIENT_PRICE_MAX_LENGTH);
+    const formatted = limited.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+    setClientPrice(formatted);
   };
 
   const handleAddressChange = (event) => {
@@ -320,6 +325,7 @@ export default function CreateOrderForm({
                 value={clientPrice}
                 onChange={handleClientPriceChange}
                 maxLength={CLIENT_PRICE_MAX_LENGTH}
+                inputMode="numeric"
                 className="w-full rounded-xl border border-gray-300 p-4 text-black outline-none placeholder:text-gray-400 focus:border-black"
               />
               <p className="text-xs text-gray-500">
