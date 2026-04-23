@@ -1,61 +1,209 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bell,
+  ChevronRight,
+  House,
+  MapPin,
+  Phone,
+  PlusCircle,
+  Save,
+  User,
+  LogOut,
+  X,
+  CheckCircle2,
+  Trash2,
+  Star,
+} from "lucide-react";
 import { API_BASE_URL } from "../../lib/constants";
 import { getStoredAuthUser } from "../../lib/auth";
+
+const NOTIFICATIONS_PREF_KEY = "user_notifications_enabled";
+
+function getNotificationsStorageKey(userId) {
+  return `${NOTIFICATIONS_PREF_KEY}_${userId}`;
+}
+
+function getNotificationTypeLabel(type) {
+  if (type === "master_offered_price") return "Новая цена";
+  if (type === "master_response") return "Отклик мастера";
+  if (type === "order_assigned") return "Мастер выбран";
+  if (type === "order_offer_rejected") return "Отклонённый отклик";
+  return "Уведомление";
+}
 
 function getNotificationAccent(type, isRead) {
   if (isRead) {
     return {
       cardClass: "border-gray-200 bg-white",
-      dotClass: "bg-gray-300",
       badgeClass: "bg-gray-100 text-gray-700",
+      dotClass: "bg-gray-300",
     };
   }
 
   if (type === "master_offered_price") {
     return {
-      cardClass: "border-amber-300 bg-amber-50",
-      dotClass: "bg-amber-500",
+      cardClass: "border-amber-200 bg-amber-50",
       badgeClass: "bg-amber-100 text-amber-800",
+      dotClass: "bg-amber-500",
     };
   }
 
   if (type === "master_response") {
     return {
-      cardClass: "border-blue-300 bg-blue-50",
-      dotClass: "bg-blue-500",
+      cardClass: "border-blue-200 bg-blue-50",
       badgeClass: "bg-blue-100 text-blue-800",
+      dotClass: "bg-blue-500",
     };
   }
 
   if (type === "order_assigned") {
     return {
-      cardClass: "border-green-300 bg-green-50",
-      dotClass: "bg-green-500",
+      cardClass: "border-green-200 bg-green-50",
       badgeClass: "bg-green-100 text-green-800",
+      dotClass: "bg-green-500",
     };
   }
 
   if (type === "order_offer_rejected") {
     return {
-      cardClass: "border-red-300 bg-red-50",
-      dotClass: "bg-red-500",
+      cardClass: "border-red-200 bg-red-50",
       badgeClass: "bg-red-100 text-red-800",
+      dotClass: "bg-red-500",
     };
   }
 
   return {
-    cardClass: "border-black bg-gray-50",
-    dotClass: "bg-black",
+    cardClass: "border-gray-300 bg-gray-50",
     badgeClass: "bg-black text-white",
+    dotClass: "bg-black",
   };
 }
 
-function getNotificationTypeLabel(type) {
-  if (type === "master_offered_price") return "Новая цена";
-  if (type === "master_response") return "Отклик";
-  if (type === "order_assigned") return "Назначение";
-  if (type === "order_offer_rejected") return "Отклонение";
-  return "Уведомление";
+function formatNotificationDate(value) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("ru-RU");
+}
+
+function AddressCard({
+  index,
+  address,
+  isPrimary,
+  setPrimaryAddress,
+  removeAddress,
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f1f5ee] text-[#72a06d]">
+        {isPrimary ? <House size={22} /> : <MapPin size={22} />}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-lg font-semibold text-[#25302c]">
+            {isPrimary ? "Основной адрес" : `Адрес ${index + 1}`}
+          </p>
+
+          {isPrimary && (
+            <span className="rounded-full bg-[#eef6ea] px-3 py-1 text-xs font-semibold text-[#6f9a61]">
+              Основной
+            </span>
+          )}
+        </div>
+
+        <p className="mt-1 break-words text-sm text-gray-600">{address}</p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {!isPrimary && (
+          <button
+            type="button"
+            onClick={() => setPrimaryAddress(index)}
+            className="rounded-xl border border-[#b9d3b6] bg-[#f8fcf7] px-3 py-2 text-sm font-medium text-[#6f9a61]"
+          >
+            Сделать основным
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => removeAddress(index)}
+          className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 text-red-500"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NotificationItem({
+  notification,
+  markingNotificationId,
+  markNotificationAsRead,
+  handleNotificationClick,
+}) {
+  const accent = getNotificationAccent(notification.type, notification.is_read);
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 transition ${accent.cardClass} ${
+        notification.order_id ? "cursor-pointer hover:shadow-sm" : ""
+      }`}
+      onClick={() => handleNotificationClick(notification)}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${accent.dotClass}`}
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${accent.badgeClass}`}
+            >
+              {getNotificationTypeLabel(notification.type)}
+            </span>
+
+            {!notification.is_read && (
+              <span className="rounded-full bg-[#eef6ea] px-2.5 py-1 text-xs font-semibold text-[#6f9a61]">
+                Новое
+              </span>
+            )}
+          </div>
+
+          <p className="mt-3 text-sm leading-6 text-[#2b3531]">
+            {notification.text}
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+            <span>{formatNotificationDate(notification.created_at)}</span>
+
+            {notification.order_id ? (
+              <span>Заказ #{notification.order_id}</span>
+            ) : null}
+          </div>
+        </div>
+
+        {!notification.is_read && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              markNotificationAsRead(notification.id);
+            }}
+            disabled={markingNotificationId === notification.id}
+            className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700"
+          >
+            {markingNotificationId === notification.id ? "..." : "Прочитано"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function ProfileScreen({
@@ -75,75 +223,47 @@ export default function ProfileScreen({
   const [notifications, setNotifications] = useState([]);
   const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
   const [markingNotificationId, setMarkingNotificationId] = useState(null);
-  const [liveBannerNotification, setLiveBannerNotification] = useState(null);
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] =
+    useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const previousTopNotificationIdRef = useRef(null);
-  const previousUnreadCountRef = useRef(0);
-  const bannerTimerRef = useRef(null);
+  const intervalRef = useRef(null);
 
+  const authUser = useMemo(() => getStoredAuthUser("user"), []);
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.is_read).length,
     [notifications],
   );
 
-  const latestUnreadNotification = useMemo(
-    () => notifications.find((item) => !item.is_read) || null,
-    [notifications],
-  );
-
   useEffect(() => {
-    return () => {
-      if (bannerTimerRef.current) {
-        clearTimeout(bannerTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!notifications.length) {
-      previousTopNotificationIdRef.current = null;
-      previousUnreadCountRef.current = 0;
+    if (!authUser?.id || typeof window === "undefined") {
       return;
     }
 
-    const topNotification = notifications[0];
-    const currentUnreadCount = notifications.filter((item) => !item.is_read).length;
+    const savedValue = window.localStorage.getItem(
+      getNotificationsStorageKey(authUser.id),
+    );
 
-    const hadPreviousSnapshot =
-      previousTopNotificationIdRef.current !== null ||
-      previousUnreadCountRef.current > 0;
-
-    const hasNewTopNotification =
-      topNotification &&
-      previousTopNotificationIdRef.current !== null &&
-      topNotification.id !== previousTopNotificationIdRef.current &&
-      !topNotification.is_read;
-
-    const unreadCountIncreased =
-      hadPreviousSnapshot &&
-      currentUnreadCount > previousUnreadCountRef.current &&
-      topNotification &&
-      !topNotification.is_read;
-
-    if (hasNewTopNotification || unreadCountIncreased) {
-      setLiveBannerNotification(topNotification);
-
-      if (bannerTimerRef.current) {
-        clearTimeout(bannerTimerRef.current);
-      }
-
-      bannerTimerRef.current = setTimeout(() => {
-        setLiveBannerNotification(null);
-      }, 6000);
+    if (savedValue === null) {
+      setNotificationsEnabled(true);
+      return;
     }
 
-    previousTopNotificationIdRef.current = topNotification?.id || null;
-    previousUnreadCountRef.current = currentUnreadCount;
-  }, [notifications]);
+    setNotificationsEnabled(savedValue === "true");
+  }, [authUser?.id]);
 
   useEffect(() => {
-    const authUser = getStoredAuthUser();
+    if (!authUser?.id || typeof window === "undefined") {
+      return;
+    }
 
+    window.localStorage.setItem(
+      getNotificationsStorageKey(authUser.id),
+      String(notificationsEnabled),
+    );
+  }, [authUser?.id, notificationsEnabled]);
+
+  useEffect(() => {
     if (!authUser?.id || authUser.role !== "user") {
       setNotifications([]);
       return;
@@ -188,19 +308,20 @@ export default function ProfileScreen({
 
     loadNotifications();
 
-    const interval = setInterval(() => {
+    intervalRef.current = setInterval(() => {
       loadNotifications({ silent: true });
     }, 5000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
-  }, []);
+  }, [authUser?.id, authUser?.role]);
 
   const markNotificationAsRead = async (notificationId) => {
-    const authUser = getStoredAuthUser();
-
     if (!authUser?.id) {
       return;
     }
@@ -226,10 +347,6 @@ export default function ProfileScreen({
           item.id === notificationId ? { ...item, is_read: true } : item,
         ),
       );
-
-      if (liveBannerNotification?.id === notificationId) {
-        setLiveBannerNotification(null);
-      }
     } catch (error) {
       console.error("Ошибка отметки уведомления:", error);
       alert(error.message || "Не удалось отметить уведомление");
@@ -238,406 +355,413 @@ export default function ProfileScreen({
     }
   };
 
-  const handleNotificationClick = (notification) => {
-    if (notification.order_id && typeof onOpenOrder === "function") {
+  const handleNotificationClick = async (notification) => {
+    if (!notification?.is_read) {
+      await markNotificationAsRead(notification.id);
+    }
+
+    if (notification?.order_id && typeof onOpenOrder === "function") {
+      setIsNotificationsModalOpen(false);
       onOpenOrder(notification.order_id);
     }
   };
 
-  const handleOpenLatestUnread = () => {
-    if (!latestUnreadNotification) {
-      return;
-    }
-
-    handleNotificationClick(latestUnreadNotification);
-  };
-
-  const formatNotificationDate = (value) => {
-    if (!value) {
-      return "";
-    }
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-
-    return date.toLocaleString("ru-RU");
-  };
+  const primaryAddress = profile.addresses?.[profile.primaryAddressIndex] || "";
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-black">Профиль</h1>
-        <p className="text-sm text-gray-700">
-          Контакты, адреса и уведомления по вашим заявкам
-        </p>
-      </div>
-
-      {liveBannerNotification && (
-        <div className="rounded-3xl border border-black bg-black p-4 text-white shadow">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" />
-                <p className="text-sm font-semibold">Новое уведомление</p>
-              </div>
-
-              <p className="mt-2 break-words text-base font-semibold [overflow-wrap:anywhere]">
-                {liveBannerNotification.title}
-              </p>
-
-              <p className="mt-1 break-words text-sm text-white/80 [overflow-wrap:anywhere]">
-                {liveBannerNotification.message}
-              </p>
-            </div>
-
-            <div className="flex shrink-0 gap-2">
-              {liveBannerNotification.order_id && (
-                <button
-                  type="button"
-                  onClick={() => handleNotificationClick(liveBannerNotification)}
-                  className="rounded-2xl bg-white px-4 py-3 text-sm font-medium text-black"
-                >
-                  Открыть
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setLiveBannerNotification(null)}
-                className="rounded-2xl border border-white/30 px-4 py-3 text-sm font-medium text-white"
-              >
-                Скрыть
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {unreadCount > 0 && (
-        <div className="rounded-3xl border border-red-200 bg-red-50 p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-red-500" />
-                <p className="text-base font-semibold text-black">
-                  У вас {unreadCount} непрочитанн
-                  {unreadCount === 1 ? "ое уведомление" : unreadCount < 5 ? "ых уведомления" : "ых уведомлений"}
-                </p>
-              </div>
-
-              {latestUnreadNotification && (
-                <p className="mt-2 break-words text-sm text-gray-700 [overflow-wrap:anywhere]">
-                  Последнее: {latestUnreadNotification.title}
-                </p>
-              )}
-            </div>
-
-            {latestUnreadNotification?.order_id && (
-              <button
-                type="button"
-                onClick={handleOpenLatestUnread}
-                className="shrink-0 rounded-2xl bg-black px-4 py-3 text-sm font-medium text-white"
-              >
-                Открыть заказ
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="rounded-3xl border border-gray-300 bg-white p-5 shadow space-y-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-black">Уведомления</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Здесь появляются отклики мастеров, выбор исполнителя и новые цены
-            </p>
-          </div>
-
-          <div
-            className={`shrink-0 rounded-full px-3 py-2 text-sm font-semibold ${
-              unreadCount > 0
-                ? "bg-red-500 text-white"
-                : "bg-black text-white"
-            }`}
-          >
-            {unreadCount > 0 ? `${unreadCount} новых` : "Нет новых"}
-          </div>
-        </div>
-
-        {isNotificationsLoading ? (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-            Загрузка уведомлений...
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-            Пока уведомлений нет
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {notifications.map((notification) => {
-              const accent = getNotificationAccent(
-                notification.type,
-                notification.is_read,
-              );
-
-              return (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`cursor-pointer rounded-2xl border p-4 transition ${accent.cardClass}`}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-block h-2.5 w-2.5 shrink-0 rounded-full ${accent.dotClass}`}
-                        />
-
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${accent.badgeClass}`}
-                        >
-                          {getNotificationTypeLabel(notification.type)}
-                        </span>
-
-                        {!notification.is_read && (
-                          <span className="rounded-full bg-black px-2 py-1 text-xs font-medium text-white">
-                            Новое
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="break-words text-base font-semibold text-black [overflow-wrap:anywhere]">
-                        {notification.title}
-                      </p>
-
-                      <p className="break-words text-sm leading-6 text-gray-700 [overflow-wrap:anywhere]">
-                        {notification.message}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
-                        {notification.order_id && (
-                          <p>Заказ №{notification.order_id}</p>
-                        )}
-
-                        <p>{formatNotificationDate(notification.created_at)}</p>
-                      </div>
-                    </div>
-
-                    {!notification.is_read && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markNotificationAsRead(notification.id);
-                        }}
-                        disabled={markingNotificationId === notification.id}
-                        className="shrink-0 rounded-xl border border-black px-4 py-2 text-sm font-medium text-black disabled:opacity-60"
-                      >
-                        {markingNotificationId === notification.id
-                          ? "Сохранение..."
-                          : "Прочитано"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-3xl border border-gray-300 bg-white p-5 shadow space-y-5">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-black">Имя</label>
-          <input
-            type="text"
-            value={profile.name}
-            onChange={(e) =>
-              setProfile((prev) => ({ ...prev, name: e.target.value }))
-            }
-            className="w-full rounded-2xl border p-4 text-black"
-            placeholder="Введите имя"
-            maxLength={50}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-black">Телефон</label>
-          <input
-            type="text"
-            value={profile.phone}
-            onChange={(e) =>
-              setProfile((prev) => ({
-                ...prev,
-                phone: formatPhoneInput(e.target.value),
-              }))
-            }
-            className="w-full rounded-2xl border p-4 text-black"
-            placeholder="+7 777 123 45 67"
-            inputMode="tel"
-          />
-          <p className="text-xs text-gray-500">
-            Вводите номер в международном формате
+    <>
+      <div className="space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-[#25302c]">Профиль</h1>
+          <p className="text-sm text-gray-500">
+            Ваши контакты, адреса и уведомления
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-black">Адреса</p>
-            <p className="text-xs text-gray-500">
-              Заполните адрес по частям, так он будет понятнее и удобнее
-            </p>
+        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#f1f5ee] text-[#72a06d]">
+                <Bell size={24} />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-bold text-[#25302c]">
+                  Уведомления
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Здесь вы можете управлять уведомлениями и смотреть все события
+                  по заказам
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsNotificationsModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#eef6ea] px-4 py-2 text-sm font-semibold text-[#6f9a61]"
+            >
+              Открыть уведомления
+              <ChevronRight size={16} />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            <input
-              type="text"
-              value={newAddressForm.city}
-              onChange={(e) =>
-                setNewAddressForm((prev) => ({
-                  ...prev,
-                  city: e.target.value,
-                }))
-              }
-              className="w-full rounded-2xl border p-4 text-black"
-              placeholder="Город"
-              maxLength={50}
-            />
+          <div className="mt-6 rounded-2xl border border-gray-200 bg-[#fbfcfb] p-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-[#25302c]">
+                  Получение уведомлений
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Один общий переключатель для всех уведомлений по заказам
+                </p>
+              </div>
 
-            <input
-              type="text"
-              value={newAddressForm.street}
-              onChange={(e) =>
-                setNewAddressForm((prev) => ({
-                  ...prev,
-                  street: e.target.value,
-                }))
-              }
-              className="w-full rounded-2xl border p-4 text-black"
-              placeholder="Улица"
-              maxLength={80}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="text"
-                value={newAddressForm.house}
-                onChange={(e) =>
-                  setNewAddressForm((prev) => ({
-                    ...prev,
-                    house: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border p-4 text-black"
-                placeholder="Дом"
-                maxLength={20}
-              />
-
-              <input
-                type="text"
-                value={newAddressForm.apartment}
-                onChange={(e) =>
-                  setNewAddressForm((prev) => ({
-                    ...prev,
-                    apartment: e.target.value,
-                  }))
-                }
-                className="w-full rounded-2xl border p-4 text-black"
-                placeholder="Квартира"
-                maxLength={20}
-              />
+              <button
+                type="button"
+                onClick={() => setNotificationsEnabled((prev) => !prev)}
+                className={`relative h-8 w-14 rounded-full transition ${
+                  notificationsEnabled ? "bg-[#74a86c]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
+                    notificationsEnabled ? "left-7" : "left-1"
+                  }`}
+                />
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={addAddress}
-            className="w-full rounded-2xl border border-black px-4 py-3 text-sm font-medium text-black"
-          >
-            Добавить адрес
-          </button>
-
-          <div className="space-y-3">
-            {profile.addresses.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500">
-                Адресов пока нет
-              </div>
-            ) : (
-              profile.addresses.map((addressItem, index) => {
-                const isPrimary = index === profile.primaryAddressIndex;
-
-                return (
-                  <div
-                    key={`${addressItem}-${index}`}
-                    className="space-y-3 rounded-2xl border border-gray-200 p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="break-words text-sm text-black [overflow-wrap:anywhere]">
-                          {addressItem}
-                        </p>
-                        {isPrimary && (
-                          <p className="mt-1 text-xs font-medium text-green-700">
-                            Основной адрес
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        {!isPrimary && (
-                          <button
-                            type="button"
-                            onClick={() => setPrimaryAddress(index)}
-                            className="rounded-xl border border-black px-3 py-2 text-xs font-medium text-black"
-                          >
-                            Сделать основным
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => removeAddress(index)}
-                          className="rounded-xl border border-red-300 px-3 py-2 text-xs font-medium text-red-600"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={saveProfile}
-            className="w-full rounded-2xl bg-black px-4 py-4 text-sm font-medium text-white"
-          >
-            Сохранить профиль
-          </button>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-4 text-sm font-medium text-black"
-          >
-            Выйти
-          </button>
-        </div>
-
-        {profileSaved && (
-          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-            Профиль сохранён
-          </div>
-        )}
+          <div className="mt-4 rounded-2xl border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-4">
+          {isNotificationsLoading ? (
+  <div className="flex items-center justify-between rounded-[22px] border border-gray-200 bg-white px-4 py-4">
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 animate-pulse rounded-full bg-[#eef6ea]" />
+      <div className="space-y-2">
+        <div className="h-3 w-40 animate-pulse rounded-full bg-gray-200" />
+        <div className="h-3 w-28 animate-pulse rounded-full bg-gray-100" />
       </div>
     </div>
+    <div className="h-9 w-24 animate-pulse rounded-full bg-gray-100" />
+  </div>
+) : unreadCount > 0 ? (
+  <div className="flex flex-col gap-4 rounded-[22px] border border-[#cfe3c9] bg-gradient-to-r from-[#f4fbf2] to-[#fbfdfb] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex items-center gap-3">
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e7f4e2] text-[#6f9a61] shadow-sm">
+        <Bell size={20} />
+        <span className="absolute -right-1 -top-1 flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow">
+          {unreadCount > 9 ? "9+" : unreadCount}
+        </span>
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-[#25302c] sm:text-base">
+          У вас {unreadCount} непрочитанн{unreadCount === 1 ? "ое уведомление" : unreadCount >= 2 && unreadCount <= 4 ? "ых уведомления" : "ых уведомлений"}
+        </p>
+        <p className="mt-1 text-xs text-[#6d7b72] sm:text-sm">
+          Откройте список, чтобы посмотреть новые события по заказам
+        </p>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setIsNotificationsModalOpen(true)}
+      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7fb276] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6fa565] sm:shrink-0"
+    >
+      Посмотреть
+      <ChevronRight size={16} />
+    </button>
+  </div>
+) : (
+  <div className="flex items-center gap-3 rounded-[22px] border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-4">
+    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef6ea] text-[#6f9a61]">
+      <CheckCircle2 size={20} />
+    </div>
+
+    <div>
+      <p className="text-sm font-semibold text-[#25302c]">
+        Пока уведомлений нет
+      </p>
+      <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+        Здесь будут появляться отклики мастеров и изменения по заказам
+      </p>
+    </div>
+  </div>
+)}
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-[#25302c]">Личные данные</h2>
+
+          <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#25302c]">Имя</label>
+              <div className="relative">
+                <User
+                  size={20}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#76a16f]"
+                />
+                <input
+                  value={profile.name}
+                  onChange={(event) =>
+                    setProfile((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 text-[#25302c] outline-none"
+                  placeholder="Введите имя"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-[#25302c]">
+                Телефон
+              </label>
+              <div className="relative">
+                <Phone
+                  size={20}
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#76a16f]"
+                />
+                <input
+                  value={profile.phone}
+                  onChange={(event) =>
+                    setProfile((prev) => ({
+                      ...prev,
+                      phone: formatPhoneInput(event.target.value),
+                    }))
+                  }
+                  className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 text-[#25302c] outline-none"
+                  placeholder="+7 777 123 45 67"
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                Введите номер в международном формате
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-2xl font-bold text-[#25302c]">Адреса</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Укажите адреса, чтобы мастерам было удобнее к вам добираться
+          </p>
+
+          <div className="mt-5 space-y-3">
+            {profile.addresses.length > 0 ? (
+              profile.addresses.map((item, index) => (
+                <AddressCard
+                  key={`${item}-${index}`}
+                  index={index}
+                  address={item}
+                  isPrimary={index === profile.primaryAddressIndex}
+                  setPrimaryAddress={setPrimaryAddress}
+                  removeAddress={removeAddress}
+                />
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-5 text-sm text-gray-500">
+                Адресов пока нет
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 space-y-3 rounded-2xl border border-gray-200 bg-[#fbfcfb] p-4">
+            <div className="flex items-center gap-2">
+              <MapPin size={18} className="text-[#76a16f]" />
+              <p className="text-sm font-semibold text-[#25302c]">
+                Добавить новый адрес
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <input
+                value={newAddressForm.city}
+                onChange={(event) =>
+                  setNewAddressForm((prev) => ({
+                    ...prev,
+                    city: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-[#25302c] outline-none"
+                placeholder="Город"
+              />
+
+              <input
+                value={newAddressForm.street}
+                onChange={(event) =>
+                  setNewAddressForm((prev) => ({
+                    ...prev,
+                    street: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-[#25302c] outline-none"
+                placeholder="Улица"
+              />
+
+              <input
+                value={newAddressForm.house}
+                onChange={(event) =>
+                  setNewAddressForm((prev) => ({
+                    ...prev,
+                    house: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-[#25302c] outline-none"
+                placeholder="Дом"
+              />
+
+              <input
+                value={newAddressForm.apartment}
+                onChange={(event) =>
+                  setNewAddressForm((prev) => ({
+                    ...prev,
+                    apartment: event.target.value,
+                  }))
+                }
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-[#25302c] outline-none"
+                placeholder="Квартира"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={addAddress}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#b9d3b6] bg-white px-4 py-4 text-base font-semibold text-[#6f9a61]"
+            >
+              <PlusCircle size={20} />
+              Добавить адрес
+            </button>
+
+            {primaryAddress ? (
+              <div className="rounded-2xl border border-[#d8e5d4] bg-[#f9fcf8] p-4 text-sm text-gray-600">
+                <span className="font-semibold text-[#25302c]">
+                  Текущий основной:
+                </span>{" "}
+                {primaryAddress}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={saveProfile}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7fb276] px-4 py-4 text-base font-semibold text-white"
+            >
+              <Save size={20} />
+              Сохранить изменения
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#25302c]"
+            >
+              <LogOut size={20} />
+              Выйти из аккаунта
+            </button>
+          </div>
+
+          {profileSaved && (
+            <div className="mt-4 flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm font-medium text-green-700">
+              <CheckCircle2 size={18} />
+              Профиль сохранён
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isNotificationsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+              <div>
+                <h3 className="text-2xl font-bold text-[#25302c]">
+                  Уведомления
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Все события по вашим заказам в одном месте
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsNotificationsModalOpen(false)}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f5f7f4] text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="rounded-2xl bg-[#f8fbf7] px-4 py-3">
+                  <p className="text-sm font-medium text-gray-500">
+                    Получение уведомлений
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-[#25302c]">
+                    {notificationsEnabled ? "Включено" : "Отключено"}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setNotificationsEnabled((prev) => !prev)}
+                  className={`relative h-8 w-14 rounded-full transition ${
+                    notificationsEnabled ? "bg-[#74a86c]" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
+                      notificationsEnabled ? "left-7" : "left-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto px-5 py-5 sm:px-6">
+              {isNotificationsLoading ? (
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                  Загрузка уведомлений...
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#d8e5d4] bg-[#fbfdfb] p-5 text-sm text-gray-500">
+                  Пока уведомлений нет
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notifications.map((notification) => (
+                    <NotificationItem
+                      key={notification.id}
+                      notification={notification}
+                      markingNotificationId={markingNotificationId}
+                      markNotificationAsRead={markNotificationAsRead}
+                      handleNotificationClick={handleNotificationClick}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 px-5 py-4 sm:px-6">
+              <button
+                type="button"
+                onClick={() => setIsNotificationsModalOpen(false)}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#25302c]"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

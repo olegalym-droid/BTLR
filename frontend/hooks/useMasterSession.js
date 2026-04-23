@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { getStoredAuthUser, clearAuthData } from "../lib/auth";
 
 export default function useMasterSession() {
@@ -8,7 +8,7 @@ export default function useMasterSession() {
   const [activeSection, setActiveSection] = useState("profile");
 
   const loadStoredMaster = () => {
-    const authUser = getStoredAuthUser();
+    const authUser = getStoredAuthUser("master");
 
     if (authUser?.id && authUser.role === "master") {
       return authUser;
@@ -18,7 +18,7 @@ export default function useMasterSession() {
   };
 
   const logoutMasterSession = ({ onLogout, resetters = [] } = {}) => {
-    clearAuthData();
+    clearAuthData("master");
     setIsLoggedIn(false);
     setSuccessText("");
     setOpenedPhoto(null);

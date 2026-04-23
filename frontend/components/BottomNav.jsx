@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../lib/constants";
 import { getStoredAuthUser } from "../lib/auth";
+import { ClipboardList, User, Wrench } from "lucide-react";
 
 const NAV_ITEMS = [
-  { key: "services", label: "Услуги", icon: "🛠️" },
-  { key: "orders", label: "Заказы", icon: "📋" },
-  { key: "profile", label: "Профиль", icon: "👤" },
+  {
+    key: "services",
+    label: "Услуги",
+    icon: Wrench,
+  },
+  {
+    key: "orders",
+    label: "Заказы",
+    icon: ClipboardList,
+  },
+  {
+    key: "profile",
+    label: "Профиль",
+    icon: User,
+  },
 ];
 
 export default function BottomNav({ activeTab, onTabChange }) {
@@ -17,7 +30,7 @@ export default function BottomNav({ activeTab, onTabChange }) {
   );
 
   useEffect(() => {
-    const authUser = getStoredAuthUser();
+    const authUser = getStoredAuthUser("user");
 
     if (!authUser?.id || authUser.role !== "user") {
       setNotifications([]);
@@ -66,9 +79,10 @@ export default function BottomNav({ activeTab, onTabChange }) {
   }, []);
 
   return (
-    <nav className="rounded-3xl border border-gray-200 bg-white p-2 shadow-sm">
+    <nav className="rounded-[28px] border border-gray-200 bg-white p-2 shadow-sm">
       <div className="grid grid-cols-3 gap-2">
         {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
           const isActive = activeTab === item.key;
           const showUnreadBadge = item.key === "profile" && unreadCount > 0;
 
@@ -77,23 +91,27 @@ export default function BottomNav({ activeTab, onTabChange }) {
               key={item.key}
               type="button"
               onClick={() => onTabChange(item.key)}
-              className={`relative flex min-h-[72px] flex-col items-center justify-center rounded-2xl px-3 py-3 transition ${
+              className={`relative flex min-h-[78px] items-center justify-center gap-3 rounded-[20px] px-4 py-4 transition ${
                 isActive
-                  ? "bg-black text-white"
-                  : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                  ? "bg-[#dff0da] text-[#5f9557]"
+                  : "bg-white text-[#3b3f45] hover:bg-[#f7faf6]"
               }`}
             >
-              <div className="relative">
-                <span className="text-xl">{item.icon}</span>
+              <div
+                className={`relative flex h-12 w-12 items-center justify-center rounded-2xl ${
+                  isActive ? "bg-[#dff0da]" : "bg-[#f3f6f1]"
+                }`}
+              >
+                <Icon size={22} strokeWidth={2} />
 
                 {showUnreadBadge && (
-                  <span className="absolute -right-2 -top-2 flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white shadow">
+                  <span className="absolute -right-1 -top-1 flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </div>
 
-              <span className="mt-1 text-xs font-medium">{item.label}</span>
+              <span className="text-base font-medium">{item.label}</span>
             </button>
           );
         })}

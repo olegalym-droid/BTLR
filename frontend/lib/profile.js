@@ -1,4 +1,5 @@
 import { DEFAULT_PROFILE } from "./constants";
+import { getStoredAuthUser } from "./auth";
 
 const getProfileStorageKey = (userId) => {
   if (!userId) {
@@ -8,16 +9,20 @@ const getProfileStorageKey = (userId) => {
   return `resident_profile_${userId}`;
 };
 
+const getCurrentUserProfileKey = () => {
+  const authUser = getStoredAuthUser("user");
+  return getProfileStorageKey(authUser?.id);
+};
+
 export const getStoredProfile = () => {
   if (typeof window === "undefined") {
     return DEFAULT_PROFILE;
   }
 
   try {
-    const authUserRaw = localStorage.getItem("auth_user");
-    const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
-    const profileKey = getProfileStorageKey(authUser?.id);
-    const savedProfile = localStorage.getItem(profileKey);
+    const authUser = getStoredAuthUser("user");
+    const profileKey = getCurrentUserProfileKey();
+    const savedProfile = window.localStorage.getItem(profileKey);
 
     const baseProfile = savedProfile
       ? {
@@ -50,11 +55,8 @@ export const saveStoredProfile = (profile) => {
   }
 
   try {
-    const authUserRaw = localStorage.getItem("auth_user");
-    const authUser = authUserRaw ? JSON.parse(authUserRaw) : null;
-    const profileKey = getProfileStorageKey(authUser?.id);
-
-    localStorage.setItem(profileKey, JSON.stringify(profile));
+    const profileKey = getCurrentUserProfileKey();
+    window.localStorage.setItem(profileKey, JSON.stringify(profile));
   } catch (error) {
     console.error("Ошибка сохранения профиля:", error);
   }
@@ -71,7 +73,7 @@ export const getPrimaryAddressFromProfile = (profile) => {
 };
 
 export const formatPhoneInput = (value) => {
-  let cleaned = value.replace(/[^\d+]/g, "");
+  let cleaned = String(value || "").replace(/[^\d+]/g, "");
 
   if (cleaned.includes("+")) {
     cleaned = `+${cleaned.replace(/\+/g, "")}`;
@@ -87,20 +89,20 @@ export const formatPhoneInput = (value) => {
 export const buildAddressString = ({ city, street, house, apartment }) => {
   const parts = [];
 
-  if (city.trim()) {
-    parts.push(`г. ${city.trim()}`);
+  if (String(city || "").trim()) {
+    parts.push(`г. ${String(city).trim()}`);
   }
 
-  if (street.trim()) {
-    parts.push(`ул. ${street.trim()}`);
+  if (String(street || "").trim()) {
+    parts.push(`ул. ${String(street).trim()}`);
   }
 
-  if (house.trim()) {
-    parts.push(`д. ${house.trim()}`);
+  if (String(house || "").trim()) {
+    parts.push(`д. ${String(house).trim()}`);
   }
 
-  if (apartment.trim()) {
-    parts.push(`кв. ${apartment.trim()}`);
+  if (String(apartment || "").trim()) {
+    parts.push(`кв. ${String(apartment).trim()}`);
   }
 
   return parts.join(", ");

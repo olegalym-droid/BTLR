@@ -35,27 +35,43 @@ export default function useProfile() {
   };
 
   const addAddress = () => {
-    const fullAddress = buildAddressString(newAddressForm);
+    const city = String(newAddressForm.city || "").trim();
+    const street = String(newAddressForm.street || "").trim();
+    const house = String(newAddressForm.house || "").trim();
 
-    if (
-      !newAddressForm.city.trim() ||
-      !newAddressForm.street.trim() ||
-      !newAddressForm.house.trim()
-    ) {
+    if (!city || !street || !house) {
       alert("Заполни хотя бы город, улицу и дом");
       return;
     }
 
-    const updatedAddresses = [...profile.addresses, fullAddress];
+    const fullAddress = buildAddressString({
+      city,
+      street,
+      house,
+      apartment: newAddressForm.apartment || "",
+    });
 
-    setProfile((prev) => ({
-      ...prev,
-      addresses: updatedAddresses,
+    const hasDuplicate = profile.addresses.some(
+      (item) => String(item).trim().toLowerCase() === fullAddress.toLowerCase(),
+    );
+
+    if (hasDuplicate) {
+      alert("Такой адрес уже есть");
+      return;
+    }
+
+    const updatedProfile = {
+      ...profile,
+      addresses: [...profile.addresses, fullAddress],
       primaryAddressIndex:
-        updatedAddresses.length === 1 ? 0 : prev.primaryAddressIndex,
-    }));
+        profile.addresses.length === 0 ? 0 : profile.primaryAddressIndex,
+    };
 
+    setProfile(updatedProfile);
+    saveStoredProfile(updatedProfile);
+    setAddress(getPrimaryAddressFromProfile(updatedProfile));
     setNewAddressForm(EMPTY_ADDRESS_FORM);
+    setProfileSaved(true);
   };
 
   const removeAddress = (indexToRemove) => {
@@ -80,12 +96,9 @@ export default function useProfile() {
     };
 
     setProfile(updatedProfile);
-    setAddress((currentAddress) => {
-      const primaryAddress = getPrimaryAddressFromProfile(updatedProfile);
-      return currentAddress === profile.addresses[indexToRemove]
-        ? primaryAddress
-        : currentAddress;
-    });
+    saveStoredProfile(updatedProfile);
+    setAddress(getPrimaryAddressFromProfile(updatedProfile));
+    setProfileSaved(true);
   };
 
   const setPrimaryAddress = (index) => {
@@ -95,7 +108,9 @@ export default function useProfile() {
     };
 
     setProfile(updatedProfile);
+    saveStoredProfile(updatedProfile);
     setAddress(getPrimaryAddressFromProfile(updatedProfile));
+    setProfileSaved(true);
   };
 
   const resetProfileState = () => {

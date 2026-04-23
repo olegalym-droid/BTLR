@@ -17,8 +17,10 @@ export const DEFAULT_SCHEDULE_FORM = {
   endTime: "18:00",
 };
 
+const getStoredMasterAuth = () => getStoredAuthUser("master");
+
 export const loadMasterScheduleRequest = async (masterId) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -41,7 +43,7 @@ export const saveMasterScheduleRequest = async ({
   masterId,
   scheduleItems,
 }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");

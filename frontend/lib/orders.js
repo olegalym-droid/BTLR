@@ -102,8 +102,11 @@ export const validatePriceRange = ({
   return String(amount);
 };
 
+const getStoredUserAuth = () => getStoredAuthUser("user");
+const getStoredMasterAuth = () => getStoredAuthUser("master");
+
 export const loadOrdersRequest = async () => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     return [];
@@ -120,7 +123,7 @@ export const loadOrdersRequest = async () => {
 };
 
 export const loadAvailableOrdersRequest = async (masterId) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -140,7 +143,7 @@ export const loadAvailableOrdersRequest = async (masterId) => {
 };
 
 export const loadMasterOrdersRequest = async (masterId) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -164,7 +167,7 @@ export const assignOrderToMasterRequest = async (
   masterId,
   offeredPrice = "",
 ) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -208,7 +211,7 @@ export const updateOrderStatusByMasterRequest = async ({
   status,
   masterId,
 }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -235,7 +238,7 @@ export const uploadOrderReportRequest = async ({
   masterId,
   photos = [],
 }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser()?.id;
+  const resolvedMasterId = masterId || getStoredMasterAuth()?.id;
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -280,7 +283,7 @@ export const createOrderRequest = async ({
   selectedTime,
   photos = [],
 }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
@@ -327,7 +330,7 @@ export const createOrderRequest = async ({
 };
 
 export const updateOrderStatusRequest = async ({ orderId, status }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
@@ -350,7 +353,7 @@ export const updateOrderStatusRequest = async ({ orderId, status }) => {
 };
 
 export const confirmMasterForOrderRequest = async ({ orderId, offerId }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
@@ -373,7 +376,7 @@ export const confirmMasterForOrderRequest = async ({ orderId, offerId }) => {
 };
 
 export const rejectMasterForOrderRequest = async ({ orderId, offerId }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
@@ -400,7 +403,7 @@ export const createReviewRequest = async ({
   rating,
   comment = "",
 }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
@@ -427,7 +430,7 @@ export const createReviewRequest = async ({
 };
 
 export const createComplaintRequest = async ({ orderId, text }) => {
-  const authUser = getStoredAuthUser();
+  const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
