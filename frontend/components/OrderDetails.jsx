@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ORDER_PROGRESS_STEPS,
   ORDER_STATUSES,
+  formatPublicOrderCode,
 } from "../lib/orders";
 import { API_BASE_URL } from "../lib/constants";
 import useOrderDetailsActions from "../hooks/useOrderDetailsActions";
@@ -200,13 +201,19 @@ export default function OrderDetails({
 
         <div className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
           <div className="space-y-6">
-            <div className="space-y-2">
-              <h1 className="break-words text-2xl font-bold text-[#25302c] sm:text-3xl [overflow-wrap:anywhere]">
-                {selectedOrder.service_name}
-              </h1>
-              <p className="break-words text-sm text-gray-500 sm:text-base [overflow-wrap:anywhere]">
-                {selectedOrder.category}
-              </p>
+            <div className="space-y-3">
+              <div className="inline-flex rounded-full border border-[#dbe9d7] bg-[#f8fcf7] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-[#5e8d58]">
+                {formatPublicOrderCode(selectedOrder.id)}
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="break-words text-2xl font-bold text-[#25302c] sm:text-3xl [overflow-wrap:anywhere]">
+                  {selectedOrder.service_name}
+                </h1>
+                <p className="break-words text-sm text-gray-500 sm:text-base [overflow-wrap:anywhere]">
+                  {selectedOrder.category}
+                </p>
+              </div>
             </div>
 
             <SectionCard

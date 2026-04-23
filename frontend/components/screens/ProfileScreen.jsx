@@ -12,10 +12,10 @@ import {
   X,
   CheckCircle2,
   Trash2,
-  Star,
 } from "lucide-react";
 import { API_BASE_URL } from "../../lib/constants";
 import { getStoredAuthUser } from "../../lib/auth";
+import { formatPublicOrderCode } from "../../lib/orders";
 
 const NOTIFICATIONS_PREF_KEY = "user_notifications_enabled";
 
@@ -147,6 +147,9 @@ function NotificationItem({
   handleNotificationClick,
 }) {
   const accent = getNotificationAccent(notification.type, notification.is_read);
+  const orderCode = notification.order_id
+    ? formatPublicOrderCode(notification.order_id)
+    : "";
 
   return (
     <div
@@ -173,6 +176,12 @@ function NotificationItem({
                 Новое
               </span>
             )}
+
+            {orderCode && (
+              <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600">
+                {orderCode}
+              </span>
+            )}
           </div>
 
           <p className="mt-3 text-sm leading-6 text-[#2b3531]">
@@ -181,10 +190,6 @@ function NotificationItem({
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
             <span>{formatNotificationDate(notification.created_at)}</span>
-
-            {notification.order_id ? (
-              <span>Заказ #{notification.order_id}</span>
-            ) : null}
           </div>
         </div>
 
@@ -355,6 +360,34 @@ export default function ProfileScreen({
     }
   };
 
+  const markAllNotificationsAsRead = async () => {
+    const unreadNotifications = notifications.filter((item) => !item.is_read);
+
+    if (unreadNotifications.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all(
+        unreadNotifications.map((item) =>
+          fetch(
+            `${API_BASE_URL}/notifications/${item.id}/read?user_id=${authUser.id}`,
+            {
+              method: "PUT",
+            },
+          ),
+        ),
+      );
+
+      setNotifications((prev) =>
+        prev.map((item) => ({ ...item, is_read: true })),
+      );
+    } catch (error) {
+      console.error("Ошибка массовой отметки уведомлений:", error);
+      alert("Не удалось отметить все уведомления");
+    }
+  };
+
   const handleNotificationClick = async (notification) => {
     if (!notification?.is_read) {
       await markNotificationAsRead(notification.id);
@@ -434,62 +467,67 @@ export default function ProfileScreen({
           </div>
 
           <div className="mt-4 rounded-2xl border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-4">
-          {isNotificationsLoading ? (
-  <div className="flex items-center justify-between rounded-[22px] border border-gray-200 bg-white px-4 py-4">
-    <div className="flex items-center gap-3">
-      <div className="h-10 w-10 animate-pulse rounded-full bg-[#eef6ea]" />
-      <div className="space-y-2">
-        <div className="h-3 w-40 animate-pulse rounded-full bg-gray-200" />
-        <div className="h-3 w-28 animate-pulse rounded-full bg-gray-100" />
-      </div>
-    </div>
-    <div className="h-9 w-24 animate-pulse rounded-full bg-gray-100" />
-  </div>
-) : unreadCount > 0 ? (
-  <div className="flex flex-col gap-4 rounded-[22px] border border-[#cfe3c9] bg-gradient-to-r from-[#f4fbf2] to-[#fbfdfb] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-    <div className="flex items-center gap-3">
-      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e7f4e2] text-[#6f9a61] shadow-sm">
-        <Bell size={20} />
-        <span className="absolute -right-1 -top-1 flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow">
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </span>
-      </div>
+            {isNotificationsLoading ? (
+              <div className="flex items-center justify-between rounded-[22px] border border-gray-200 bg-white px-4 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 animate-pulse rounded-full bg-[#eef6ea]" />
+                  <div className="space-y-2">
+                    <div className="h-3 w-40 animate-pulse rounded-full bg-gray-200" />
+                    <div className="h-3 w-28 animate-pulse rounded-full bg-gray-100" />
+                  </div>
+                </div>
+                <div className="h-9 w-24 animate-pulse rounded-full bg-gray-100" />
+              </div>
+            ) : unreadCount > 0 ? (
+              <div className="flex flex-col gap-4 rounded-[22px] border border-[#cfe3c9] bg-gradient-to-r from-[#f4fbf2] to-[#fbfdfb] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e7f4e2] text-[#6f9a61] shadow-sm">
+                    <Bell size={20} />
+                    <span className="absolute -right-1 -top-1 flex min-h-[22px] min-w-[22px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  </div>
 
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#25302c] sm:text-base">
-          У вас {unreadCount} непрочитанн{unreadCount === 1 ? "ое уведомление" : unreadCount >= 2 && unreadCount <= 4 ? "ых уведомления" : "ых уведомлений"}
-        </p>
-        <p className="mt-1 text-xs text-[#6d7b72] sm:text-sm">
-          Откройте список, чтобы посмотреть новые события по заказам
-        </p>
-      </div>
-    </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#25302c] sm:text-base">
+                      У вас {unreadCount} непрочитанн
+                      {unreadCount === 1
+                        ? "ое уведомление"
+                        : unreadCount >= 2 && unreadCount <= 4
+                          ? "ых уведомления"
+                          : "ых уведомлений"}
+                    </p>
+                    <p className="mt-1 text-xs text-[#6d7b72] sm:text-sm">
+                      Откройте список, чтобы посмотреть новые события по заказам
+                    </p>
+                  </div>
+                </div>
 
-    <button
-      type="button"
-      onClick={() => setIsNotificationsModalOpen(true)}
-      className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7fb276] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6fa565] sm:shrink-0"
-    >
-      Посмотреть
-      <ChevronRight size={16} />
-    </button>
-  </div>
-) : (
-  <div className="flex items-center gap-3 rounded-[22px] border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-4">
-    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef6ea] text-[#6f9a61]">
-      <CheckCircle2 size={20} />
-    </div>
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationsModalOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7fb276] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#6fa565] sm:shrink-0"
+                >
+                  Посмотреть
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-[22px] border border-dashed border-[#d8e5d4] bg-[#fbfdfb] px-4 py-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef6ea] text-[#6f9a61]">
+                  <CheckCircle2 size={20} />
+                </div>
 
-    <div>
-      <p className="text-sm font-semibold text-[#25302c]">
-        Пока уведомлений нет
-      </p>
-      <p className="mt-1 text-xs text-gray-500 sm:text-sm">
-        Здесь будут появляться отклики мастеров и изменения по заказам
-      </p>
-    </div>
-  </div>
-)}
+                <div>
+                  <p className="text-sm font-semibold text-[#25302c]">
+                    Пока уведомлений нет
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500 sm:text-sm">
+                    Здесь будут появляться отклики мастеров и изменения по заказам
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -680,7 +718,7 @@ export default function ProfileScreen({
       {isNotificationsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[28px] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+            <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
               <div>
                 <h3 className="text-2xl font-bold text-[#25302c]">
                   Уведомления
@@ -700,36 +738,69 @@ export default function ProfileScreen({
             </div>
 
             <div className="border-b border-gray-100 px-5 py-4 sm:px-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="rounded-2xl bg-[#f8fbf7] px-4 py-3">
-                  <p className="text-sm font-medium text-gray-500">
-                    Получение уведомлений
-                  </p>
-                  <p className="mt-1 text-base font-semibold text-[#25302c]">
-                    {notificationsEnabled ? "Включено" : "Отключено"}
-                  </p>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="rounded-2xl bg-[#f8fbf7] px-4 py-3">
+                    <p className="text-sm font-medium text-gray-500">
+                      Получение уведомлений
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-[#25302c]">
+                      {notificationsEnabled ? "Включено" : "Отключено"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-[#f8fbf7] px-4 py-3">
+                    <p className="text-sm font-medium text-gray-500">
+                      Непрочитанные
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-[#25302c]">
+                      {unreadCount}
+                    </p>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setNotificationsEnabled((prev) => !prev)}
-                  className={`relative h-8 w-14 rounded-full transition ${
-                    notificationsEnabled ? "bg-[#74a86c]" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
-                      notificationsEnabled ? "left-7" : "left-1"
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => setNotificationsEnabled((prev) => !prev)}
+                    className={`relative h-8 w-14 rounded-full transition ${
+                      notificationsEnabled ? "bg-[#74a86c]" : "bg-gray-300"
                     }`}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`absolute top-1 h-6 w-6 rounded-full bg-white transition ${
+                        notificationsEnabled ? "left-7" : "left-1"
+                      }`}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={markAllNotificationsAsRead}
+                    disabled={unreadCount === 0}
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#25302c] disabled:opacity-50"
+                  >
+                    Отметить все как прочитанные
+                  </button>
+                </div>
               </div>
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto px-5 py-5 sm:px-6">
               {isNotificationsLoading ? (
-                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                  Загрузка уведомлений...
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
+                    >
+                      <div className="space-y-3">
+                        <div className="h-4 w-28 animate-pulse rounded-full bg-gray-100" />
+                        <div className="h-3 w-full animate-pulse rounded-full bg-gray-100" />
+                        <div className="h-3 w-3/4 animate-pulse rounded-full bg-gray-100" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[#d8e5d4] bg-[#fbfdfb] p-5 text-sm text-gray-500">

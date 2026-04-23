@@ -8,7 +8,7 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
-import { ORDER_STATUSES } from "../lib/orders";
+import { ORDER_STATUSES, formatPublicOrderCode } from "../lib/orders";
 
 function getStatusStyles(status) {
   if (status === ORDER_STATUSES.SEARCHING) {
@@ -89,7 +89,7 @@ export default function OrderCard({ order, getStatusLabel, onClick }) {
             <div className="flex items-center gap-2">
               <span className={`h-2.5 w-2.5 rounded-full ${statusStyles.dot}`} />
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Заказ #{order.id}
+                {formatPublicOrderCode(order.id)}
               </p>
             </div>
 

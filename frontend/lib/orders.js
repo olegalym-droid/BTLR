@@ -102,6 +102,19 @@ export const validatePriceRange = ({
   return String(amount);
 };
 
+export const formatPublicOrderCode = (orderId) => {
+  const raw = Number(orderId);
+
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return "BT-UNKNOWN";
+  }
+
+  const mixed = raw * 7919 + 12345;
+  const base36 = mixed.toString(36).toUpperCase().padStart(6, "0");
+
+  return `BT-${base36.slice(0, 6)}`;
+};
+
 const getStoredUserAuth = () => getStoredAuthUser("user");
 const getStoredMasterAuth = () => getStoredAuthUser("master");
 
