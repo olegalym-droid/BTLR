@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -9,14 +9,13 @@ import {
   User,
   UserPlus,
   ShieldCheck,
-  CheckCircle2,
 } from "lucide-react";
 import {
   loginRequest,
   registerRequest,
   saveAuthData,
   saveRememberedLogin,
-  getRememberedLogin,
+  clearRememberedLogin,
 } from "../../lib/auth";
 import { formatPhoneInput } from "../../lib/profile";
 import { AVAILABLE_CATEGORIES } from "../master/masterConstants";
@@ -113,9 +112,7 @@ function Divider({ text = "или" }) {
 function CategoryPicker({ selectedCategories, toggleCategory }) {
   return (
     <div className="space-y-3">
-      <p className="text-sm font-semibold text-[#20302c]">
-        Категории услуг
-      </p>
+      <p className="text-sm font-semibold text-[#20302c]">Категории услуг</p>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {AVAILABLE_CATEGORIES.map((category) => {
@@ -169,47 +166,22 @@ function BrandPanel({ isAdminLogin }) {
         </p>
 
         <div className="mt-8 space-y-4">
-          {isAdminLogin ? (
-            <>
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Контроль заказов и активности пользователей
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Работа с жалобами и спорными ситуациями
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Управление выплатами мастерам
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Найдите мастера за пару кликов
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Выполняйте заказы или зарабатывайте как мастер
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-white/60 p-4">
-                <p className="text-sm font-medium text-[#29413c]">
-                  Всё просто, быстро и без лишних действий
-                </p>
-              </div>
-            </>
-          )}
+          {(isAdminLogin
+            ? [
+                "Контроль заказов и активности пользователей",
+                "Работа с жалобами и спорными ситуациями",
+                "Управление выплатами мастерам",
+              ]
+            : [
+                "Найдите мастера за пару кликов",
+                "Выполняйте заказы или зарабатывайте как мастер",
+                "Всё просто, быстро и без лишних действий",
+              ]
+          ).map((text) => (
+            <div key={text} className="rounded-2xl bg-white/60 p-4">
+              <p className="text-sm font-medium text-[#29413c]">{text}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -223,10 +195,7 @@ const getRolePath = (role) => {
   return "/";
 };
 
-export default function UnifiedAuth({
-  onUserOrMasterSuccess,
-  onAdminSuccess,
-}) {
+export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
   const [mode, setMode] = useState("login");
 
   const [loginRole, setLoginRole] = useState("user");
@@ -252,24 +221,6 @@ export default function UnifiedAuth({
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isRegisterLoading, setIsRegisterLoading] = useState(false);
 
-  useEffect(() => {
-    const remembered = getRememberedLogin();
-
-    if (remembered.role) {
-      setLoginRole(remembered.role);
-    }
-
-    if (remembered.phone) {
-      setLoginPhone(remembered.phone);
-      setRememberMe(true);
-    }
-
-    if (remembered.adminLogin) {
-      setAdminLogin(remembered.adminLogin);
-      setRememberMe(true);
-    }
-  }, []);
-
   const toggleCategory = (category) => {
     setSelectedCategories((prev) =>
       prev.includes(category)
@@ -283,6 +234,8 @@ export default function UnifiedAuth({
     setLoginPhone("");
     setLoginPassword("");
     setAdminLogin("");
+    setRememberMe(false);
+    clearRememberedLogin();
   };
 
   const handleRegisterRoleChange = (nextRole) => {
@@ -296,6 +249,18 @@ export default function UnifiedAuth({
 
   const switchToLogin = () => {
     setMode("login");
+  };
+
+  const handleRememberChange = () => {
+    setRememberMe((prev) => {
+      const nextValue = !prev;
+
+      if (!nextValue) {
+        clearRememberedLogin();
+      }
+
+      return nextValue;
+    });
   };
 
   const handleLoginSubmit = async () => {
@@ -503,7 +468,7 @@ export default function UnifiedAuth({
                           <input
                             type="text"
                             name="admin_login"
-                            autoComplete="username"
+                            autoComplete="off"
                             value={adminLogin}
                             onChange={(e) => setAdminLogin(e.target.value)}
                             placeholder="Логин администратора"
@@ -515,8 +480,8 @@ export default function UnifiedAuth({
                           <Lock className={ICON_CLASSNAME} size={22} />
                           <input
                             type={showLoginPassword ? "text" : "password"}
-                            name="password"
-                            autoComplete="current-password"
+                            name="admin_password"
+                            autoComplete="new-password"
                             value={loginPassword}
                             onChange={(e) => setLoginPassword(e.target.value)}
                             placeholder="Пароль"
@@ -527,7 +492,11 @@ export default function UnifiedAuth({
                             onClick={() => setShowLoginPassword((prev) => !prev)}
                             className={TOGGLE_CLASSNAME}
                           >
-                            {showLoginPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                            {showLoginPassword ? (
+                              <EyeOff size={22} />
+                            ) : (
+                              <Eye size={22} />
+                            )}
                           </button>
                         </div>
                       </>
@@ -537,8 +506,8 @@ export default function UnifiedAuth({
                           <Phone className={ICON_CLASSNAME} size={22} />
                           <input
                             type="text"
-                            name="phone"
-                            autoComplete="username"
+                            name="login_phone"
+                            autoComplete="off"
                             value={loginPhone}
                             onChange={(e) =>
                               setLoginPhone(formatPhoneInput(e.target.value))
@@ -554,8 +523,8 @@ export default function UnifiedAuth({
                           <Lock className={ICON_CLASSNAME} size={22} />
                           <input
                             type={showLoginPassword ? "text" : "password"}
-                            name="password"
-                            autoComplete="current-password"
+                            name="login_password"
+                            autoComplete="new-password"
                             value={loginPassword}
                             onChange={(e) => setLoginPassword(e.target.value)}
                             placeholder="Пароль"
@@ -566,7 +535,11 @@ export default function UnifiedAuth({
                             onClick={() => setShowLoginPassword((prev) => !prev)}
                             className={TOGGLE_CLASSNAME}
                           >
-                            {showLoginPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                            {showLoginPassword ? (
+                              <EyeOff size={22} />
+                            ) : (
+                              <Eye size={22} />
+                            )}
                           </button>
                         </div>
                       </>
@@ -577,7 +550,7 @@ export default function UnifiedAuth({
                         <input
                           type="checkbox"
                           checked={rememberMe}
-                          onChange={() => setRememberMe((prev) => !prev)}
+                          onChange={handleRememberChange}
                           className="h-5 w-5 rounded border-[#b8c4b4] text-[#7da274] focus:ring-[#cfe1c7]"
                         />
                         <span>Запомнить меня</span>
@@ -623,8 +596,8 @@ export default function UnifiedAuth({
                       <User className={ICON_CLASSNAME} size={22} />
                       <input
                         type="text"
-                        name="full_name"
-                        autoComplete="name"
+                        name="register_full_name"
+                        autoComplete="off"
                         value={registerFullName}
                         onChange={(e) => setRegisterFullName(e.target.value)}
                         placeholder={
@@ -639,8 +612,8 @@ export default function UnifiedAuth({
                       <Phone className={ICON_CLASSNAME} size={22} />
                       <input
                         type="text"
-                        name="phone"
-                        autoComplete="username"
+                        name="register_phone"
+                        autoComplete="off"
                         value={registerPhone}
                         onChange={(e) =>
                           setRegisterPhone(formatPhoneInput(e.target.value))
@@ -656,7 +629,7 @@ export default function UnifiedAuth({
                       <Lock className={ICON_CLASSNAME} size={22} />
                       <input
                         type={showRegisterPassword ? "text" : "password"}
-                        name="new_password"
+                        name="register_password"
                         autoComplete="new-password"
                         value={registerPassword}
                         onChange={(e) => setRegisterPassword(e.target.value)}
@@ -668,15 +641,21 @@ export default function UnifiedAuth({
                         onClick={() => setShowRegisterPassword((prev) => !prev)}
                         className={TOGGLE_CLASSNAME}
                       >
-                        {showRegisterPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                        {showRegisterPassword ? (
+                          <EyeOff size={22} />
+                        ) : (
+                          <Eye size={22} />
+                        )}
                       </button>
                     </div>
 
                     <div className="relative">
                       <Lock className={ICON_CLASSNAME} size={22} />
                       <input
-                        type={showRegisterConfirmPassword ? "text" : "password"}
-                        name="confirm_password"
+                        type={
+                          showRegisterConfirmPassword ? "text" : "password"
+                        }
+                        name="register_confirm_password"
                         autoComplete="new-password"
                         value={registerConfirmPassword}
                         onChange={(e) =>

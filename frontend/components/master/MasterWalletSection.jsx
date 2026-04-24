@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  Info,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Wallet,
+} from "lucide-react";
 import { API_BASE_URL } from "../../lib/constants";
 
 const DEFAULT_WITHDRAW_FORM = {
@@ -55,14 +65,14 @@ function getWithdrawalStatusLabel(status) {
 
 function getWithdrawalStatusClasses(status) {
   if (status === "approved") {
-    return "bg-green-100 text-green-700 border-green-200";
+    return "border-[#cfe6d2] bg-[#f1f8f1] text-[#407a45]";
   }
 
   if (status === "rejected") {
-    return "bg-red-100 text-red-700 border-red-200";
+    return "border-red-200 bg-red-50 text-red-600";
   }
 
-  return "bg-yellow-100 text-yellow-700 border-yellow-200";
+  return "border-yellow-200 bg-yellow-50 text-yellow-800";
 }
 
 function detectCardInfo(cardNumber, cardBrand = "") {
@@ -70,27 +80,25 @@ function detectCardInfo(cardNumber, cardBrand = "") {
   const normalizedBrand = String(cardBrand || "").toLowerCase();
 
   let system = "Карта";
-  let colorClass = "from-slate-900 via-slate-800 to-slate-700";
-  let badgeClass = "border-white/20 text-white/70";
+  let colorClass = "from-[#151c23] via-[#202a32] to-[#2d3a43]";
   let logoText = "CARD";
 
   if (normalizedBrand === "visa" || /^4/.test(digits)) {
     system = "Visa";
     logoText = "VISA";
-    colorClass = "from-blue-950 via-blue-800 to-blue-600";
+    colorClass = "from-[#172554] via-[#1d4ed8] to-[#60a5fa]";
   } else if (
     normalizedBrand === "mastercard" ||
     /^(5[1-5]|22[2-9]|2[3-6]|27[01]|2720)/.test(digits)
   ) {
     system = "Mastercard";
     logoText = "MC";
-    colorClass = "from-neutral-950 via-neutral-800 to-orange-600";
+    colorClass = "from-[#111827] via-[#374151] to-[#c2410c]";
   }
 
   return {
     system,
     colorClass,
-    badgeClass,
     logoText,
   };
 }
@@ -108,6 +116,16 @@ function maskCardForPreview(cardNumber) {
   }
 
   return formatCardNumber(digits);
+}
+
+function Field({ label, hint = "", children }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-bold text-[#26312c]">{label}</span>
+      {children}
+      {hint && <p className="text-xs font-medium text-gray-500">{hint}</p>}
+    </label>
+  );
 }
 
 export default function MasterWalletSection({ masterProfile }) {
@@ -278,98 +296,130 @@ export default function MasterWalletSection({ masterProfile }) {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        <div className="space-y-4 rounded-3xl border border-gray-300 bg-white p-6 shadow xl:col-span-1">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-black">Кошелёк</h2>
-            <p className="text-sm text-gray-600">
-              Начисления за выполненные и оплаченные заказы
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_1fr]">
+        <aside className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="mb-5">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#eaf4e8] px-4 py-2 text-sm font-semibold text-[#5f9557]">
+              <Wallet size={17} />
+              Кошелёк
+            </div>
+
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-[#151c23]">
+              Баланс мастера
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Начисления за выполненные и оплаченные заказы.
             </p>
           </div>
 
           {isWalletLoading ? (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+            <div className="rounded-3xl border border-gray-200 bg-[#fbfdfb] p-5 text-sm font-semibold text-gray-600">
               Загрузка кошелька...
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-3xl border border-gray-200 bg-gradient-to-br from-black to-gray-800 p-5 text-white">
-                <p className="text-sm text-white/70">Доступно к выводу</p>
-                <p className="mt-3 text-3xl font-bold">
+              <div className="rounded-[28px] bg-gradient-to-br from-[#151c23] via-[#202a32] to-[#2d3a43] p-6 text-white shadow-sm">
+                <p className="text-sm font-medium text-white/70">
+                  Доступно к выводу
+                </p>
+
+                <p className="mt-4 text-4xl font-bold tracking-tight">
                   {formatMoney(walletBalance?.available_withdraw_amount)}
                 </p>
-                <div className="mt-6 flex items-center justify-between text-xs text-white/70">
+
+                <div className="mt-8 flex items-center justify-between text-xs font-semibold text-white/60">
                   <span>Кошелёк мастера</span>
                   <span>ID: {masterProfile?.id || "—"}</span>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Общий баланс</p>
-                <p className="mt-2 text-2xl font-bold text-black">
-                  {formatMoney(walletBalance?.balance_amount)}
-                </p>
+              <div className="rounded-3xl border border-[#d7ead6] bg-[#fbfdfb] p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef6ea] text-[#5f9557]">
+                    <Banknote size={22} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500">
+                      Общий баланс
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-[#407a45]">
+                      {formatMoney(walletBalance?.balance_amount)}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+              <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm font-semibold leading-6 text-blue-700">
+                <div className="mb-2 flex items-center gap-2">
+                  <Info size={18} />
+                  Важно
+                </div>
                 После отправки заявки сумма резервируется. Финальный статус
                 выставляет администратор.
               </div>
             </div>
           )}
-        </div>
+        </aside>
 
-        <div className="space-y-5 rounded-3xl border border-gray-300 bg-white p-6 shadow xl:col-span-2">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-black">
+        <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="mb-6">
+            <h2 className="text-3xl font-bold tracking-tight text-[#151c23]">
               Заявка на вывод средств
             </h2>
-            <p className="text-sm text-gray-600">
-              Укажи карту, система сама определит платёжную систему
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Укажите карту, система автоматически определит платёжную систему.
             </p>
           </div>
 
           <div
-            className={`rounded-3xl border border-gray-200 bg-gradient-to-br ${cardInfo.colorClass} p-5 text-white`}
+            className={`rounded-[28px] bg-gradient-to-br ${cardInfo.colorClass} p-6 text-white shadow-sm`}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-                  {cardInfo.system}
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-white/60">
+                  Карта
                 </p>
-                <p className="mt-6 break-all text-2xl font-semibold tracking-[0.2em]">
+
+                <p className="mt-7 break-all text-2xl font-bold tracking-[0.24em] sm:text-3xl">
                   {maskCardForPreview(withdrawForm.cardNumber)}
                 </p>
               </div>
 
-              <div
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${cardInfo.badgeClass}`}
-              >
+              <div className="rounded-full border border-white/20 px-3 py-1 text-xs font-bold text-white/80">
                 {cardInfo.logoText}
               </div>
             </div>
 
-            <div className="mt-8 flex items-end justify-between gap-3">
+            <div className="mt-9 flex items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] text-white/60">CARD HOLDER</p>
-                <p className="mt-1 text-sm font-medium">
+                <p className="text-[11px] font-bold uppercase text-white/60">
+                  Card holder
+                </p>
+                <p className="mt-1 text-sm font-bold">
                   {withdrawForm.cardHolderName || "IVAN IVANOV"}
                 </p>
               </div>
 
               <div className="text-right">
-                <p className="text-[11px] text-white/60">TYPE</p>
-                <p className="mt-1 text-sm font-medium">{cardInfo.system}</p>
+                <p className="text-[11px] font-bold uppercase text-white/60">
+                  Type
+                </p>
+                <p className="mt-1 text-sm font-bold">{cardInfo.system}</p>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-black">
-                Сумма вывода
-              </label>
+          <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Field
+              label="Сумма вывода"
+              hint={`Доступно сейчас: ${formatMoney(
+                walletBalance?.available_withdraw_amount,
+              )}`}
+            >
               <input
                 type="text"
                 inputMode="numeric"
@@ -380,133 +430,133 @@ export default function MasterWalletSection({ masterProfile }) {
                     formatMoneyInput(event.target.value),
                   )
                 }
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
+                className="w-full min-h-[56px] rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#151c23] outline-none transition placeholder:text-gray-400 focus:border-[#72a06d] focus:ring-4 focus:ring-[#eef6ea]"
                 placeholder="Например 15 000"
               />
-              <p className="text-xs text-gray-500">
-                Доступно сейчас:{" "}
-                {formatMoney(walletBalance?.available_withdraw_amount)}
-              </p>
-            </div>
+            </Field>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-black">
-                Платёжная система
-              </label>
-              <div className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-black">
-                {cardInfo.system}
+            <Field
+              label="Платёжная система"
+              hint="Определяется автоматически по номеру карты."
+            >
+              <div className="flex min-h-[56px] items-center justify-between rounded-2xl border border-gray-200 bg-[#fbfdfb] px-4 py-4 text-base font-bold text-[#151c23]">
+                <span>{cardInfo.system}</span>
+                <CreditCard size={20} className="text-[#5f9557]" />
               </div>
-              <p className="text-xs text-gray-500">
-                Определяется автоматически по номеру карты.
-              </p>
+            </Field>
+
+            <div className="lg:col-span-2">
+              <Field label="Номер карты">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={withdrawForm.cardNumber}
+                  onChange={(event) =>
+                    handleWithdrawInputChange(
+                      "cardNumber",
+                      formatCardNumber(event.target.value),
+                    )
+                  }
+                  className="w-full min-h-[56px] rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#151c23] outline-none transition placeholder:text-gray-400 focus:border-[#72a06d] focus:ring-4 focus:ring-[#eef6ea]"
+                  placeholder="0000 0000 0000 0000"
+                />
+
+                {cardValidationState.message && (
+                  <p
+                    className={`mt-2 text-xs font-semibold ${
+                      cardValidationState.isValid
+                        ? "text-[#407a45]"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {cardValidationState.message}
+                  </p>
+                )}
+              </Field>
             </div>
 
-            <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-black">
-                Номер карты
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={withdrawForm.cardNumber}
-                onChange={(event) =>
-                  handleWithdrawInputChange(
-                    "cardNumber",
-                    formatCardNumber(event.target.value),
-                  )
-                }
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
-                placeholder="0000 0000 0000 0000"
-              />
-
-              {cardValidationState.message && (
-                <p
-                  className={`text-xs ${
-                    cardValidationState.isValid
-                      ? "text-emerald-600"
-                      : "text-red-500"
-                  }`}
-                >
-                  {cardValidationState.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2 lg:col-span-2">
-              <label className="text-sm font-medium text-black">
-                Имя владельца
-              </label>
-              <input
-                type="text"
-                value={withdrawForm.cardHolderName}
-                onChange={(event) =>
-                  handleWithdrawInputChange(
-                    "cardHolderName",
-                    formatCardHolderName(event.target.value),
-                  )
-                }
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
-                placeholder="IVAN IVANOV"
-              />
-              <p className="text-xs text-gray-500">
-                Только латиница, как в банковском приложении или на карте.
-              </p>
+            <div className="lg:col-span-2">
+              <Field
+                label="Имя владельца"
+                hint="Только латиница, как в банковском приложении или на карте."
+              >
+                <input
+                  type="text"
+                  value={withdrawForm.cardHolderName}
+                  onChange={(event) =>
+                    handleWithdrawInputChange(
+                      "cardHolderName",
+                      formatCardHolderName(event.target.value),
+                    )
+                  }
+                  className="w-full min-h-[56px] rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#151c23] outline-none transition placeholder:text-gray-400 focus:border-[#72a06d] focus:ring-4 focus:ring-[#eef6ea]"
+                  placeholder="IVAN IVANOV"
+                />
+              </Field>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span>К выплате</span>
-              <span className="font-semibold text-black">
-                {formatMoney(enteredAmountValue)}
-              </span>
-            </div>
+          <div className="mt-6 flex items-center justify-between rounded-2xl border border-gray-200 bg-[#fbfdfb] px-4 py-4 text-sm font-semibold text-gray-600">
+            <span>К выплате</span>
+            <span className="text-lg font-bold text-[#151c23]">
+              {formatMoney(enteredAmountValue)}
+            </span>
           </div>
 
           <button
             type="button"
             onClick={handleSubmitWithdrawal}
             disabled={isWithdrawalSubmitting || isWalletLoading}
-            className="w-full rounded-2xl bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+            className="mt-5 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#5f9557] disabled:opacity-60"
           >
+            <Send size={20} />
             {isWithdrawalSubmitting
               ? "Отправка заявки..."
               : "Отправить заявку на вывод"}
           </button>
 
           {walletSuccessText && (
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-[#cfe6d2] bg-[#f1f8f1] px-4 py-3 text-sm font-bold text-[#407a45]">
+              <CheckCircle2 size={20} />
               {walletSuccessText}
             </div>
           )}
-        </div>
+        </section>
       </div>
 
-      <div className="space-y-4 rounded-3xl border border-gray-300 bg-white p-6 shadow">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold text-black">История выводов</h2>
-            <p className="text-sm text-gray-600">
-              Все отправленные заявки на вывод средств
+      <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-[#151c23]">
+              История выводов
+            </h2>
+
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Все отправленные заявки на вывод средств.
             </p>
           </div>
 
           <button
             type="button"
             onClick={loadWalletData}
-            className="rounded-xl border border-black px-4 py-2 text-sm font-medium text-black"
+            disabled={isWalletLoading}
+            className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#5f9557] transition hover:bg-[#f7faf6] disabled:opacity-60"
           >
+            <RefreshCw
+              size={20}
+              className={isWalletLoading ? "animate-spin" : ""}
+            />
             Обновить
           </button>
         </div>
 
         {isWalletLoading ? (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+          <div className="rounded-3xl border border-gray-200 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
             Загрузка истории...
           </div>
         ) : withdrawals.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-            У вас пока нет заявок на вывод
+          <div className="rounded-3xl border border-dashed border-gray-300 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
+            У вас пока нет заявок на вывод.
           </div>
         ) : (
           <div className="space-y-3">
@@ -519,29 +569,30 @@ export default function MasterWalletSection({ masterProfile }) {
               return (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-gray-200 p-4"
+                  className="rounded-3xl border border-gray-200 bg-white p-5 transition hover:bg-[#fbfdfb]"
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                      <p className="text-lg font-semibold text-black">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-xl font-bold text-[#407a45]">
                         {formatMoney(item.amount)}
                       </p>
-                      <p className="text-sm text-gray-600 break-all">
-                        Карта: {item.masked_card_number || item.card_number}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Система: {historyCardInfo.system}
-                      </p>
-                      <p className="text-sm text-gray-600 break-all">
-                        Получатель: {item.card_holder_name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatWithdrawalDate(item.created_at)}
-                      </p>
+
+                      <div className="mt-3 space-y-1 text-sm font-semibold text-gray-600">
+                        <p className="break-words [overflow-wrap:anywhere]">
+                          Карта: {item.masked_card_number || item.card_number}
+                        </p>
+                        <p>Система: {historyCardInfo.system}</p>
+                        <p className="break-words [overflow-wrap:anywhere]">
+                          Получатель: {item.card_holder_name}
+                        </p>
+                        <p className="text-gray-400">
+                          {formatWithdrawalDate(item.created_at)}
+                        </p>
+                      </div>
                     </div>
 
                     <div
-                      className={`inline-flex rounded-full border px-3 py-2 text-sm font-medium ${getWithdrawalStatusClasses(
+                      className={`inline-flex rounded-full border px-4 py-2 text-sm font-bold ${getWithdrawalStatusClasses(
                         item.status,
                       )}`}
                     >
@@ -553,7 +604,7 @@ export default function MasterWalletSection({ masterProfile }) {
             })}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

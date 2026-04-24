@@ -1,41 +1,21 @@
-import AdminLogin from "./admin/AdminLogin";
 import AdminDashboard from "./admin/AdminDashboard";
 
 export default function AdminAppView({
-  isAdminLoggedIn,
+  isLoggedIn,
   pendingMasters,
   selectedMaster,
   setSelectedMaster,
   complaints,
   withdrawalRequests,
-  adminSuccessText,
+  successText,
   handleApproveMaster,
-  isAdminLoading,
-  adminLogout,
-  loginWithCredentials,
+  isLoading,
   updateComplaintStatus,
   updateWithdrawalStatus,
-  setSelectedRole,
+  logout,
 }) {
-  const handleLogin = async (login, password) => {
-    await loginWithCredentials(login, password);
-  };
-
-  const handleLogout = () => {
-    adminLogout();
-
-    if (typeof setSelectedRole === "function") {
-      setSelectedRole(null);
-    }
-  };
-
-  if (!isAdminLoggedIn) {
-    return (
-      <AdminLogin
-        onLogin={handleLogin}
-        isLoading={isAdminLoading}
-      />
-    );
+  if (!isLoggedIn) {
+    return null;
   }
 
   return (
@@ -45,12 +25,12 @@ export default function AdminAppView({
       setSelectedMaster={setSelectedMaster}
       complaints={complaints}
       withdrawalRequests={withdrawalRequests}
-      successText={adminSuccessText}
-      isLoading={isAdminLoading}
+      successText={successText}
+      isLoading={isLoading}
       handleApproveMaster={handleApproveMaster}
       updateComplaintStatus={updateComplaintStatus}
       updateWithdrawalStatus={updateWithdrawalStatus}
-      logout={handleLogout}
+      logout={logout}
     />
   );
 }
