@@ -1,59 +1,70 @@
+import {
+  CalendarDays,
+  ClipboardList,
+  User,
+  Wallet,
+} from "lucide-react";
 import MasterProfileSection from "./MasterProfileSection";
 import MasterWalletSection from "./MasterWalletSection";
 import MasterScheduleSection from "./MasterScheduleSection";
 import MasterOrdersTabsSection from "./MasterOrdersTabsSection";
 
+const SECTIONS = [
+  {
+    key: "profile",
+    label: "Профиль",
+    icon: User,
+  },
+  {
+    key: "schedule",
+    label: "График",
+    icon: CalendarDays,
+  },
+  {
+    key: "orders",
+    label: "Заказы",
+    icon: ClipboardList,
+  },
+  {
+    key: "wallet",
+    label: "Кошелёк",
+    icon: Wallet,
+  },
+];
+
 function SectionTabs({ activeSection, setActiveSection }) {
   return (
-    <div className="grid grid-cols-4 rounded-2xl border border-gray-300 bg-white p-2 shadow">
-      <button
-        type="button"
-        onClick={() => setActiveSection("profile")}
-        className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-          activeSection === "profile"
-            ? "bg-black text-white"
-            : "bg-white text-black"
-        }`}
-      >
-        Профиль
-      </button>
+    <nav className="rounded-[28px] border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {SECTIONS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeSection === item.key;
 
-      <button
-        type="button"
-        onClick={() => setActiveSection("schedule")}
-        className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-          activeSection === "schedule"
-            ? "bg-black text-white"
-            : "bg-white text-black"
-        }`}
-      >
-        График
-      </button>
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setActiveSection(item.key)}
+              className={`flex min-h-[68px] items-center justify-center gap-3 rounded-[22px] px-4 py-3 text-sm font-bold transition ${
+                isActive
+                  ? "bg-[#e6f1e5] text-[#4f8a55]"
+                  : "bg-white text-[#344054] hover:bg-[#f7faf6]"
+              }`}
+            >
+              <span
+                className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+                  isActive ? "bg-[#d7ead6]" : "bg-[#f2f5f2]"
+                }`}
+              >
+                <Icon size={21} strokeWidth={2.2} />
+              </span>
 
-      <button
-        type="button"
-        onClick={() => setActiveSection("orders")}
-        className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-          activeSection === "orders"
-            ? "bg-black text-white"
-            : "bg-white text-black"
-        }`}
-      >
-        Заказы
-      </button>
-
-      <button
-        type="button"
-        onClick={() => setActiveSection("wallet")}
-        className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-          activeSection === "wallet"
-            ? "bg-black text-white"
-            : "bg-white text-black"
-        }`}
-      >
-        Кошелёк
-      </button>
-    </div>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 
@@ -202,7 +213,7 @@ export default function MasterDashboard({
           <img
             src={openedPhoto}
             alt="Открытое фото"
-            className="max-h-[90vh] max-w-[90vw] rounded-xl"
+            className="max-h-[90vh] max-w-[90vw] rounded-2xl"
           />
         </div>
       )}

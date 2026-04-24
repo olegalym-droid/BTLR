@@ -1,8 +1,57 @@
-import { useMemo, useState } from "react";
-import { getStatusLabel } from "../../lib/orders";
-import MasterOrderPhotos from "./MasterOrderPhotos";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Image as ImageIcon,
+  MapPin,
+  RefreshCw,
+  XCircle,
+} from "lucide-react";
+import { API_BASE_URL } from "../../lib/constants";
 
-const ITEMS_PER_PAGE = 3;
+function formatMoney(value) {
+  const raw = String(value || "0").replace(/[^\d]/g, "");
+  const amount = raw ? Number(raw) : 0;
+  return amount ? `${amount.toLocaleString("ru-RU")} ₸` : "—";
+}
+
+function getStatusLabel(status) {
+  if (status === "searching") return "Ищем мастера";
+  if (status === "pending_user_confirmation") return "Ожидает выбора";
+  return status || "—";
+}
+
+function PhotoStrip({ photos = [], onOpenPhoto }) {
+  if (!Array.isArray(photos) || photos.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 flex flex-wrap gap-3">
+      {photos.map((photo) => {
+        const url = `${API_BASE_URL}/${photo.file_path}`;
+
+        return (
+          <button
+            key={photo.id}
+            type="button"
+            onClick={() => onOpenPhoto?.(url)}
+            className="group relative h-28 w-full overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 sm:w-[260px]"
+          >
+            <img
+              src={url}
+              alt="Фото заказа"
+              className="h-full w-full object-cover transition group-hover:scale-105"
+            />
+
+            <div className="absolute inset-0 hidden items-center justify-center bg-black/30 text-white group-hover:flex">
+              <ImageIcon size={24} />
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function MasterAvailableOrdersSection({
   masterProfile,
@@ -13,213 +62,146 @@ export default function MasterAvailableOrdersSection({
   setAvailableOrders,
   onOpenPhoto,
 }) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [editingOrderId, setEditingOrderId] = useState(null);
-  const [counterPrice, setCounterPrice] = useState("");
-
-  const totalPages = Math.ceil(availableOrders.length / ITEMS_PER_PAGE) || 1;
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-
-  const paginatedOrders = useMemo(
-    () =>
-      availableOrders.slice(
-        (safeCurrentPage - 1) * ITEMS_PER_PAGE,
-        safeCurrentPage * ITEMS_PER_PAGE,
-      ),
-    [availableOrders, safeCurrentPage],
-  );
-
-  const startCounterOffer = (order) => {
-    setEditingOrderId(order.id);
-    setCounterPrice(order.client_price || "");
+  const handleRefresh = async () => {
+    if (!masterProfile?.id) return;
+    await loadAvailableOrders(masterProfile.id);
   };
 
-  const cancelCounterOffer = () => {
-    setEditingOrderId(null);
-    setCounterPrice("");
-  };
-
-  const submitTakeOrder = async (order) => {
-    const offeredPrice =
-      editingOrderId === order.id ? counterPrice : order.client_price || "";
-
-    await handleTakeOrder(order.id, offeredPrice);
-
-    setEditingOrderId(null);
-    setCounterPrice("");
+  const handleSkipOrder = (orderId) => {
+    setAvailableOrders((prev) => prev.filter((order) => order.id !== orderId));
   };
 
   return (
-    <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-4 overflow-hidden">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-black">Доступные заказы</h2>
+    <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-[#151c23]">
+            Доступные заказы
+          </h2>
+
+          <p className="mt-2 text-sm font-medium text-gray-500">
+            Выбирайте подходящие заявки по вашему графику и категориям.
+          </p>
+        </div>
 
         <button
           type="button"
-          onClick={() => loadAvailableOrders(masterProfile?.id)}
-          className="rounded-xl border border-black bg-white px-4 py-2 text-sm font-medium text-black"
+          onClick={handleRefresh}
+          disabled={isAvailableLoading}
+          className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#5f9557] transition hover:bg-[#f7faf6] disabled:opacity-60"
         >
+          <RefreshCw
+            size={20}
+            className={isAvailableLoading ? "animate-spin" : ""}
+          />
           Обновить
         </button>
       </div>
 
-      {isAvailableLoading && (
-        <p className="text-sm text-black">Загрузка доступных заказов...</p>
-      )}
-
-      {!isAvailableLoading && availableOrders.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-gray-400 p-4 text-sm text-gray-700">
-          Сейчас доступных заказов нет
+      {isAvailableLoading ? (
+        <div className="rounded-3xl border border-gray-200 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
+          Загружаем доступные заказы...
         </div>
-      )}
-
-      <div className="space-y-4">
-        {paginatedOrders.map((order) => {
-          const isEditing = editingOrderId === order.id;
-          const clientPriceText = order.client_price || "Цена не указана";
-
-          return (
-            <div
+      ) : availableOrders.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
+          Сейчас нет подходящих заказов.
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {availableOrders.map((order) => (
+            <article
               key={order.id}
-              className="rounded-2xl border border-gray-300 bg-white p-5 space-y-4 overflow-hidden"
+              className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm"
             >
-              <div className="space-y-3 min-w-0">
-                <p className="text-2xl font-bold leading-tight text-black break-words [overflow-wrap:anywhere]">
-                  {order.service_name}
-                </p>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <h3 className="text-2xl font-bold text-[#151c23]">
+                    {order.service_name}
+                  </h3>
 
-                <div>
-                  <span className="inline-flex rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900">
+                  <div className="mt-3 inline-flex rounded-full bg-[#eef6ea] px-4 py-2 text-sm font-bold text-[#5f9557]">
                     {getStatusLabel(order.status)}
+                  </div>
+
+                  <p className="mt-4 text-base font-semibold text-gray-700">
+                    {order.category}
+                  </p>
+
+                  <p className="mt-3 max-w-3xl text-base leading-7 text-gray-600">
+                    {order.description || "Без описания"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-[#d7ead6] bg-[#fbfdfb] px-5 py-4 lg:min-w-[240px]">
+                  <div className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                    Цена пользователя
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-[#151c23]">
+                    {formatMoney(order.client_price || order.price)}
+                  </div>
+                </div>
+              </div>
+
+              <PhotoStrip photos={order.photos} onOpenPhoto={onOpenPhoto} />
+
+              <div className="mt-5 grid gap-3 text-base font-semibold text-[#26312c]">
+                <div className="flex items-center gap-3">
+                  <MapPin size={22} className="text-[#5f9557]" />
+                  <span>
+                    <span className="font-bold">Адрес:</span>{" "}
+                    {order.address || "—"}
                   </span>
                 </div>
 
-                <p className="text-lg text-gray-800 break-words [overflow-wrap:anywhere]">
-                  {order.category}
-                </p>
-              </div>
-
-              <p className="text-lg leading-relaxed text-gray-800 break-words [overflow-wrap:anywhere]">
-                {order.description}
-              </p>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-sm text-gray-600">Цена пользователя</p>
-                <p className="mt-1 text-xl font-semibold text-black break-words [overflow-wrap:anywhere]">
-                  {clientPriceText}
-                </p>
-              </div>
-
-              <MasterOrderPhotos
-                photos={order.photos}
-                onOpenPhoto={onOpenPhoto}
-              />
-
-              <p className="text-lg leading-relaxed text-gray-900 break-words [overflow-wrap:anywhere]">
-                <span className="font-semibold text-black">Адрес:</span>{" "}
-                {order.address}
-              </p>
-
-              <p className="text-lg text-gray-900">
-                <span className="font-semibold text-black">Дата:</span>{" "}
-                {order.scheduled_at}
-              </p>
-
-              {isEditing ? (
-                <div className="space-y-3 rounded-2xl border border-gray-200 p-4">
-                  <div>
-                    <label className="text-sm font-medium text-black">
-                      Ваша цена
-                    </label>
-                    <input
-                      type="text"
-                      value={counterPrice}
-                      onChange={(e) => setCounterPrice(e.target.value)}
-                      placeholder="Введите вашу цену"
-                      maxLength={20}
-                      className="mt-2 w-full rounded-xl border border-gray-300 p-3 text-black outline-none focus:border-black"
-                    />
-                    <p className="mt-2 text-xs text-gray-500">
-                      Оставьте цену пользователя без изменений, если согласны с ней
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => submitTakeOrder(order)}
-                      className="w-full rounded-xl bg-black py-3 text-white"
-                    >
-                      Отправить отклик
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={cancelCounterOffer}
-                      className="w-full rounded-xl border border-gray-300 bg-white py-3 text-black"
-                    >
-                      Отмена
-                    </button>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <CalendarDays size={22} className="text-[#5f9557]" />
+                  <span>
+                    <span className="font-bold">Дата:</span>{" "}
+                    {order.scheduled_at || "—"}
+                  </span>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => handleTakeOrder(order.id, order.client_price || "")}
-                    className="w-full rounded-xl bg-black py-3 text-white"
-                  >
-                    Согласиться
-                  </button>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => startCounterOffer(order)}
-                    className="w-full rounded-xl border border-black bg-white py-3 text-black"
-                  >
-                    Предложить цену
-                  </button>
+              <div className="mt-6 grid gap-3 lg:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => handleTakeOrder(order.id)}
+                  className="flex min-h-[58px] items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#5f9557]"
+                >
+                  <CheckCircle2 size={21} />
+                  Согласиться
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAvailableOrders((prev) =>
-                        prev.filter((item) => item.id !== order.id),
-                      )
+                <button
+                  type="button"
+                  onClick={() => {
+                    const offeredPrice = window.prompt(
+                      "Введите вашу цену в тенге",
+                      order.client_price || order.price || "",
+                    );
+
+                    if (offeredPrice !== null) {
+                      handleTakeOrder(order.id, offeredPrice);
                     }
-                    className="w-full rounded-xl border border-gray-300 bg-white py-3 text-black"
-                  >
-                    Пропустить
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  }}
+                  className="flex min-h-[58px] items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#26312c] transition hover:bg-[#f7faf6]"
+                >
+                  Предложить цену
+                </button>
 
-      {availableOrders.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-center gap-2 pt-2">
-          {Array.from({ length: totalPages }).map((_, index) => {
-            const page = index + 1;
-
-            return (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`min-w-10 rounded-lg px-3 py-2 text-sm font-medium ${
-                  safeCurrentPage === page
-                    ? "bg-black text-white"
-                    : "border border-gray-300 bg-white text-black"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
+                <button
+                  type="button"
+                  onClick={() => handleSkipOrder(order.id)}
+                  className="flex min-h-[58px] items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#26312c] transition hover:bg-gray-50"
+                >
+                  <XCircle size={21} className="text-[#5f9557]" />
+                  Пропустить
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

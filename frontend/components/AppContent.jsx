@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AuthGate from "./AuthGate";
 import UserAppView from "./UserAppView";
-import AdminAppView from "./AdminAppView";
-import MasterAppView from "./MasterAppView";
 import { API_BASE_URL } from "../lib/constants";
 import { getStoredAuthUser } from "../lib/auth";
 
@@ -69,21 +67,7 @@ export default function AppContent({
     onOpenOrder,
   } = profileState;
 
-  const {
-    isLoggedIn: isAdminLoggedIn,
-    pendingMasters,
-    selectedMaster,
-    setSelectedMaster,
-    complaints,
-    withdrawalRequests,
-    successText: adminSuccessText,
-    handleApproveMaster,
-    isLoading: isAdminLoading,
-    logout: adminLogout,
-    loginWithCredentials,
-    updateComplaintStatus,
-    updateWithdrawalStatus,
-  } = adminState;
+  const { loginWithCredentials } = adminState;
 
   const [toastNotification, setToastNotification] = useState(null);
   const previousTopNotificationIdRef = useRef(null);
@@ -96,7 +80,7 @@ export default function AppContent({
       return;
     }
 
-    const authUser = getStoredAuthUser();
+    const authUser = getStoredAuthUser("user");
 
     if (!authUser?.id || authUser.role !== "user") {
       return;
@@ -115,9 +99,7 @@ export default function AppContent({
           return;
         }
 
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         const topNotification = data[0];
 
@@ -144,7 +126,6 @@ export default function AppContent({
     };
 
     loadNotifications();
-
     const interval = setInterval(loadNotifications, 5000);
 
     return () => {
@@ -158,18 +139,12 @@ export default function AppContent({
   }, [selectedRole, isAuthenticated]);
 
   const handleToastOpen = () => {
-    if (!toastNotification) {
-      return;
-    }
+    if (!toastNotification) return;
 
     if (toastNotification.order_id && typeof onOpenOrder === "function") {
       onOpenOrder(toastNotification.order_id);
     }
 
-    setToastNotification(null);
-  };
-
-  const handleToastClose = () => {
     setToastNotification(null);
   };
 
@@ -181,6 +156,14 @@ export default function AppContent({
       loginWithCredentials={loginWithCredentials}
     />
   );
+
+  if (selectedRole === "master") {
+    return <SilentRedirect to="/master" />;
+  }
+
+  if (selectedRole === "admin") {
+    return <SilentRedirect to="/admin" />;
+  }
 
   return (
     <div className="relative">
@@ -205,7 +188,7 @@ export default function AppContent({
 
               <button
                 type="button"
-                onClick={handleToastClose}
+                onClick={() => setToastNotification(null)}
                 className="shrink-0 rounded-lg border border-white/20 px-2 py-1 text-xs text-white/80"
               >
                 ✕
@@ -225,7 +208,7 @@ export default function AppContent({
 
               <button
                 type="button"
-                onClick={handleToastClose}
+                onClick={() => setToastNotification(null)}
                 className="rounded-xl border border-white/20 px-4 py-2 text-sm font-medium text-white"
               >
                 Позже
@@ -236,34 +219,6 @@ export default function AppContent({
       )}
 
       {!selectedRole && authGate}
-
-      {selectedRole === "master" && (
-        <MasterAppView
-          setIsAuthenticated={setIsAuthenticated}
-          setSelectedRole={setSelectedRole}
-        />
-      )}
-
-      {selectedRole === "admin" && (
-        <AdminAppView
-          isAdminLoggedIn={isAdminLoggedIn}
-          pendingMasters={pendingMasters}
-          selectedMaster={selectedMaster}
-          setSelectedMaster={setSelectedMaster}
-          complaints={complaints}
-          withdrawalRequests={withdrawalRequests}
-          adminSuccessText={adminSuccessText}
-          handleApproveMaster={handleApproveMaster}
-          isAdminLoading={isAdminLoading}
-          adminLogout={adminLogout}
-          loginWithCredentials={loginWithCredentials}
-          updateComplaintStatus={updateComplaintStatus}
-          updateWithdrawalStatus={updateWithdrawalStatus}
-          setSelectedRole={setSelectedRole}
-          handleAuthSuccess={handleAuthSuccess}
-          setIsAuthenticated={setIsAuthenticated}
-        />
-      )}
 
       {selectedRole === "user" && !isAuthenticated && authGate}
 
@@ -312,4 +267,12 @@ export default function AppContent({
       )}
     </div>
   );
+}
+
+function SilentRedirect({ to }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+
+  return null;
 }

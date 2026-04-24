@@ -10,12 +10,18 @@ export default function AuthGate({
     <UnifiedAuth
       onUserOrMasterSuccess={(role) => {
         handleAuthSuccess();
+
+        if (role === "master") {
+          window.location.replace("/master");
+          return;
+        }
+
         setSelectedRole(role);
         setIsAuthenticated(true);
       }}
       onAdminSuccess={async (login, password) => {
         await loginWithCredentials(login, password);
-        setSelectedRole("admin");
+        window.location.replace("/admin");
       }}
     />
   );

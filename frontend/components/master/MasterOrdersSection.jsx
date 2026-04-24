@@ -1,13 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  getStatusLabel,
-  ORDER_STATUSES,
-} from "../../lib/orders";
+  CalendarDays,
+  Camera,
+  CheckCircle2,
+  Clock,
+  Copy,
+  Image as ImageIcon,
+  MapPin,
+  MessageCircle,
+  Phone,
+  RefreshCw,
+  Trash2,
+  Truck,
+  Upload,
+  WalletCards,
+} from "lucide-react";
+import { getStatusLabel, ORDER_STATUSES } from "../../lib/orders";
 import { API_BASE_URL } from "../../lib/constants";
 import MasterOrderPhotos from "./MasterOrderPhotos";
 
 const ITEMS_PER_PAGE = 3;
 const MAX_REPORT_PHOTOS = 8;
+
+function formatMoney(value) {
+  const raw = String(value || "0").replace(/[^\d]/g, "");
+  const amount = raw ? Number(raw) : 0;
+  return amount ? `${amount.toLocaleString("ru-RU")} ₸` : "—";
+}
+
+function StatusBadge({ status }) {
+  return (
+    <span className="inline-flex rounded-full bg-[#eef6ea] px-4 py-2 text-sm font-bold text-[#5f9557]">
+      {getStatusLabel(status)}
+    </span>
+  );
+}
+
+function InfoLine({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start gap-3 text-base font-semibold text-[#26312c]">
+      <Icon size={22} className="mt-0.5 shrink-0 text-[#5f9557]" />
+      <span className="break-words [overflow-wrap:anywhere]">
+        <span className="font-bold text-[#151c23]">{label}:</span>{" "}
+        {value || "—"}
+      </span>
+    </div>
+  );
+}
 
 export default function MasterOrdersSection({
   title = "Мои заказы",
@@ -31,9 +70,7 @@ export default function MasterOrdersSection({
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
+    if (typeof window === "undefined") return;
 
     const mobileQuery = window.matchMedia("(max-width: 768px)");
     const touchCapable =
@@ -47,16 +84,16 @@ export default function MasterOrdersSection({
 
     if (typeof mobileQuery.addEventListener === "function") {
       mobileQuery.addEventListener("change", updateDeviceState);
-      return () => {
-        mobileQuery.removeEventListener("change", updateDeviceState);
-      };
+      return () => mobileQuery.removeEventListener("change", updateDeviceState);
     }
 
     mobileQuery.addListener(updateDeviceState);
-    return () => {
-      mobileQuery.removeListener(updateDeviceState);
-    };
+    return () => mobileQuery.removeListener(updateDeviceState);
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [masterOrders.length]);
 
   const totalPages = Math.ceil(masterOrders.length / ITEMS_PER_PAGE) || 1;
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -70,12 +107,15 @@ export default function MasterOrdersSection({
     [masterOrders, safeCurrentPage],
   );
 
+  const handleRefresh = async () => {
+    if (!masterProfile?.id) return;
+    await loadMasterOrders(masterProfile.id);
+  };
+
   const handleReportFilesChange = (orderId, event) => {
     const selectedFiles = Array.from(event.target.files || []);
 
-    if (selectedFiles.length === 0) {
-      return;
-    }
+    if (selectedFiles.length === 0) return;
 
     const nextFiles = selectedFiles.slice(0, MAX_REPORT_PHOTOS);
 
@@ -92,15 +132,15 @@ export default function MasterOrdersSection({
   };
 
   const removeReportPhoto = (indexToRemove) => {
-    setReportPhotos((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setReportPhotos((prev) =>
+      prev.filter((_, index) => index !== indexToRemove),
+    );
   };
 
   const handleCopyPhone = async (orderId, phone) => {
     const normalizedPhone = String(phone || "").trim();
 
-    if (!normalizedPhone) {
-      return;
-    }
+    if (!normalizedPhone) return;
 
     try {
       if (
@@ -141,9 +181,7 @@ export default function MasterOrdersSection({
   const renderClientContactBlock = (order) => {
     const normalizedPhone = String(order.user_phone || "").trim();
 
-    if (!normalizedPhone) {
-      return null;
-    }
+    if (!normalizedPhone) return null;
 
     const whatsappPhone = normalizedPhone.replace(/[^\d]/g, "");
     const whatsappUrl =
@@ -154,37 +192,48 @@ export default function MasterOrdersSection({
       : "Связаться с клиентом";
 
     return (
-      <div className="space-y-3 rounded-xl border border-gray-200 p-4">
-        <div>
-          <p className="text-sm font-medium text-black">Связь с клиентом</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Можно быстро написать клиенту или связаться по номеру
-          </p>
+      <div className="rounded-[28px] border border-gray-200 bg-gradient-to-br from-[#fbfdfb] to-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef6ea] text-[#5f9557]">
+            <MessageCircle size={22} />
+          </div>
+
+          <div>
+            <p className="text-base font-bold text-[#151c23]">
+              Связь с клиентом
+            </p>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              Напишите клиенту или сохраните номер для связи.
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <a
             href={messageLinkHref}
             target={whatsappUrl ? "_blank" : undefined}
             rel={whatsappUrl ? "noreferrer" : undefined}
-            className="w-full rounded-xl bg-black py-3 text-center text-white"
+            className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#151c23] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-black"
           >
+            <MessageCircle size={20} />
             {messageLinkLabel}
           </a>
 
           {isMobileDevice ? (
             <a
               href={`tel:${normalizedPhone}`}
-              className="w-full rounded-xl border border-gray-300 py-3 text-center text-black"
+              className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-bold text-[#26312c] transition hover:bg-[#f7faf6]"
             >
+              <Phone size={20} />
               Позвонить клиенту
             </a>
           ) : (
             <button
               type="button"
               onClick={() => handleCopyPhone(order.id, normalizedPhone)}
-              className="w-full rounded-xl border border-gray-300 py-3 text-black"
+              className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-bold text-[#26312c] transition hover:bg-[#f7faf6]"
             >
+              <Copy size={20} />
               {copiedPhonesByOrder[order.id]
                 ? "Номер скопирован"
                 : "Скопировать номер"}
@@ -193,11 +242,19 @@ export default function MasterOrdersSection({
         </div>
 
         {!isMobileDevice && (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Телефон клиента</p>
-            <p className="mt-1 break-words text-sm font-medium text-black [overflow-wrap:anywhere]">
-              {normalizedPhone}
-            </p>
+          <div className="mt-4 flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f1f8f1] text-[#5f9557]">
+              <Phone size={21} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                Телефон клиента
+              </p>
+              <p className="mt-1 break-words text-base font-bold text-[#151c23] [overflow-wrap:anywhere]">
+                {normalizedPhone}
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -211,11 +268,11 @@ export default function MasterOrdersSection({
 
     return (
       <div className="space-y-3">
-        <p className="text-sm font-medium text-black">
+        <p className="text-sm font-bold text-[#151c23]">
           Уже загруженные фото-отчёты
         </p>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {order.report_photos.map((photo) => {
             const photoUrl = `${API_BASE_URL}/${photo.file_path}`;
 
@@ -224,13 +281,17 @@ export default function MasterOrdersSection({
                 key={photo.id}
                 type="button"
                 onClick={() => onOpenPhoto(photoUrl)}
-                className="block"
+                className="group relative h-28 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100"
               >
                 <img
                   src={photoUrl}
                   alt="Фото-отчёт"
-                  className="h-28 w-full rounded-xl border object-cover"
+                  className="h-full w-full object-cover transition group-hover:scale-105"
                 />
+
+                <div className="absolute inset-0 hidden items-center justify-center bg-black/30 text-white group-hover:flex">
+                  <ImageIcon size={24} />
+                </div>
               </button>
             );
           })}
@@ -239,22 +300,69 @@ export default function MasterOrdersSection({
     );
   };
 
-  const renderReportUploader = (order) => {
-    const isCurrentOrderTarget = reportTargetOrderId === order.id;
-    const hasExistingReport =
-      Array.isArray(order.report_photos) && order.report_photos.length > 0;
+  const renderSelectedReportPhotos = (orderId) => {
+    const isCurrentOrderTarget = reportTargetOrderId === orderId;
+
+    if (!isCurrentOrderTarget || reportPhotos.length === 0) return null;
 
     return (
-      <div className="space-y-4 rounded-xl border border-gray-200 p-4">
-        <div>
-          <p className="text-sm font-medium text-black">Фото-отчёт мастера</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Сначала загрузите фото выполненной работы, затем завершите заказ
-          </p>
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-gray-500">
+          Выбрано: {reportPhotos.length}/{MAX_REPORT_PHOTOS}
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {reportPhotos.map((photo, index) => {
+            const previewUrl = URL.createObjectURL(photo);
+
+            return (
+              <div
+                key={`${photo.name}-${index}`}
+                className="space-y-2 rounded-2xl border border-gray-200 bg-white p-2"
+              >
+                <img
+                  src={previewUrl}
+                  alt={photo.name}
+                  className="h-24 w-full rounded-xl object-cover"
+                />
+
+                <p className="break-all text-xs font-medium text-gray-700">
+                  {photo.name}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => removeReportPhoto(index)}
+                  className="flex min-h-[38px] w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-bold text-red-500 transition hover:bg-red-50"
+                >
+                  <Trash2 size={15} />
+                  Удалить
+                </button>
+              </div>
+            );
+          })}
         </div>
 
+        <button
+          type="button"
+          onClick={() => handleUploadOrderReport(orderId)}
+          disabled={isReportUploading}
+          className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#5f9557] disabled:opacity-60"
+        >
+          <Camera size={20} />
+          {isReportUploading && reportTargetOrderId === orderId
+            ? "Загрузка..."
+            : "Отправить фото-отчёт"}
+        </button>
+      </div>
+    );
+  };
+
+  const renderReportPicker = (order) => {
+    return (
+      <>
         <input
-          ref={isCurrentOrderTarget ? fileInputRef : null}
+          ref={reportTargetOrderId === order.id ? fileInputRef : null}
           type="file"
           accept="image/*"
           multiple
@@ -266,78 +374,66 @@ export default function MasterOrdersSection({
           type="button"
           onClick={() => {
             setReportTargetOrderId(order.id);
-            fileInputRef.current?.click();
+            requestAnimationFrame(() => {
+              fileInputRef.current?.click();
+            });
           }}
-          className="w-full rounded-xl border border-gray-300 py-3 text-black"
+          className="flex min-h-[58px] w-full items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-bold text-[#151c23] transition hover:border-[#8ebf8c] hover:bg-[#f7faf6]"
         >
+          <Upload size={20} className="text-[#5f9557]" />
           Выбрать фото отчёта
         </button>
+      </>
+    );
+  };
 
-        {isCurrentOrderTarget && reportPhotos.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-xs text-gray-500">
-              Выбрано: {reportPhotos.length}/{MAX_REPORT_PHOTOS}
-            </p>
+  const renderReportUploader = (order) => {
+    const hasExistingReport =
+      Array.isArray(order.report_photos) && order.report_photos.length > 0;
 
-            <div className="grid grid-cols-2 gap-3">
-              {reportPhotos.map((photo, index) => {
-                const previewUrl = URL.createObjectURL(photo);
-
-                return (
-                  <div
-                    key={`${photo.name}-${index}`}
-                    className="space-y-2 rounded-xl border border-gray-200 p-2"
-                  >
-                    <img
-                      src={previewUrl}
-                      alt={photo.name}
-                      className="h-24 w-full rounded-lg object-cover"
-                    />
-                    <p className="break-all text-xs text-gray-700">
-                      {photo.name}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => removeReportPhoto(index)}
-                      className="w-full rounded-lg border border-red-300 py-2 text-xs text-red-600"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleUploadOrderReport(order.id)}
-              disabled={isReportUploading}
-              className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-60"
-            >
-              {isReportUploading && isCurrentOrderTarget
-                ? "Загрузка..."
-                : "Отправить фото-отчёт"}
-            </button>
+    return (
+      <div className="space-y-4 rounded-[28px] border border-gray-200 bg-gradient-to-br from-[#fbfdfb] to-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef6ea] text-[#5f9557]">
+            <Camera size={22} />
           </div>
-        )}
 
+          <div>
+            <p className="text-base font-bold text-[#151c23]">
+              Фото-отчёт мастера
+            </p>
+            <p className="mt-1 text-sm font-medium text-gray-500">
+              Загрузите фото выполненной работы перед завершением заказа.
+            </p>
+          </div>
+        </div>
+
+        {renderReportPicker(order)}
+        {renderSelectedReportPhotos(order.id)}
         {renderExistingReportPhotos(order)}
 
         {order.status === ORDER_STATUSES.ON_SITE && (
           <button
             type="button"
-            onClick={() => handleMasterStatusChange(order.id, ORDER_STATUSES.COMPLETED)}
+            onClick={() =>
+              handleMasterStatusChange(order.id, ORDER_STATUSES.COMPLETED)
+            }
             disabled={!hasExistingReport}
-            className="w-full rounded-xl bg-black py-3 text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className={`flex min-h-[58px] w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition ${
+              hasExistingReport
+                ? "bg-[#6f9f72] text-white hover:bg-[#5f9557]"
+                : "cursor-not-allowed bg-gray-200 text-gray-500"
+            }`}
           >
-            Завершить
+            <CheckCircle2 size={20} />
+            Завершить заказ
           </button>
         )}
 
         {order.status === ORDER_STATUSES.ON_SITE && !hasExistingReport && (
-          <p className="text-xs text-red-600">
-            Чтобы завершить заказ, сначала загрузите хотя бы одно фото отчёта
-          </p>
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+            Чтобы завершить заказ, сначала загрузите хотя бы одно фото отчёта.
+          </div>
         )}
       </div>
     );
@@ -347,11 +443,13 @@ export default function MasterOrdersSection({
     if (order.status === ORDER_STATUSES.ASSIGNED) {
       return (
         <button
+          type="button"
           onClick={() =>
             handleMasterStatusChange(order.id, ORDER_STATUSES.ON_THE_WAY)
           }
-          className="w-full rounded-xl bg-black py-3 text-white"
+          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#5f9557]"
         >
+          <Truck size={20} />
           Выехал
         </button>
       );
@@ -360,11 +458,13 @@ export default function MasterOrdersSection({
     if (order.status === ORDER_STATUSES.ON_THE_WAY) {
       return (
         <button
+          type="button"
           onClick={() =>
             handleMasterStatusChange(order.id, ORDER_STATUSES.ON_SITE)
           }
-          className="w-full rounded-xl bg-black py-3 text-white"
+          className="flex min-h-[56px] w-full items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#5f9557]"
         >
+          <MapPin size={20} />
           На месте
         </button>
       );
@@ -381,93 +481,41 @@ export default function MasterOrdersSection({
       return (
         <div className="space-y-4">
           <div
-            className={`rounded-xl p-3 text-sm ${
+            className={`flex min-h-[54px] items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold ${
               order.status === ORDER_STATUSES.PAID
-                ? "border border-green-300 bg-green-50 text-green-800"
-                : "border border-yellow-300 bg-yellow-50 text-yellow-900"
+                ? "border-[#cfe6d2] bg-[#f1f8f1] text-[#407a45]"
+                : "border-yellow-200 bg-yellow-50 text-yellow-800"
             }`}
           >
+            {order.status === ORDER_STATUSES.PAID ? (
+              <WalletCards size={20} />
+            ) : (
+              <Clock size={20} />
+            )}
+
             {order.status === ORDER_STATUSES.PAID
               ? "Заказ оплачен"
               : "Ожидает оплату от пользователя"}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-gray-200 p-4">
-            <div>
-              <p className="text-sm font-medium text-black">Фото-отчёт мастера</p>
-              <p className="mt-1 text-xs text-gray-500">
-                Вы можете догрузить дополнительные фото выполненной работы
-              </p>
+          <div className="space-y-4 rounded-[28px] border border-gray-200 bg-gradient-to-br from-[#fbfdfb] to-white p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#eef6ea] text-[#5f9557]">
+                <Camera size={22} />
+              </div>
+
+              <div>
+                <p className="text-base font-bold text-[#151c23]">
+                  Фото-отчёт мастера
+                </p>
+                <p className="mt-1 text-sm font-medium text-gray-500">
+                  Вы можете догрузить дополнительные фото выполненной работы.
+                </p>
+              </div>
             </div>
 
-            <input
-              ref={reportTargetOrderId === order.id ? fileInputRef : null}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(event) => handleReportFilesChange(order.id, event)}
-              className="hidden"
-            />
-
-            <button
-              type="button"
-              onClick={() => {
-                setReportTargetOrderId(order.id);
-                fileInputRef.current?.click();
-              }}
-              className="w-full rounded-xl border border-gray-300 py-3 text-black"
-            >
-              Выбрать фото отчёта
-            </button>
-
-            {reportTargetOrderId === order.id && reportPhotos.length > 0 && (
-              <div className="space-y-3">
-                <p className="text-xs text-gray-500">
-                  Выбрано: {reportPhotos.length}/{MAX_REPORT_PHOTOS}
-                </p>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {reportPhotos.map((photo, index) => {
-                    const previewUrl = URL.createObjectURL(photo);
-
-                    return (
-                      <div
-                        key={`${photo.name}-${index}`}
-                        className="space-y-2 rounded-xl border border-gray-200 p-2"
-                      >
-                        <img
-                          src={previewUrl}
-                          alt={photo.name}
-                          className="h-24 w-full rounded-lg object-cover"
-                        />
-                        <p className="break-all text-xs text-gray-700">
-                          {photo.name}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => removeReportPhoto(index)}
-                          className="w-full rounded-lg border border-red-300 py-2 text-xs text-red-600"
-                        >
-                          Удалить
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleUploadOrderReport(order.id)}
-                  disabled={isReportUploading}
-                  className="w-full rounded-xl bg-black py-3 text-white disabled:opacity-60"
-                >
-                  {isReportUploading && reportTargetOrderId === order.id
-                    ? "Загрузка..."
-                    : "Отправить фото-отчёт"}
-                </button>
-              </div>
-            )}
-
+            {renderReportPicker(order)}
+            {renderSelectedReportPhotos(order.id)}
             {renderExistingReportPhotos(order)}
           </div>
         </div>
@@ -478,107 +526,116 @@ export default function MasterOrdersSection({
   };
 
   return (
-    <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-4 overflow-hidden">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-bold text-black">{title}</h2>
+    <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-[#151c23]">
+            {title}
+          </h2>
+
+          <p className="mt-2 text-sm font-medium text-gray-500">
+            Управляйте статусами, связью с клиентом и фото-отчётами.
+          </p>
+        </div>
 
         <button
           type="button"
-          onClick={() =>
-            masterProfile?.id && loadMasterOrders(masterProfile.id)
-          }
-          className="rounded-xl border border-black px-4 py-2 text-sm font-medium text-black bg-white"
+          onClick={handleRefresh}
+          disabled={isMasterOrdersLoading}
+          className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#5f9557] transition hover:bg-[#f7faf6] disabled:opacity-60"
         >
+          <RefreshCw
+            size={20}
+            className={isMasterOrdersLoading ? "animate-spin" : ""}
+          />
           Обновить
         </button>
       </div>
 
       {isMasterOrdersLoading && (
-        <p className="text-sm text-black">Загрузка заказов...</p>
+        <div className="rounded-3xl border border-gray-200 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
+          Загрузка заказов...
+        </div>
       )}
 
       {!isMasterOrdersLoading && masterOrders.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-gray-400 p-4 text-sm text-gray-700">
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-[#fbfdfb] p-6 text-sm font-semibold text-gray-600">
           {emptyText}
         </div>
       )}
 
-      <div className="space-y-4">
-        {paginatedOrders.map((order) => (
-          <div
-            key={order.id}
-            className="rounded-2xl border border-gray-300 bg-white p-5 space-y-4 overflow-hidden"
-          >
-            <div className="space-y-3 min-w-0">
-              <p className="text-2xl font-bold leading-tight text-black break-words [overflow-wrap:anywhere]">
-                {order.service_name}
-              </p>
+      {!isMasterOrdersLoading && masterOrders.length > 0 && (
+        <div className="space-y-5">
+          {paginatedOrders.map((order) => (
+            <article
+              key={order.id}
+              className="space-y-5 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm"
+            >
+              <div className="min-w-0 space-y-3">
+                <h3 className="break-words text-2xl font-bold leading-tight text-[#151c23] [overflow-wrap:anywhere]">
+                  {order.service_name}
+                </h3>
 
-              <div>
-                <span className="inline-flex rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900">
-                  {getStatusLabel(order.status)}
-                </span>
+                <StatusBadge status={order.status} />
+
+                <p className="break-words text-lg font-semibold text-gray-700 [overflow-wrap:anywhere]">
+                  {order.category}
+                </p>
               </div>
 
-              <p className="text-lg text-gray-800 break-words [overflow-wrap:anywhere]">
-                {order.category}
+              <p className="break-words text-base leading-7 text-gray-600 [overflow-wrap:anywhere]">
+                {order.description || "Без описания"}
               </p>
+
+              <MasterOrderPhotos
+                photos={order.photos}
+                onOpenPhoto={onOpenPhoto}
+              />
+
+              <div className="grid gap-3">
+                <InfoLine icon={MapPin} label="Адрес" value={order.address} />
+                <InfoLine
+                  icon={CalendarDays}
+                  label="Дата"
+                  value={order.scheduled_at}
+                />
+                <InfoLine
+                  icon={WalletCards}
+                  label="Цена"
+                  value={formatMoney(order.price || order.client_price)}
+                />
+              </div>
+
+              {renderClientContactBlock(order)}
+
+              {renderMasterOrderAction(order)}
+            </article>
+          ))}
+
+          {masterOrders.length > ITEMS_PER_PAGE && (
+            <div className="flex justify-center gap-2 pt-2">
+              {Array.from({ length: totalPages }).map((_, index) => {
+                const page = index + 1;
+
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`min-w-11 rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                      safeCurrentPage === page
+                        ? "bg-[#6f9f72] text-white"
+                        : "border border-gray-300 bg-white text-[#26312c] hover:bg-[#f7faf6]"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
             </div>
-
-            <p className="text-lg leading-relaxed text-gray-800 break-words [overflow-wrap:anywhere]">
-              {order.description}
-            </p>
-
-            <MasterOrderPhotos
-              photos={order.photos}
-              onOpenPhoto={onOpenPhoto}
-            />
-
-            <p className="text-lg leading-relaxed text-gray-900 break-words [overflow-wrap:anywhere]">
-              <span className="font-semibold text-black">📍 Адрес:</span>{" "}
-              {order.address}
-            </p>
-
-            <p className="text-lg text-gray-900">
-              <span className="font-semibold text-black">📅 Дата:</span>{" "}
-              {order.scheduled_at}
-            </p>
-
-            {order.price && (
-              <p className="text-xl font-semibold text-black">
-                💰 {order.price}
-              </p>
-            )}
-
-            {renderClientContactBlock(order)}
-
-            {renderMasterOrderAction(order)}
-          </div>
-        ))}
-      </div>
-
-      {masterOrders.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-center gap-2 pt-2">
-          {Array.from({ length: totalPages }).map((_, index) => {
-            const page = index + 1;
-
-            return (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setCurrentPage(page)}
-                className={`min-w-10 rounded-lg px-3 py-2 text-sm font-medium ${
-                  safeCurrentPage === page
-                    ? "bg-black text-white"
-                    : "border border-gray-300 bg-white text-black"
-                }`}
-              >
-                {page}
-              </button>
-            );
-          })}
+          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

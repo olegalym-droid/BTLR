@@ -1,12 +1,40 @@
-import { WEEKDAY_OPTIONS, getWeekdayLabel } from "../../lib/masterSchedule";
+import {
+  CalendarDays,
+  Clock,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
+import {
+  WEEKDAY_OPTIONS,
+  getWeekdayLabel,
+} from "../../lib/masterSchedule";
 
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, index) => {
-  const value = String(index).padStart(2, "0");
-  return {
-    value: `${value}:00`,
-    label: `${value}:00`,
-  };
-});
+const HOURS = Array.from({ length: 24 }, (_, i) =>
+  String(i).padStart(2, "0") + ":00"
+);
+
+const INPUT_CLASS =
+  "w-full min-h-[58px] appearance-none rounded-2xl border border-gray-200 bg-white px-4 py-4 text-base font-semibold text-[#151c23] outline-none transition focus:border-[#72a06d] focus:ring-4 focus:ring-[#eef6ea]";
+
+function Field({ label, icon: Icon, children }) {
+  return (
+    <label className="block space-y-2">
+      <span className="text-sm font-bold text-[#26312c]">{label}</span>
+
+      <div className="relative">
+        {Icon && (
+          <Icon
+            size={21}
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#5f9557]"
+          />
+        )}
+
+        {children}
+      </div>
+    </label>
+  );
+}
 
 export default function MasterScheduleSection({
   scheduleItems,
@@ -19,30 +47,47 @@ export default function MasterScheduleSection({
   removeScheduleItem,
   successText,
 }) {
+  const updateForm = (key, value) => {
+    setScheduleForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
   return (
-    <div className="space-y-5">
-      <div className="rounded-3xl border border-gray-300 bg-white p-6 shadow space-y-5">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-black">График работы</h2>
-          <p className="text-sm text-gray-600">
-            Укажите, в какие дни и часы вы обычно принимаете заказы
-          </p>
+    <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
+      <div className="mb-6">
+        <div className="inline-flex items-center gap-2 rounded-full bg-[#eaf4e8] px-4 py-2 text-sm font-semibold text-[#5f9557]">
+          <CalendarDays size={17} />
+          Рабочее время
         </div>
 
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-black">
-              День недели
-            </label>
+        <h2 className="mt-4 text-3xl font-bold text-[#151c23]">
+          График работы
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Укажите часы работы (без минут)
+        </p>
+      </div>
+
+      {successText && (
+        <div className="mb-5 rounded-2xl border border-[#cfe6d2] bg-[#f1f8f1] px-4 py-3 text-sm font-semibold text-[#407a45]">
+          {successText}
+        </div>
+      )}
+
+      <div className="rounded-[28px] border border-gray-200 bg-[#fbfdfb] p-5">
+        <div className="grid gap-4 lg:grid-cols-3">
+          
+          {/* День */}
+          <Field label="День недели" icon={CalendarDays}>
             <select
               value={scheduleForm.weekday}
-              onChange={(event) =>
-                setScheduleForm((prev) => ({
-                  ...prev,
-                  weekday: Number(event.target.value),
-                }))
+              onChange={(e) =>
+                updateForm("weekday", Number(e.target.value))
               }
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
+              className={`${INPUT_CLASS} pl-12`}
             >
               {WEEKDAY_OPTIONS.map((item) => (
                 <option key={item.value} value={item.value}>
@@ -50,110 +95,85 @@ export default function MasterScheduleSection({
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-black">С</label>
+          {/* С */}
+          <Field label="С" icon={Clock}>
             <select
               value={scheduleForm.startTime}
-              onChange={(event) =>
-                setScheduleForm((prev) => ({
-                  ...prev,
-                  startTime: event.target.value,
-                }))
-              }
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
+              onChange={(e) => updateForm("startTime", e.target.value)}
+              className={`${INPUT_CLASS} pl-12`}
             >
-              {HOUR_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-black">До</label>
+          {/* До */}
+          <Field label="До" icon={Clock}>
             <select
               value={scheduleForm.endTime}
-              onChange={(event) =>
-                setScheduleForm((prev) => ({
-                  ...prev,
-                  endTime: event.target.value,
-                }))
-              }
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-black outline-none"
+              onChange={(e) => updateForm("endTime", e.target.value)}
+              className={`${INPUT_CLASS} pl-12`}
             >
-              {HOUR_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
           <button
-            type="button"
             onClick={handleAddScheduleItem}
-            className="w-full rounded-2xl border border-black px-4 py-3 text-sm font-medium text-black"
+            className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border border-[#8ebf8c] text-[#5f9557] font-bold"
           >
+            <Plus size={20} />
             Добавить слот
           </button>
 
           <button
-            type="button"
             onClick={handleSaveMasterSchedule}
             disabled={isScheduleSaving}
-            className="w-full rounded-2xl bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-60"
+            className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#6f9f72] text-white font-bold"
           >
-            {isScheduleSaving ? "Сохранение..." : "Сохранить график"}
+            <Save size={20} />
+            {isScheduleSaving ? "Сохранение..." : "Сохранить"}
           </button>
         </div>
-
-        {isScheduleLoading ? (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-            Загрузка графика...
-          </div>
-        ) : scheduleItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-            У вас пока нет добавленных рабочих слотов
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {scheduleItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="text-base font-semibold text-black">
-                    {getWeekdayLabel(item.weekday)}
-                  </p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {item.start_time} — {item.end_time}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removeScheduleItem(item)}
-                  className="rounded-xl border border-red-300 px-4 py-2 text-sm font-medium text-red-600"
-                >
-                  Удалить
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {successText && (
-          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
-            {successText}
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Список */}
+      <div className="mt-6 space-y-3">
+        {scheduleItems.map((item) => (
+          <div
+            key={item.id}
+            className="flex justify-between items-center rounded-2xl border p-4"
+          >
+            <div>
+              <div className="font-bold">
+                {getWeekdayLabel(Number(item.weekday))}
+              </div>
+              <div className="text-sm text-gray-500">
+                {item.start_time} — {item.end_time}
+              </div>
+            </div>
+
+            <button
+              onClick={() => removeScheduleItem(item)}
+              className="text-red-500 flex items-center gap-2"
+            >
+              <Trash2 size={18} />
+              Удалить
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

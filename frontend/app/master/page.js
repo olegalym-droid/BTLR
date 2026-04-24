@@ -1,32 +1,72 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import MasterAppView from "../../components/MasterAppView";
 import useMasterCabinet from "../../hooks/useMasterCabinet";
 import { clearAuthData } from "../../lib/auth";
 
+function readMasterAuthUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw =
+    window.localStorage.getItem("auth_user_master") ||
+    window.sessionStorage.getItem("auth_user_master");
+
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function MasterPage() {
+  const [canRender, setCanRender] = useState(false);
+
   const masterState = useMasterCabinet({
     onLogout: () => {
+      if (typeof window === "undefined") return;
+
       clearAuthData("master");
-      window.location.href = "/";
+
+      const keys = [
+        "isAuth",
+        "auth_user",
+        "isAuth_master",
+        "auth_user_master",
+        "app_selected_role",
+        "app_active_tab",
+      ];
+
+      keys.forEach((key) => {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+      });
+
+      window.location.replace("/");
     },
   });
 
   useEffect(() => {
-    const authUser =
-      typeof window !== "undefined"
-        ? JSON.parse(
-            window.localStorage.getItem("auth_user_master") ||
-              window.sessionStorage.getItem("auth_user_master") ||
-              "null",
-          )
-        : null;
+    const authUser = readMasterAuthUser();
 
     if (!authUser?.id || authUser.role !== "master") {
-      window.location.href = "/";
+      setCanRender(false);
+      window.location.replace("/");
+      return;
     }
+
+    const timer = setTimeout(() => {
+      setCanRender(true);
+    }, 150);
+
+    return () => clearTimeout(timer);
   }, []);
+
+  if (!canRender || !masterState.isLoggedIn || !masterState.masterProfile) {
+    return <main className="min-h-screen bg-gray-100" />;
+  }
 
   return (
     <main className="min-h-screen bg-gray-100">

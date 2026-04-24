@@ -149,9 +149,35 @@ export default function useMasterCabinetActions({
 
   const logout = () => {
     logoutMasterSession({
-      onLogout,
       resetters: [resetMasterAuthState, resetMasterDataState],
     });
+
+    if (typeof window !== "undefined") {
+      const keysToRemove = [
+        "isAuth",
+        "auth_user",
+        "isAuth_master",
+        "auth_user_master",
+        "isAuth_user",
+        "auth_user_user",
+        "app_selected_role",
+        "app_active_tab",
+        "admin_login",
+        "admin_password",
+      ];
+
+      keysToRemove.forEach((key) => {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+      });
+
+      window.location.href = "/";
+      return;
+    }
+
+    if (onLogout) {
+      onLogout();
+    }
   };
 
   return {

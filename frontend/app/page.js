@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BottomNav from "../components/BottomNav";
 import AppContent from "../components/AppContent";
 import { servicesByCategory } from "../lib/constants";
@@ -14,6 +14,8 @@ import useAdminCabinet from "../hooks/useAdminCabinet";
 import { getStoredAuthUser } from "../lib/auth";
 
 export default function Home() {
+  const [isBootChecking, setIsBootChecking] = useState(true);
+
   const {
     activeTab,
     setActiveTab,
@@ -90,26 +92,45 @@ export default function Home() {
   }, [profile, setAddress]);
 
   useEffect(() => {
-    const authUser = getStoredAuthUser();
-
-    if (authUser?.id && authUser?.role) {
-      setIsAuthenticated(true);
-      setSelectedRole(authUser.role);
+    if (typeof window === "undefined") {
       return;
     }
 
-    if (typeof window !== "undefined") {
+    const boot = () => {
+      const userAuth = getStoredAuthUser("user");
+      const masterAuth = getStoredAuthUser("master");
+
       const adminLogin =
         window.sessionStorage.getItem("admin_login") ||
         window.localStorage.getItem("admin_login");
+
       const adminPassword =
         window.sessionStorage.getItem("admin_password") ||
         window.localStorage.getItem("admin_password");
 
-      if (adminLogin && adminPassword) {
-        setSelectedRole("admin");
+      if (masterAuth?.id && masterAuth.role === "master") {
+        window.location.replace("/master");
+        return;
       }
-    }
+
+      if (adminLogin && adminPassword) {
+        window.location.replace("/admin");
+        return;
+      }
+
+      if (userAuth?.id && userAuth.role === "user") {
+        setIsAuthenticated(true);
+        setSelectedRole("user");
+        setIsBootChecking(false);
+        return;
+      }
+
+      setIsAuthenticated(false);
+      setSelectedRole(null);
+      setIsBootChecking(false);
+    };
+
+    boot();
   }, [setIsAuthenticated, setSelectedRole]);
 
   const handleAuthSuccess = () => {
@@ -169,7 +190,7 @@ export default function Home() {
 
     await loadOrders();
 
-    const authUser = getStoredAuthUser();
+    const authUser = getStoredAuthUser("user");
     if (!authUser?.id || authUser.role !== "user") {
       return;
     }
@@ -209,6 +230,10 @@ export default function Home() {
   };
 
   const showBottomNav = selectedRole === "user" && isAuthenticated;
+
+  if (isBootChecking) {
+    return <main className="min-h-screen bg-gray-100" />;
+  }
 
   return (
     <main className="min-h-screen bg-gray-100">

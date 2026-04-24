@@ -1,19 +1,11 @@
-import MasterPlaceholderScreen from "./screens/MasterPlaceholderScreen";
+import MasterDashboard from "./master/MasterDashboard";
 
-export default function MasterAppView({
-  setIsAuthenticated,
-  setSelectedRole,
-}) {
-  return (
-    <MasterPlaceholderScreen
-      onBack={() => {
-        setIsAuthenticated(false);
-        setSelectedRole(null);
-      }}
-      onLogout={() => {
-        setIsAuthenticated(false);
-        setSelectedRole(null);
-      }}
-    />
-  );
+export default function MasterAppView(props) {
+  const { isLoggedIn, masterProfile } = props;
+
+  if (!isLoggedIn || !masterProfile) {
+    return <div className="min-h-[70vh] bg-white" />;
+  }
+
+  return <MasterDashboard {...props} />;
 }
