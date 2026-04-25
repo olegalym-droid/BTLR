@@ -52,7 +52,6 @@ export default function MasterPage() {
     const authUser = readMasterAuthUser();
 
     if (!authUser?.id || authUser.role !== "master") {
-      setCanRender(false);
       window.location.replace("/");
       return;
     }

@@ -211,6 +211,7 @@ export default function ServicesScreen({
                       <div key={i} className="relative">
                         <img
                           src={url}
+                          alt={photo.name || "Р¤РѕС‚Рѕ Р·Р°СЏРІРєРё"}
                           className="h-24 w-full object-cover rounded-xl"
                         />
 

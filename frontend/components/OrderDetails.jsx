@@ -103,7 +103,7 @@ export default function OrderDetails({
   });
 
   const [isMobileDevice, setIsMobileDevice] = useState(false);
-  const [copiedPhone, setCopiedPhone] = useState(false);
+  const [copiedPhoneOrderId, setCopiedPhoneOrderId] = useState(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -129,12 +129,9 @@ export default function OrderDetails({
     return () => mobileQuery.removeListener(updateDeviceState);
   }, []);
 
-  useEffect(() => {
-    setCopiedPhone(false);
-  }, [selectedOrder?.id]);
-
   if (!selectedOrder) return null;
 
+  const copiedPhone = copiedPhoneOrderId === selectedOrder.id;
   const statusSteps = ORDER_PROGRESS_STEPS;
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
@@ -177,10 +174,12 @@ export default function OrderDetails({
         document.body.removeChild(textArea);
       }
 
-      setCopiedPhone(true);
+      setCopiedPhoneOrderId(selectedOrder.id);
 
       setTimeout(() => {
-        setCopiedPhone(false);
+        setCopiedPhoneOrderId((currentOrderId) =>
+          currentOrderId === selectedOrder.id ? null : currentOrderId,
+        );
       }, 2000);
     } catch (error) {
       console.error("Не удалось скопировать номер:", error);

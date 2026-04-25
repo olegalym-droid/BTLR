@@ -75,9 +75,13 @@ export default function AppContent({
 
   useEffect(() => {
     if (selectedRole !== "user" || !isAuthenticated) {
-      setToastNotification(null);
       previousTopNotificationIdRef.current = null;
-      return;
+
+      const resetToastTimer = setTimeout(() => {
+        setToastNotification(null);
+      }, 0);
+
+      return () => clearTimeout(resetToastTimer);
     }
 
     const authUser = getStoredAuthUser("user");

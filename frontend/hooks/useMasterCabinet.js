@@ -125,7 +125,7 @@ export default function useMasterCabinet({ onLogout }) {
           alert(error.message || "Не удалось загрузить кабинет мастера"),
         );
     }
-  }, []);
+  }, [loadMasterData, loadStoredMaster, setIsLoggedIn]);
 
   return {
     // auth

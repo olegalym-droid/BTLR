@@ -91,12 +91,8 @@ export default function MasterOrdersSection({
     return () => mobileQuery.removeListener(updateDeviceState);
   }, []);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [masterOrders.length]);
-
   const totalPages = Math.ceil(masterOrders.length / ITEMS_PER_PAGE) || 1;
-  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const safeCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
 
   const paginatedOrders = useMemo(
     () =>

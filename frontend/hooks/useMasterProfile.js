@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   loadMasterProfileRequest,
   updateMasterProfileRequest,
@@ -28,7 +28,7 @@ export default function useMasterProfile() {
       masterProfile?.selfie_photo_path,
   );
 
-  const applyProfileToState = (profile) => {
+  const applyProfileToState = useCallback((profile) => {
     setMasterProfile(profile);
     setFullName(profile?.full_name || "");
     setAboutMe(profile?.about_me || "");
@@ -39,13 +39,13 @@ export default function useMasterProfile() {
         : String(profile.experience_years),
     );
     setWorkCity(profile?.work_city || "");
-  };
+  }, []);
 
-  const loadMasterProfile = async (masterId) => {
+  const loadMasterProfile = useCallback(async (masterId) => {
     const profile = await loadMasterProfileRequest(masterId);
     applyProfileToState(profile);
     return profile;
-  };
+  }, [applyProfileToState]);
 
   const handleSaveMasterProfile = async () => {
     if (!masterProfile?.id) {

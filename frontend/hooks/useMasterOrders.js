@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   loadAvailableOrdersRequest,
   loadMasterOrdersRequest,
@@ -19,7 +19,7 @@ export default function useMasterOrders() {
   const [isMasterOrdersLoading, setIsMasterOrdersLoading] = useState(false);
   const [isReportUploading, setIsReportUploading] = useState(false);
 
-  const loadAvailableOrders = async (masterId) => {
+  const loadAvailableOrders = useCallback(async (masterId) => {
     try {
       setIsAvailableLoading(true);
 
@@ -36,9 +36,9 @@ export default function useMasterOrders() {
     } finally {
       setIsAvailableLoading(false);
     }
-  };
+  }, []);
 
-  const loadMasterOrders = async (masterId) => {
+  const loadMasterOrders = useCallback(async (masterId) => {
     try {
       setIsMasterOrdersLoading(true);
 
@@ -55,9 +55,9 @@ export default function useMasterOrders() {
     } finally {
       setIsMasterOrdersLoading(false);
     }
-  };
+  }, []);
 
-  const handleTakeOrder = async (masterId, orderId, offeredPrice = "") => {
+  const handleTakeOrder = useCallback(async (masterId, orderId, offeredPrice = "") => {
     if (!masterId) {
       throw new Error("Профиль мастера не загружен");
     }
@@ -68,9 +68,9 @@ export default function useMasterOrders() {
       loadAvailableOrders(masterId),
       loadMasterOrders(masterId),
     ]);
-  };
+  }, [loadAvailableOrders, loadMasterOrders]);
 
-  const handleMasterStatusChange = async (masterId, orderId, status) => {
+  const handleMasterStatusChange = useCallback(async (masterId, orderId, status) => {
     if (!masterId) {
       throw new Error("Профиль мастера не загружен");
     }
@@ -88,9 +88,9 @@ export default function useMasterOrders() {
     );
 
     return updatedOrder;
-  };
+  }, []);
 
-  const handleUploadOrderReport = async (masterId, orderId) => {
+  const handleUploadOrderReport = useCallback(async (masterId, orderId) => {
     if (!masterId) {
       throw new Error("Профиль мастера не загружен");
     }
@@ -121,7 +121,7 @@ export default function useMasterOrders() {
     } finally {
       setIsReportUploading(false);
     }
-  };
+  }, [reportPhotos]);
 
   const getStatusSuccessText = (status) => {
     if (status === ORDER_STATUSES.ON_THE_WAY) {

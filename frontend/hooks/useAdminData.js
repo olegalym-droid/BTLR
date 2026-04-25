@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   loadPendingMastersRequest,
   loadComplaintsRequest,
@@ -15,7 +15,7 @@ export default function useAdminData() {
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
   const [successText, setSuccessText] = useState("");
 
-  const loadPendingMasters = async (
+  const loadPendingMasters = useCallback(async (
     adminLoginArg = null,
     adminPasswordArg = null,
   ) => {
@@ -32,18 +32,18 @@ export default function useAdminData() {
     });
 
     return data;
-  };
+  }, []);
 
-  const loadComplaints = async (
+  const loadComplaints = useCallback(async (
     adminLoginArg = null,
     adminPasswordArg = null,
   ) => {
     const data = await loadComplaintsRequest(adminLoginArg, adminPasswordArg);
     setComplaints(data);
     return data;
-  };
+  }, []);
 
-  const loadWithdrawalRequests = async (
+  const loadWithdrawalRequests = useCallback(async (
     adminLoginArg = null,
     adminPasswordArg = null,
   ) => {
@@ -53,9 +53,9 @@ export default function useAdminData() {
     );
     setWithdrawalRequests(data);
     return data;
-  };
+  }, []);
 
-  const handleApproveMaster = async (masterId, setIsLoading) => {
+  const handleApproveMaster = useCallback(async (masterId, setIsLoading) => {
     try {
       setIsLoading(true);
       setSuccessText("");
@@ -68,9 +68,9 @@ export default function useAdminData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadPendingMasters]);
 
-  const updateComplaintStatus = async (complaintId, status, setIsLoading) => {
+  const updateComplaintStatus = useCallback(async (complaintId, status, setIsLoading) => {
     try {
       setIsLoading(true);
       setSuccessText("");
@@ -99,9 +99,9 @@ export default function useAdminData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const updateWithdrawalStatus = async (
+  const updateWithdrawalStatus = useCallback(async (
     withdrawalId,
     status,
     setIsLoading,
@@ -134,15 +134,15 @@ export default function useAdminData() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const resetAdminDataState = () => {
+  const resetAdminDataState = useCallback(() => {
     setPendingMasters([]);
     setSelectedMaster(null);
     setComplaints([]);
     setWithdrawalRequests([]);
     setSuccessText("");
-  };
+  }, []);
 
   return {
     pendingMasters,

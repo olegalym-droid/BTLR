@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   DEFAULT_SCHEDULE_FORM,
   loadMasterScheduleRequest,
@@ -12,7 +12,7 @@ export default function useMasterSchedule() {
   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
   const [isScheduleSaving, setIsScheduleSaving] = useState(false);
 
-  const loadMasterSchedule = async (masterId) => {
+  const loadMasterSchedule = useCallback(async (masterId) => {
     try {
       setIsScheduleLoading(true);
 
@@ -31,7 +31,7 @@ export default function useMasterSchedule() {
     } finally {
       setIsScheduleLoading(false);
     }
-  };
+  }, []);
 
   const addScheduleItem = () => {
     const weekday = Number(scheduleForm.weekday);

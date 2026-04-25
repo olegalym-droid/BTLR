@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Banknote,
   CheckCircle2,
@@ -180,7 +180,7 @@ export default function MasterWalletSection({ masterProfile }) {
     };
   }, [cardDigits]);
 
-  const loadWalletData = async () => {
+  const loadWalletData = useCallback(async () => {
     if (!masterProfile?.id) {
       return;
     }
@@ -214,13 +214,13 @@ export default function MasterWalletSection({ masterProfile }) {
     } finally {
       setIsWalletLoading(false);
     }
-  };
+  }, [masterProfile?.id]);
 
   useEffect(() => {
     if (masterProfile?.id) {
       loadWalletData();
     }
-  }, [masterProfile?.id]);
+  }, [loadWalletData, masterProfile?.id]);
 
   const handleWithdrawInputChange = (field, value) => {
     setWalletSuccessText("");

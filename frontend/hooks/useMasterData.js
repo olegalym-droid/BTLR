@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import useMasterProfile from "./useMasterProfile";
 import useMasterOrders from "./useMasterOrders";
 import useMasterSchedule from "./useMasterSchedule";
@@ -7,22 +8,36 @@ export default function useMasterData() {
   const orders = useMasterOrders();
   const schedule = useMasterSchedule();
 
-  const loadMasterData = async (masterId) => {
-    const loadedProfile = await profile.loadMasterProfile(masterId);
+  const { loadMasterProfile } = profile;
+  const {
+    loadAvailableOrders,
+    loadMasterOrders,
+    setAvailableOrders,
+  } = orders;
+  const { loadMasterSchedule } = schedule;
+
+  const loadMasterData = useCallback(async (masterId) => {
+    const loadedProfile = await loadMasterProfile(masterId);
 
     await Promise.all([
-      orders.loadMasterOrders(masterId),
-      schedule.loadMasterSchedule(masterId),
+      loadMasterOrders(masterId),
+      loadMasterSchedule(masterId),
     ]);
 
     if (loadedProfile?.verification_status === "approved") {
-      await orders.loadAvailableOrders(masterId);
+      await loadAvailableOrders(masterId);
     } else {
-      orders.setAvailableOrders([]);
+      setAvailableOrders([]);
     }
 
     return loadedProfile;
-  };
+  }, [
+    loadAvailableOrders,
+    loadMasterOrders,
+    loadMasterProfile,
+    loadMasterSchedule,
+    setAvailableOrders,
+  ]);
 
   const resetMasterDataState = () => {
     profile.resetMasterProfileState();

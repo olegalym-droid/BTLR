@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { adminLoginRequest } from "../lib/admin";
 import useAdminData from "./useAdminData";
 
@@ -25,7 +25,7 @@ export default function useAdminCabinet({ onLogout }) {
     resetAdminDataState,
   } = useAdminData();
 
-  const saveAdminSession = (adminLogin, adminPassword) => {
+  const saveAdminSession = useCallback((adminLogin, adminPassword) => {
     if (typeof window === "undefined") {
       return;
     }
@@ -35,9 +35,9 @@ export default function useAdminCabinet({ onLogout }) {
 
     window.localStorage.removeItem("admin_login");
     window.localStorage.removeItem("admin_password");
-  };
+  }, []);
 
-  const clearAdminSession = () => {
+  const clearAdminSession = useCallback(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -47,9 +47,9 @@ export default function useAdminCabinet({ onLogout }) {
 
     window.localStorage.removeItem("admin_login");
     window.localStorage.removeItem("admin_password");
-  };
+  }, []);
 
-  const getStoredAdminSession = () => {
+  const getStoredAdminSession = useCallback(() => {
     if (typeof window === "undefined") {
       return {
         login: "",
@@ -67,9 +67,9 @@ export default function useAdminCabinet({ onLogout }) {
         window.localStorage.getItem("admin_password") ||
         "",
     };
-  };
+  }, []);
 
-  const loginWithCredentials = async (adminLogin, adminPassword) => {
+  const loginWithCredentials = useCallback(async (adminLogin, adminPassword) => {
     await adminLoginRequest({
       login: adminLogin,
       password: adminPassword,
@@ -85,7 +85,13 @@ export default function useAdminCabinet({ onLogout }) {
 
     setIsLoggedIn(true);
     setSuccessText("Вход администратора выполнен");
-  };
+  }, [
+    loadComplaints,
+    loadPendingMasters,
+    loadWithdrawalRequests,
+    saveAdminSession,
+    setSuccessText,
+  ]);
 
   const handleLogin = async () => {
     try {
@@ -175,7 +181,14 @@ export default function useAdminCabinet({ onLogout }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [
+    clearAdminSession,
+    getStoredAdminSession,
+    loadComplaints,
+    loadPendingMasters,
+    loadWithdrawalRequests,
+    saveAdminSession,
+  ]);
 
   const logout = () => {
     clearAdminSession();

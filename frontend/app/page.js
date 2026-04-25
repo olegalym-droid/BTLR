@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BottomNav from "../components/BottomNav";
 import AppContent from "../components/AppContent";
-import { servicesByCategory } from "../lib/constants";
+import { API_BASE_URL, servicesByCategory } from "../lib/constants";
 import { formatPhoneInput } from "../lib/profile";
 import { getStatusLabel } from "../lib/orders";
 import useOrders from "../hooks/useOrders";
@@ -204,7 +204,7 @@ export default function Home() {
     if (!foundOrder) {
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/orders/${orderId}?user_id=${authUser.id}`,
+          `${API_BASE_URL}/orders/${orderId}?user_id=${authUser.id}`,
         );
         const data = await response.json();
 
