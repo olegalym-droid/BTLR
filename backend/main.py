@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 
 from database import Base, engine
 from routes.auth import router as auth_router
@@ -30,10 +31,89 @@ def get_allowed_origins() -> list[str]:
     return origins or ["http://localhost:3000"]
 
 
+def ensure_sqlite_schema() -> None:
+    if engine.dialect.name != "sqlite":
+        return
+
+    inspector = inspect(engine)
+    if "complaints" not in inspector.get_table_names():
+        return
+
+    existing_columns = {
+        column["name"]
+        for column in inspector.get_columns("complaints")
+    }
+    account_columns = {
+        column["name"]
+        for column in inspector.get_columns("accounts")
+    } if "accounts" in inspector.get_table_names() else set()
+    order_columns = {
+        column["name"]
+        for column in inspector.get_columns("orders")
+    } if "orders" in inspector.get_table_names() else set()
+
+    migration_statements = {
+        "reason": "ALTER TABLE complaints ADD COLUMN reason VARCHAR NOT NULL DEFAULT 'other'",
+        "resolution": "ALTER TABLE complaints ADD COLUMN resolution VARCHAR",
+        "admin_comment": "ALTER TABLE complaints ADD COLUMN admin_comment VARCHAR",
+        "payment_blocked": "ALTER TABLE complaints ADD COLUMN payment_blocked BOOLEAN NOT NULL DEFAULT 1",
+        "updated_at": "ALTER TABLE complaints ADD COLUMN updated_at DATETIME",
+        "resolved_at": "ALTER TABLE complaints ADD COLUMN resolved_at DATETIME",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in migration_statements.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+        if "frozen_balance_amount" not in account_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE accounts ADD COLUMN frozen_balance_amount "
+                    "VARCHAR NOT NULL DEFAULT '0'"
+                )
+            )
+
+        if "payout_status" not in order_columns:
+            connection.execute(
+                text(
+                    "ALTER TABLE orders ADD COLUMN payout_status "
+                    "VARCHAR NOT NULL DEFAULT 'unpaid'"
+                )
+            )
+
+        if "payout_updated_at" not in order_columns:
+            connection.execute(
+                text("ALTER TABLE orders ADD COLUMN payout_updated_at DATETIME")
+            )
+
+        connection.execute(
+            text(
+                """
+                UPDATE complaints
+                SET updated_at = COALESCE(updated_at, created_at)
+                WHERE updated_at IS NULL
+                """
+            )
+        )
+
+        connection.execute(
+            text(
+                """
+                UPDATE orders
+                SET payout_status = 'available'
+                WHERE status = 'paid'
+                  AND (payout_status IS NULL OR payout_status = 'unpaid')
+                """
+            )
+        )
+
+
 def create_app() -> FastAPI:
     app = FastAPI()
 
     Base.metadata.create_all(bind=engine)
+    ensure_sqlite_schema()
 
     uploads_dir = BASE_DIR / "uploads"
     if uploads_dir.is_dir():

@@ -352,6 +352,26 @@ export default function MasterWalletSection({ masterProfile }) {
                 </div>
               </div>
 
+              <div className="rounded-3xl border border-orange-200 bg-orange-50 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-orange-600">
+                    <ShieldCheck size={22} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-orange-700">
+                      Заморожено
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-orange-800">
+                      {formatMoney(walletBalance?.frozen_balance_amount)}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-orange-700">
+                      Ожидает завершения проверки или решения спора
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm font-semibold leading-6 text-blue-700">
                 <div className="mb-2 flex items-center gap-2">
                   <Info size={18} />

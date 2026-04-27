@@ -24,8 +24,12 @@ from order_statuses import (
     MASTER_ALLOWED_TRANSITIONS,
     REPORT_UPLOAD_ALLOWED_STATUSES,
 )
-
-ACTIVE_COMPLAINT_BLOCKING_STATUSES = {"new", "in_progress"}
+from complaint_constants import ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES
+from payment_ledger import (
+    PAYOUT_REFUNDED_TO_CLIENT,
+    get_order_payout_amount,
+    release_order_payout_to_master,
+)
 
 
 def parse_amount_to_int(raw_value: str | None) -> int:
@@ -215,7 +219,8 @@ def has_active_payment_blocking_complaint(order_id: int, db: Session) -> bool:
         db.query(Complaint)
         .filter(
             Complaint.order_id == order_id,
-            Complaint.status.in_(ACTIVE_COMPLAINT_BLOCKING_STATUSES),
+            Complaint.status.in_(ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES),
+            Complaint.payment_blocked.is_(True),
         )
         .first()
     )
@@ -307,6 +312,12 @@ def update_order_status_by_user_service(
             detail="У заказа нет назначенного мастера",
         )
 
+    if order.payout_status == PAYOUT_REFUNDED_TO_CLIENT:
+        raise HTTPException(
+            status_code=400,
+            detail="Оплата по этому заказу отменена решением администратора",
+        )
+
     if has_active_payment_blocking_complaint(order.id, db):
         raise HTTPException(
             status_code=400,
@@ -316,16 +327,11 @@ def update_order_status_by_user_service(
             ),
         )
 
-    payout_amount = parse_amount_to_int(get_order_final_amount(order))
-
-    current_balance = parse_amount_to_int(order.master.balance_amount)
-    current_available = parse_amount_to_int(order.master.available_withdraw_amount)
+    payout_amount = get_order_payout_amount(order)
 
     order.status = PAID
     order.price = str(payout_amount)
-
-    order.master.balance_amount = str(current_balance + payout_amount)
-    order.master.available_withdraw_amount = str(current_available + payout_amount)
+    release_order_payout_to_master(order, order.master, payout_amount)
 
     db.commit()
 

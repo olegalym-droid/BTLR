@@ -32,11 +32,9 @@ export default function AdminPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-6">
-        <div className="rounded-2xl bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-6">
-          <AdminAppView {...adminState} />
-        </div>
+    <main className="min-h-screen bg-[#f7f8f6] text-[#111827]">
+      <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+        <AdminAppView {...adminState} />
       </div>
     </main>
   );

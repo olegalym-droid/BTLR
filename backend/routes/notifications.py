@@ -26,14 +26,10 @@ def get_user_notifications(
     user_id: int,
     db: Session = Depends(get_db),
 ):
-    user = (
-        db.query(Account)
-        .filter(Account.id == user_id, Account.role == "user")
-        .first()
-    )
+    user = db.query(Account).filter(Account.id == user_id).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=404, detail="Аккаунт не найден")
 
     notifications = (
         db.query(Notification)
@@ -51,14 +47,10 @@ def mark_notification_as_read(
     user_id: int,
     db: Session = Depends(get_db),
 ):
-    user = (
-        db.query(Account)
-        .filter(Account.id == user_id, Account.role == "user")
-        .first()
-    )
+    user = db.query(Account).filter(Account.id == user_id).first()
 
     if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        raise HTTPException(status_code=404, detail="Аккаунт не найден")
 
     notification = (
         db.query(Notification)

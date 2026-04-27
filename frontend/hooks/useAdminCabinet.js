@@ -113,11 +113,11 @@ export default function useAdminCabinet({ onLogout }) {
     }
   };
 
-  const updateComplaintStatus = async (complaintId, status) => {
+  const updateComplaintStatus = async (complaintId, statusOrPayload) => {
     try {
       return await updateComplaintStatusAction(
         complaintId,
-        status,
+        statusOrPayload,
         setIsLoading,
       );
     } catch (error) {

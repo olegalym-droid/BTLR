@@ -7,11 +7,22 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
+from complaint_constants import (
+    ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES,
+    ALLOWED_COMPLAINT_RESOLUTIONS,
+    ALLOWED_COMPLAINT_STATUSES,
+    FINAL_COMPLAINT_STATUSES,
+    RESOLUTION_STATUS_MAP,
+    get_complaint_reason_label,
+    get_complaint_resolution_label,
+    get_complaint_status_label,
+)
 from models import (
     Account,
     Order,
     OrderResponseOffer,
     Complaint,
+    ComplaintHistory,
     MasterWithdrawalRequest,
     MasterSchedule,
     Review,
@@ -21,14 +32,19 @@ from schemas import (
     MasterProfileResponse,
     OrderResponse,
     ComplaintResponse,
+    ComplaintHistoryResponse,
     ComplaintOrderInfoResponse,
     MasterWithdrawalRequestResponse,
 )
 from routes.orders_helpers import build_order_response, is_order_reviewed
+from payment_ledger import (
+    get_order_payout_amount,
+    refund_order_payout_to_client,
+    release_order_payout_to_master,
+)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ALLOWED_COMPLAINT_STATUSES = {"new", "in_progress", "resolved", "rejected"}
 ALLOWED_WITHDRAWAL_STATUSES = {"pending", "approved", "rejected"}
 ALLOWED_ACCOUNT_ROLES = {"user", "master"}
 ALLOWED_ORDER_STATUSES = {
@@ -48,7 +64,9 @@ class AdminLoginRequest(BaseModel):
 
 
 class ComplaintStatusUpdateRequest(BaseModel):
-    status: str
+    status: str | None = None
+    resolution: str | None = None
+    admin_comment: str | None = None
 
 
 class WithdrawalStatusUpdateRequest(BaseModel):
@@ -139,26 +157,71 @@ def mask_card_number(card_number: str | None) -> str:
 
 def build_complaint_response(complaint: Complaint) -> ComplaintResponse:
     order_info = None
+    payment_blocked = (
+        complaint.payment_blocked
+        and complaint.status in ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES
+    )
 
     if complaint.order is not None:
         order_info = ComplaintOrderInfoResponse(
             id=complaint.order.id,
+            user_id=complaint.order.user_id,
+            master_id=complaint.order.master_id,
             service_name=complaint.order.service_name,
             category=complaint.order.category,
             status=complaint.order.status,
+            payout_status=complaint.order.payout_status,
+            payment_status=(
+                "blocked"
+                if payment_blocked
+                else "paid"
+                if complaint.order.status == "paid"
+                else "available"
+            ),
+            payment_blocked=payment_blocked,
             price=complaint.order.price,
             client_price=complaint.order.client_price,
             master_name=complaint.order.master_name,
+            user_phone=complaint.order.user.phone if complaint.order.user else None,
+            master_phone=complaint.order.master.phone if complaint.order.master else None,
+            created_at=(
+                complaint.order.created_at.isoformat()
+                if complaint.order.created_at
+                else None
+            ),
         )
 
     return ComplaintResponse(
         id=complaint.id,
         order_id=complaint.order_id,
         user_id=complaint.user_id,
+        reason=complaint.reason or "other",
+        reason_label=get_complaint_reason_label(complaint.reason),
         text=complaint.text,
         status=complaint.status,
+        status_label=get_complaint_status_label(complaint.status),
+        resolution=complaint.resolution,
+        resolution_label=get_complaint_resolution_label(complaint.resolution),
+        admin_comment=complaint.admin_comment,
+        payment_blocked=payment_blocked,
         user_name=complaint.user.full_name if complaint.user else None,
+        created_at=complaint.created_at.isoformat() if complaint.created_at else None,
+        updated_at=complaint.updated_at.isoformat() if complaint.updated_at else None,
+        resolved_at=complaint.resolved_at.isoformat() if complaint.resolved_at else None,
         order=order_info,
+        history=[
+            ComplaintHistoryResponse(
+                id=item.id,
+                status=item.status,
+                status_label=get_complaint_status_label(item.status),
+                resolution=item.resolution,
+                resolution_label=get_complaint_resolution_label(item.resolution),
+                comment=item.comment,
+                actor=item.actor,
+                created_at=item.created_at.isoformat() if item.created_at else None,
+            )
+            for item in (complaint.history or [])
+        ],
     )
 
 
@@ -239,6 +302,7 @@ def serialize_account_search_item(account: Account) -> dict:
         "categories": categories,
         "balance_amount": account.balance_amount,
         "available_withdraw_amount": account.available_withdraw_amount,
+        "frozen_balance_amount": account.frozen_balance_amount,
     }
 
 
@@ -374,18 +438,30 @@ def serialize_account_details(
         )
 
     complaints = []
+    complaint_query = db.query(Complaint).options(
+        joinedload(Complaint.user),
+        joinedload(Complaint.order).joinedload(Order.user),
+        joinedload(Complaint.order).joinedload(Order.master),
+        joinedload(Complaint.history),
+    )
+
     if account.role == "user":
         complaint_items = (
-            db.query(Complaint)
-            .options(
-                joinedload(Complaint.user),
-                joinedload(Complaint.order),
-            )
+            complaint_query
             .filter(Complaint.user_id == account.id)
             .order_by(Complaint.created_at.desc(), Complaint.id.desc())
             .all()
         )
-        complaints = [build_complaint_response(item) for item in complaint_items]
+    else:
+        complaint_items = (
+            complaint_query
+            .join(Order, Complaint.order_id == Order.id)
+            .filter(Order.master_id == account.id)
+            .order_by(Complaint.created_at.desc(), Complaint.id.desc())
+            .all()
+        )
+
+    complaints = [build_complaint_response(item) for item in complaint_items]
 
     withdrawal_requests = []
     schedules = []
@@ -468,44 +544,65 @@ def serialize_account_details(
     }
 
 
-def create_complaint_status_notification(complaint: Complaint, next_status: str):
+def create_complaint_status_notifications(
+    complaint: Complaint,
+    next_status: str,
+) -> list[Notification]:
     if not complaint.user_id:
-        return None
+        return []
 
     status_text_map = {
         "new": "Жалоба зарегистрирована",
         "in_progress": "Жалоба принята в работу",
+        "needs_details": "Администратор запросил детали",
         "resolved": "Жалоба решена",
         "rejected": "Жалоба отклонена",
     }
 
-    message_text_map = {
-        "new": (
-            f"Ваша жалоба по заказу #{complaint.order_id} зарегистрирована. "
-            "Ожидайте рассмотрения администратором."
-        ),
-        "in_progress": (
-            f"Администратор взял в работу вашу жалобу по заказу #{complaint.order_id}."
-        ),
-        "resolved": (
-            f"Жалоба по заказу #{complaint.order_id} отмечена как решённая."
-        ),
-        "rejected": (
-            f"Жалоба по заказу #{complaint.order_id} была отклонена администратором."
-        ),
-    }
-
-    return Notification(
-        user_id=complaint.user_id,
-        order_id=complaint.order_id,
-        type="complaint_status_changed",
-        title=status_text_map.get(next_status, "Статус жалобы обновлён"),
-        message=message_text_map.get(
-            next_status,
-            f"Статус вашей жалобы по заказу #{complaint.order_id} был обновлён.",
-        ),
-        is_read=False,
+    reason_text = get_complaint_reason_label(complaint.reason)
+    resolution_text = get_complaint_resolution_label(complaint.resolution)
+    comment_text = (
+        f" Комментарий администратора: {complaint.admin_comment}"
+        if complaint.admin_comment
+        else ""
     )
+    resolution_part = f" Решение: {resolution_text}." if resolution_text else ""
+
+    user_message = (
+        f"Статус спора по заказу #{complaint.order_id} обновлён: "
+        f"{get_complaint_status_label(next_status)}. "
+        f"Причина: {reason_text}.{resolution_part}{comment_text}"
+    )
+    master_message = (
+        f"По заказу #{complaint.order_id} обновлён спор: "
+        f"{get_complaint_status_label(next_status)}. "
+        f"Причина: {reason_text}.{resolution_part}{comment_text}"
+    )
+
+    notifications = [
+        Notification(
+            user_id=complaint.user_id,
+            order_id=complaint.order_id,
+            type="complaint_status_changed",
+            title=status_text_map.get(next_status, "Статус жалобы обновлён"),
+            message=user_message,
+            is_read=False,
+        )
+    ]
+
+    if complaint.order and complaint.order.master_id:
+        notifications.append(
+            Notification(
+                user_id=complaint.order.master_id,
+                order_id=complaint.order_id,
+                type="complaint_status_changed_for_master",
+                title=status_text_map.get(next_status, "Статус спора обновлён"),
+                message=master_message,
+                is_read=False,
+            )
+        )
+
+    return notifications
 
 
 @router.post("/login")
@@ -698,7 +795,9 @@ def get_complaints(
         db.query(Complaint)
         .options(
             joinedload(Complaint.user),
-            joinedload(Complaint.order),
+            joinedload(Complaint.order).joinedload(Order.user),
+            joinedload(Complaint.order).joinedload(Order.master),
+            joinedload(Complaint.history),
         )
         .order_by(Complaint.created_at.desc(), Complaint.id.desc())
         .all()
@@ -718,7 +817,9 @@ def update_complaint_status(
         db.query(Complaint)
         .options(
             joinedload(Complaint.user),
-            joinedload(Complaint.order),
+            joinedload(Complaint.order).joinedload(Order.user),
+            joinedload(Complaint.order).joinedload(Order.master),
+            joinedload(Complaint.history),
         )
         .filter(Complaint.id == complaint_id)
         .first()
@@ -728,6 +829,30 @@ def update_complaint_status(
         raise HTTPException(status_code=404, detail="Жалоба не найдена")
 
     normalized_status = (payload.status or "").strip()
+    normalized_resolution = (payload.resolution or "").strip()
+    normalized_comment = (payload.admin_comment or "").strip()
+
+    if normalized_resolution:
+        if normalized_resolution not in ALLOWED_COMPLAINT_RESOLUTIONS:
+            raise HTTPException(
+                status_code=400,
+                detail="Недопустимое решение по жалобе",
+            )
+
+        inferred_status = RESOLUTION_STATUS_MAP[normalized_resolution]
+        if normalized_status and normalized_status != inferred_status:
+            raise HTTPException(
+                status_code=400,
+                detail="Статус не совпадает с выбранным решением",
+            )
+
+        normalized_status = inferred_status
+
+    if not normalized_status:
+        raise HTTPException(
+            status_code=400,
+            detail="Укажите новый статус или решение по спору",
+        )
 
     if normalized_status not in ALLOWED_COMPLAINT_STATUSES:
         raise HTTPException(
@@ -736,14 +861,68 @@ def update_complaint_status(
         )
 
     old_status = complaint.status
-    complaint.status = normalized_status
+    old_resolution = complaint.resolution
+    old_comment = complaint.admin_comment
+    now = datetime.utcnow()
 
-    if old_status != normalized_status:
-        notification = create_complaint_status_notification(
+    complaint.status = normalized_status
+    complaint.resolution = normalized_resolution or None
+
+    if payload.admin_comment is not None:
+        complaint.admin_comment = normalized_comment or None
+
+    complaint.updated_at = now
+
+    if normalized_status in FINAL_COMPLAINT_STATUSES:
+        if complaint.order and complaint.order.master:
+            payout_amount = get_order_payout_amount(complaint.order)
+
+            if normalized_resolution == "client_favor":
+                refund_order_payout_to_client(
+                    complaint.order,
+                    complaint.order.master,
+                    payout_amount,
+                )
+            elif complaint.order.status == "paid" and (
+                normalized_resolution in {"master_favor", "rejected"}
+                or normalized_status in {"resolved", "rejected"}
+            ):
+                release_order_payout_to_master(
+                    complaint.order,
+                    complaint.order.master,
+                    payout_amount,
+                )
+
+        complaint.payment_blocked = False
+        complaint.resolved_at = now
+    elif normalized_status in ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES:
+        complaint.payment_blocked = complaint.order.status != "paid" if complaint.order else True
+        complaint.resolved_at = None
+    else:
+        complaint.payment_blocked = False
+
+    has_changes = (
+        old_status != normalized_status
+        or old_resolution != complaint.resolution
+        or old_comment != complaint.admin_comment
+    )
+
+    if has_changes:
+        db.add(
+            ComplaintHistory(
+                complaint_id=complaint.id,
+                actor="admin",
+                status=normalized_status,
+                resolution=complaint.resolution,
+                comment=complaint.admin_comment,
+                created_at=now,
+            )
+        )
+
+        for notification in create_complaint_status_notifications(
             complaint,
             normalized_status,
-        )
-        if notification is not None:
+        ):
             db.add(notification)
 
     db.commit()
@@ -753,7 +932,9 @@ def update_complaint_status(
         db.query(Complaint)
         .options(
             joinedload(Complaint.user),
-            joinedload(Complaint.order),
+            joinedload(Complaint.order).joinedload(Order.user),
+            joinedload(Complaint.order).joinedload(Order.master),
+            joinedload(Complaint.history),
         )
         .filter(Complaint.id == complaint_id)
         .first()

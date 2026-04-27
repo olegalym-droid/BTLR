@@ -1,4 +1,11 @@
 import { useMemo, useState } from "react";
+import {
+  LogOut,
+  Search,
+  Shield,
+  UserRound,
+  WalletCards,
+} from "lucide-react";
 import AdminMastersSection from "./AdminMastersSection";
 import AdminComplaintsSection from "./AdminComplaintsSection";
 import AdminWithdrawalsSection from "./AdminWithdrawalsSection";
@@ -29,9 +36,23 @@ const ORDER_STATUS_OPTIONS = [
 ];
 
 const INPUT_CLASSNAME =
-  "rounded-2xl border border-gray-400 bg-white px-4 py-3 text-sm font-medium text-black outline-none placeholder:text-gray-500 focus:border-black";
+  "min-h-[56px] rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#111827] shadow-sm outline-none transition placeholder:text-gray-400 focus:border-[#4f7f56] focus:ring-4 focus:ring-[#e8f2e8]";
 const SELECT_CLASSNAME =
-  "rounded-2xl border border-gray-400 bg-white px-4 py-3 text-sm font-medium text-black outline-none focus:border-black";
+  "min-h-[56px] rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-[#111827] shadow-sm outline-none transition focus:border-[#4f7f56] focus:ring-4 focus:ring-[#e8f2e8]";
+
+const PANEL_CLASSNAME =
+  "rounded-[28px] border border-gray-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-6";
+const PRIMARY_BUTTON_CLASSNAME =
+  "min-h-[56px] rounded-[18px] bg-[#4f7f56] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#416f48] disabled:opacity-60";
+const SECONDARY_BUTTON_CLASSNAME =
+  "min-h-[56px] rounded-[18px] border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#374151] shadow-sm transition hover:bg-[#f8faf8] disabled:opacity-60";
+
+const TAB_ITEMS = [
+  { id: "masters", label: "Мастера", icon: UserRound },
+  { id: "complaints", label: "Жалобы", icon: Shield },
+  { id: "withdrawals", label: "Выводы", icon: WalletCards },
+  { id: "accounts", label: "Поиск аккаунтов", icon: Search },
+];
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -80,17 +101,21 @@ function getOrderStatusBadge(status) {
     return `${base} border-yellow-300 bg-yellow-50 text-yellow-800`;
   }
 
-  return `${base} border-gray-300 bg-gray-100 text-gray-800`;
+  return `${base} border-gray-200 bg-[#fbfcfb] text-gray-700`;
 }
 
 function InfoCard({ title, value, hint = "" }) {
   return (
-    <div className="rounded-2xl border border-gray-300 bg-gray-50 p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+    <div className="rounded-[20px] border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="text-xs font-bold uppercase text-gray-500">
         {title}
       </div>
-      <div className="mt-2 text-lg font-bold text-black">{value || "—"}</div>
-      {hint ? <div className="mt-1 text-xs text-gray-700">{hint}</div> : null}
+      <div className="mt-2 break-words text-lg font-bold text-[#111827] [overflow-wrap:anywhere]">
+        {value || "—"}
+      </div>
+      {hint ? (
+        <div className="mt-1 text-xs font-semibold text-gray-500">{hint}</div>
+      ) : null}
     </div>
   );
 }
@@ -284,13 +309,13 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-3xl border border-gray-300 bg-white p-5 shadow sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-black">
+    <div className="space-y-7">
+      <div className="flex flex-col gap-5 rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between lg:p-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-[#111827] sm:text-4xl">
             Панель администратора
           </h1>
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-base font-medium text-gray-500 sm:text-lg">
             Проверка мастеров, жалобы, выводы и поиск аккаунтов
           </p>
         </div>
@@ -298,64 +323,38 @@ export default function AdminDashboard({
         <button
           type="button"
           onClick={logout}
-          className="rounded-2xl border border-gray-400 bg-white px-4 py-3 text-sm font-semibold text-black"
+          className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#4f7f56] shadow-sm transition hover:bg-[#f8faf8]"
         >
+          <LogOut size={20} />
           Выйти
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-3xl border border-gray-300 bg-white p-2 shadow lg:grid-cols-4">
-        <button
-          type="button"
-          onClick={() => setActiveTab("masters")}
-          className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "masters"
-              ? "bg-black text-white"
-              : "bg-white text-black"
-          }`}
-        >
-          Мастера
-        </button>
+      <div className="grid grid-cols-1 gap-2 rounded-[28px] border border-gray-200 bg-white p-2 shadow-[0_14px_42px_rgba(15,23,42,0.07)] sm:grid-cols-2 lg:grid-cols-4">
+        {TAB_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
 
-        <button
-          type="button"
-          onClick={() => setActiveTab("complaints")}
-          className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "complaints"
-              ? "bg-black text-white"
-              : "bg-white text-black"
-          }`}
-        >
-          Жалобы
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("withdrawals")}
-          className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "withdrawals"
-              ? "bg-black text-white"
-              : "bg-white text-black"
-          }`}
-        >
-          Выводы
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("accounts")}
-          className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-            activeTab === "accounts"
-              ? "bg-black text-white"
-              : "bg-white text-black"
-          }`}
-        >
-          Поиск аккаунтов
-        </button>
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`inline-flex min-h-[62px] items-center justify-center gap-3 rounded-[20px] px-4 py-3 text-sm font-bold transition sm:text-base ${
+                isActive
+                  ? "bg-[#4f7f56] text-white shadow-[0_12px_28px_rgba(79,127,86,0.28)]"
+                  : "text-gray-500 hover:bg-[#f8faf8] hover:text-[#111827]"
+              }`}
+            >
+              <Icon size={22} />
+              {item.label}
+            </button>
+          );
+        })}
       </div>
 
       {successText && (
-        <div className="rounded-2xl border border-green-300 bg-green-50 p-4 text-sm font-semibold text-green-800">
+        <div className="rounded-[20px] border border-green-200 bg-green-50 p-4 text-sm font-bold text-green-800 shadow-sm">
           {successText}
         </div>
       )}
@@ -388,12 +387,12 @@ export default function AdminDashboard({
 
       {activeTab === "accounts" && (
         <div className="space-y-6">
-          <div className="rounded-3xl border border-gray-300 bg-white p-5 shadow">
+          <div className={PANEL_CLASSNAME}>
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-black">
+              <h2 className="text-2xl font-bold text-[#111827]">
                 Поиск пользователя или мастера
               </h2>
-              <p className="mt-1 text-sm font-medium text-gray-700">
+              <p className="mt-2 text-sm font-semibold text-gray-500">
                 Ищи по id, имени или номеру телефона
               </p>
             </div>
@@ -435,52 +434,57 @@ export default function AdminDashboard({
                 type="button"
                 onClick={runSearch}
                 disabled={isSearchLoading}
-                className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className={PRIMARY_BUTTON_CLASSNAME}
               >
                 {isSearchLoading ? "Поиск..." : "Найти"}
               </button>
             </div>
 
-            <div className="mt-4 text-sm font-semibold text-gray-800">
-              Найдено: <span className="text-black">{searchTotal}</span>
+            <div className="mt-4 text-sm font-bold text-gray-600">
+              Найдено: <span className="text-[#111827]">{searchTotal}</span>
             </div>
 
             <div className="mt-4 space-y-3">
               {searchResults.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-400 bg-gray-50 p-5 text-sm font-medium text-gray-700">
+                <div className="rounded-[22px] border border-dashed border-gray-300 bg-[#fbfcfb] p-5 text-sm font-semibold text-gray-500">
                   Здесь появятся найденные пользователи и мастера
                 </div>
               ) : (
                 searchResults.map((item) => (
                   <div
                     key={`${item.role}-${item.id}`}
-                    className="flex flex-col gap-3 rounded-2xl border border-gray-300 bg-white p-4 lg:flex-row lg:items-center lg:justify-between"
+                    className="flex flex-col gap-4 rounded-[22px] border border-gray-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
                   >
-                    <div className="min-w-0">
+                    <div className="flex min-w-0 flex-1 gap-4">
+                      <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-[#edf4ed] text-[#4f7f56]">
+                        <UserRound size={30} />
+                      </div>
+
+                      <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                        <span className="rounded-full bg-[#4f7f56] px-3 py-1 text-xs font-bold text-white">
                           {getRoleLabel(item.role)}
                         </span>
-                        <span className="text-sm font-semibold text-gray-700">
+                        <span className="text-sm font-bold text-gray-600">
                           ID: {item.id}
                         </span>
                         {item.verification_status ? (
-                          <span className="rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-800">
+                          <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-[#4f7f56]">
                             {item.verification_status}
                           </span>
                         ) : null}
                       </div>
 
-                      <div className="mt-2 text-lg font-bold text-black">
+                      <div className="mt-2 break-words text-lg font-bold text-[#111827]">
                         {item.full_name || "Без имени"}
                       </div>
 
-                      <div className="mt-1 text-sm font-medium text-gray-700">
+                      <div className="mt-1 text-sm font-semibold text-gray-500">
                         Телефон: {item.phone || "—"}
                       </div>
 
                       {item.role === "master" && (
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-medium text-gray-700">
+                        <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-gray-500">
                           <span>Рейтинг: {item.rating ?? 0}</span>
                           <span>•</span>
                           <span>
@@ -498,12 +502,13 @@ export default function AdminDashboard({
                           ) : null}
                         </div>
                       )}
+                      </div>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => handleOpenAccount(item.id)}
-                      className="rounded-2xl border border-black px-4 py-3 text-sm font-semibold text-black"
+                      className={SECONDARY_BUTTON_CLASSNAME}
                     >
                       Открыть профиль
                     </button>
@@ -513,21 +518,21 @@ export default function AdminDashboard({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-gray-300 bg-white p-5 shadow">
+          <div className={PANEL_CLASSNAME}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-xl font-bold text-black">
+                <h2 className="text-2xl font-bold text-[#111827]">
                   Профиль и вся информация
                 </h2>
-                <p className="mt-1 text-sm font-medium text-gray-700">
+                <p className="mt-2 text-sm font-semibold text-gray-500">
                   Здесь видно профиль, заказы, отзывы, жалобы, выводы и график
                 </p>
               </div>
 
               {accountData ? (
-                <div className="rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800">
+                <div className="rounded-[18px] border border-gray-200 bg-[#fbfcfb] px-4 py-3 text-sm font-bold text-gray-600 shadow-sm">
                   Открыт:{" "}
-                  <span className="text-black">
+                  <span className="text-[#111827]">
                     {accountData.full_name || "Без имени"}
                   </span>{" "}
                   ({getRoleLabel(accountData.role)}, ID {accountData.id})
@@ -536,7 +541,7 @@ export default function AdminDashboard({
             </div>
 
             {!accountData ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-gray-400 bg-gray-50 p-6 text-sm font-medium text-gray-700">
+              <div className="mt-5 rounded-[22px] border border-dashed border-gray-300 bg-[#fbfcfb] p-6 text-sm font-semibold text-gray-500">
                 Сначала выполни поиск и открой нужный аккаунт
               </div>
             ) : (
@@ -574,31 +579,36 @@ export default function AdminDashboard({
                           accountData.available_withdraw_amount,
                         )}`}
                       />
+                      <InfoCard
+                        title="Заморожено"
+                        value={formatMoney(accountData.frozen_balance_amount)}
+                        hint="Активные споры и удержания"
+                      />
                     </>
                   )}
                 </div>
 
                 {accountData.role === "master" && (
-                  <div className="rounded-2xl border border-gray-300 p-4">
-                    <div className="text-sm font-bold text-black">
+                  <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                    <div className="text-sm font-bold text-[#111827]">
                       Информация мастера
                     </div>
 
                     <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <div className="text-xs font-semibold uppercase text-gray-700">
+                      <div className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
+                        <div className="text-xs font-bold uppercase text-gray-500">
                           О себе
                         </div>
-                        <div className="mt-2 text-sm font-medium text-gray-800">
+                        <div className="mt-2 text-sm font-semibold text-[#111827]">
                           {accountData.about_me || "—"}
                         </div>
                       </div>
 
-                      <div className="rounded-2xl bg-gray-50 p-4">
-                        <div className="text-xs font-semibold uppercase text-gray-700">
+                      <div className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
+                        <div className="text-xs font-bold uppercase text-gray-500">
                           Город / опыт / категории
                         </div>
-                        <div className="mt-2 space-y-1 text-sm font-medium text-gray-800">
+                        <div className="mt-2 space-y-1 text-sm font-semibold text-[#111827]">
                           <div>Город: {accountData.work_city || "—"}</div>
                           <div>
                             Опыт:{" "}
@@ -620,20 +630,20 @@ export default function AdminDashboard({
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-gray-300 p-4">
+                <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <div className="text-sm font-bold text-black">
+                      <div className="text-sm font-bold text-[#111827]">
                         Фильтр заказов
                       </div>
-                      <div className="mt-1 text-xs font-medium text-gray-700">
+                      <div className="mt-1 text-xs font-semibold text-gray-500">
                         Фильтрация идёт по дате создания заказа и по статусу
                       </div>
                     </div>
 
-                    <div className="text-xs font-semibold text-gray-800">
+                    <div className="text-xs font-bold text-gray-600">
                       Загружено заказов:{" "}
-                      <span className="text-black">
+                      <span className="text-[#111827]">
                         {accountStats?.orders_total ?? 0}
                       </span>
                     </div>
@@ -673,7 +683,7 @@ export default function AdminDashboard({
                         type="button"
                         onClick={handleApplyOrderFilters}
                         disabled={isDetailsLoading}
-                        className="flex-1 rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                        className={`${PRIMARY_BUTTON_CLASSNAME} flex-1`}
                       >
                         {isDetailsLoading ? "Загрузка..." : "Применить"}
                       </button>
@@ -682,7 +692,7 @@ export default function AdminDashboard({
                         type="button"
                         onClick={handleResetOrderFilters}
                         disabled={isDetailsLoading}
-                        className="rounded-2xl border border-gray-400 bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-60"
+                        className={SECONDARY_BUTTON_CLASSNAME}
                       >
                         Сброс
                       </button>
@@ -709,24 +719,24 @@ export default function AdminDashboard({
                   />
                 </div>
 
-                <div className="rounded-2xl border border-gray-300 p-4">
-                  <div className="text-sm font-bold text-black">Заказы</div>
+                <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                  <div className="text-sm font-bold text-[#111827]">Заказы</div>
 
                   <div className="mt-4 space-y-3">
                     {accountOrders.length === 0 ? (
-                      <div className="rounded-2xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                      <div className="rounded-[18px] border border-dashed border-gray-300 bg-white p-4 text-sm font-semibold text-gray-500">
                         Заказы не найдены по выбранным фильтрам
                       </div>
                     ) : (
                       accountOrders.map((order) => (
                         <div
                           key={order.id}
-                          className="rounded-2xl border border-gray-300 p-4"
+                          className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm"
                         >
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-lg font-bold text-black">
+                                <span className="text-lg font-bold text-[#111827]">
                                   Заказ #{order.id}
                                 </span>
                                 <span
@@ -736,33 +746,33 @@ export default function AdminDashboard({
                                 </span>
                               </div>
 
-                              <div className="mt-2 space-y-1 text-sm font-medium text-gray-800">
+                              <div className="mt-2 space-y-1 text-sm font-semibold text-gray-700">
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Услуга:
                                   </span>{" "}
                                   {order.service_name}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Категория:
                                   </span>{" "}
                                   {order.category}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Адрес:
                                   </span>{" "}
                                   {order.address}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Запланировано:
                                   </span>{" "}
                                   {order.scheduled_at || "—"}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Цена:
                                   </span>{" "}
                                   {order.price
@@ -772,26 +782,26 @@ export default function AdminDashboard({
                                       : "—"}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Мастер:
                                   </span>{" "}
                                   {order.master_name || "—"}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Телефон мастера:
                                   </span>{" "}
                                   {order.master_phone || "—"}
                                 </div>
                                 <div>
-                                  <span className="font-bold text-black">
+                                  <span className="font-bold text-[#111827]">
                                     Телефон пользователя:
                                   </span>{" "}
                                   {order.user_phone || "—"}
                                 </div>
                               </div>
 
-                              <div className="mt-3 rounded-2xl bg-gray-50 p-3 text-sm font-medium text-gray-800">
+                              <div className="mt-3 rounded-[18px] border border-gray-200 bg-[#fbfcfb] p-3 text-sm font-semibold text-gray-700">
                                 {order.description || "Без описания"}
                               </div>
                             </div>
@@ -803,34 +813,34 @@ export default function AdminDashboard({
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-gray-300 p-4">
-                    <div className="text-sm font-bold text-black">Отзывы</div>
+                  <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                    <div className="text-sm font-bold text-[#111827]">Отзывы</div>
 
                     <div className="mt-4 space-y-3">
                       {accountReviews.length === 0 ? (
-                        <div className="rounded-2xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                        <div className="rounded-[18px] border border-dashed border-gray-300 bg-white p-4 text-sm font-semibold text-gray-500">
                           Отзывов нет
                         </div>
                       ) : (
                         accountReviews.map((item) => (
                           <div
                             key={item.id}
-                            className="rounded-2xl border border-gray-300 p-4"
+                            className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm"
                           >
                             <div className="flex items-center justify-between gap-3">
-                              <div className="text-sm font-bold text-black">
+                              <div className="text-sm font-bold text-[#111827]">
                                 Заказ #{item.order_id}
                               </div>
-                              <div className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                              <div className="rounded-full bg-[#111827] px-3 py-1 text-xs font-bold text-white">
                                 {item.rating}/5
                               </div>
                             </div>
 
-                            <div className="mt-2 text-sm font-medium text-gray-800">
+                            <div className="mt-2 text-sm font-semibold text-gray-700">
                               {item.comment || "Без комментария"}
                             </div>
 
-                            <div className="mt-2 text-xs font-medium text-gray-700">
+                            <div className="mt-2 text-xs font-semibold text-gray-500">
                               {formatDateTime(item.created_at)}
                             </div>
                           </div>
@@ -839,35 +849,51 @@ export default function AdminDashboard({
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-300 p-4">
-                    <div className="text-sm font-bold text-black">Жалобы</div>
+                  <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                    <div className="text-sm font-bold text-[#111827]">Жалобы</div>
 
                     <div className="mt-4 space-y-3">
                       {accountComplaints.length === 0 ? (
-                        <div className="rounded-2xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                        <div className="rounded-[18px] border border-dashed border-gray-300 bg-white p-4 text-sm font-semibold text-gray-500">
                           Жалоб нет
                         </div>
                       ) : (
                         accountComplaints.map((item) => (
                           <div
                             key={item.id}
-                            className="rounded-2xl border border-gray-300 p-4"
+                            className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm"
                           >
                             <div className="flex flex-wrap items-center gap-2">
-                              <div className="text-sm font-bold text-black">
+                              <div className="text-sm font-bold text-[#111827]">
                                 Жалоба #{item.id}
                               </div>
-                              <span className="rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-800">
-                                {item.status}
+                              <span className="rounded-full border border-gray-200 bg-[#fbfcfb] px-3 py-1 text-xs font-bold text-gray-600">
+                                {item.status_label || item.status}
                               </span>
-                              <span className="text-xs font-medium text-gray-700">
+                              <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-[#4f7f56]">
+                                {item.reason_label || "Другое"}
+                              </span>
+                              <span className="text-xs font-semibold text-gray-500">
                                 Заказ #{item.order_id}
                               </span>
                             </div>
 
-                            <div className="mt-2 text-sm font-medium text-gray-800">
+                            <div className="mt-2 text-sm font-semibold text-gray-700">
                               {item.text}
                             </div>
+
+                            {(item.resolution_label || item.admin_comment) && (
+                              <div className="mt-3 rounded-[16px] border border-green-200 bg-green-50 p-3 text-sm font-semibold text-green-800">
+                                {item.resolution_label && (
+                                  <div>Решение: {item.resolution_label}</div>
+                                )}
+                                {item.admin_comment && (
+                                  <div className="mt-1">
+                                    {item.admin_comment}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))
                       )}
@@ -877,32 +903,32 @@ export default function AdminDashboard({
 
                 {accountData.role === "master" && (
                   <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                    <div className="rounded-2xl border border-gray-300 p-4">
-                      <div className="text-sm font-bold text-black">
+                    <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                      <div className="text-sm font-bold text-[#111827]">
                         Заявки на вывод
                       </div>
 
                       <div className="mt-4 space-y-3">
                         {accountWithdrawals.length === 0 ? (
-                          <div className="rounded-2xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                          <div className="rounded-[18px] border border-dashed border-gray-300 bg-white p-4 text-sm font-semibold text-gray-500">
                             Заявок на вывод нет
                           </div>
                         ) : (
                           accountWithdrawals.map((item) => (
                             <div
                               key={item.id}
-                              className="rounded-2xl border border-gray-300 p-4"
+                              className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm"
                             >
                               <div className="flex flex-wrap items-center gap-2">
-                                <div className="text-sm font-bold text-black">
+                                <div className="text-sm font-bold text-[#111827]">
                                   Вывод #{item.id}
                                 </div>
-                                <span className="rounded-full border border-gray-300 bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-800">
+                                <span className="rounded-full border border-gray-200 bg-[#fbfcfb] px-3 py-1 text-xs font-bold text-gray-600">
                                   {item.status}
                                 </span>
                               </div>
 
-                              <div className="mt-2 space-y-1 text-sm font-medium text-gray-800">
+                              <div className="mt-2 space-y-1 text-sm font-semibold text-gray-700">
                                 <div>Сумма: {formatMoney(item.amount)}</div>
                                 <div>
                                   Карта: {item.masked_card_number || "—"}
@@ -926,31 +952,31 @@ export default function AdminDashboard({
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-gray-300 p-4">
-                      <div className="text-sm font-bold text-black">
+                    <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+                      <div className="text-sm font-bold text-[#111827]">
                         График мастера
                       </div>
 
                       <div className="mt-4 space-y-3">
                         {accountSchedule.length === 0 ? (
-                          <div className="rounded-2xl bg-gray-50 p-4 text-sm font-medium text-gray-700">
+                          <div className="rounded-[18px] border border-dashed border-gray-300 bg-white p-4 text-sm font-semibold text-gray-500">
                             График не заполнен
                           </div>
                         ) : (
                           accountSchedule.map((item) => (
                             <div
                               key={item.id}
-                              className="rounded-2xl border border-gray-300 p-4 text-sm font-medium text-gray-800"
+                              className="rounded-[18px] border border-gray-200 bg-white p-4 text-sm font-semibold text-gray-700 shadow-sm"
                             >
                               <div>
                                 День недели:{" "}
-                                <span className="font-bold text-black">
+                                <span className="font-bold text-[#111827]">
                                   {item.weekday}
                                 </span>
                               </div>
                               <div>
                                 Время:{" "}
-                                <span className="font-bold text-black">
+                                <span className="font-bold text-[#111827]">
                                   {item.start_time} — {item.end_time}
                                 </span>
                               </div>

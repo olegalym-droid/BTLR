@@ -121,6 +121,8 @@ export const approveMasterRequest = async (masterId) => {
 export const updateComplaintStatusRequest = async ({
   complaintId,
   status,
+  resolution = "",
+  adminComment = "",
 }) => {
   const response = await fetch(
     `${API_BASE_URL}/admin/complaints/${complaintId}/status`,
@@ -130,7 +132,11 @@ export const updateComplaintStatusRequest = async ({
         "Content-Type": "application/json",
         ...getAdminHeaders(),
       },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({
+        status,
+        resolution,
+        admin_comment: adminComment,
+      }),
     },
   );
 

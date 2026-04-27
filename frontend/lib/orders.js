@@ -31,6 +31,22 @@ export const ORDER_PROGRESS_STEPS = [
   { key: ORDER_STATUSES.PAID, label: "Оплачено" },
 ];
 
+export const COMPLAINT_REASONS = [
+  { value: "master_no_show", label: "Мастер не приехал" },
+  { value: "late_arrival", label: "Мастер опоздал" },
+  { value: "poor_quality", label: "Плохое качество работы" },
+  { value: "rude_behavior", label: "Грубое поведение" },
+  { value: "price_changed", label: "Цена изменилась" },
+  { value: "property_damage", label: "Повреждение имущества" },
+  { value: "other", label: "Другое" },
+];
+
+export const PAYMENT_BLOCKING_COMPLAINT_STATUSES = [
+  "new",
+  "in_progress",
+  "needs_details",
+];
+
 export const USER_ACTIVE_ORDER_STATUSES = [
   ORDER_STATUSES.SEARCHING,
   ORDER_STATUSES.PENDING_USER_CONFIRMATION,
@@ -442,11 +458,15 @@ export const createReviewRequest = async ({
   return data;
 };
 
-export const createComplaintRequest = async ({ orderId, text }) => {
+export const createComplaintRequest = async ({ orderId, reason, text }) => {
   const authUser = getStoredUserAuth();
 
   if (!authUser?.id) {
     throw new Error("Пользователь не авторизован");
+  }
+
+  if (!reason) {
+    throw new Error("Выберите причину жалобы");
   }
 
   if (!text || !text.trim()) {
@@ -461,6 +481,7 @@ export const createComplaintRequest = async ({ orderId, text }) => {
     body: JSON.stringify({
       order_id: orderId,
       user_id: authUser.id,
+      reason,
       text: text.trim(),
     }),
   });

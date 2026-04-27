@@ -11,6 +11,21 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=AuthResponse)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    normalized_categories: list[str] = []
+    if payload.role == "master":
+        seen_categories = set()
+        for raw_category in payload.categories or []:
+            category = str(raw_category or "").strip()
+            if category and category not in seen_categories:
+                normalized_categories.append(category)
+                seen_categories.add(category)
+
+        if not normalized_categories:
+            raise HTTPException(
+                status_code=400,
+                detail="Выберите хотя бы одну категорию",
+            )
+
     existing_account = (
         db.query(Account)
         .filter(Account.phone == payload.phone)
@@ -39,15 +54,8 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(account)
 
-    # 🔥 ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ
     if payload.role == "master":
-        categories = payload.categories or []
-
-        if not categories:
-            raise HTTPException(
-                status_code=400,
-                detail="Выберите хотя бы одну категорию",
-            )
+        categories = normalized_categories
 
         for category in categories:
             db.add(

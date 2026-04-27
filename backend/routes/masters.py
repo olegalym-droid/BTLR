@@ -98,6 +98,12 @@ async def upload_master_documents(
     if selfie_path:
         master.selfie_photo_path = selfie_path
 
+    if not front_path and not back_path and not selfie_path:
+        raise HTTPException(
+            status_code=400,
+            detail="Выберите хотя бы один документ для загрузки",
+        )
+
     db.commit()
     db.refresh(master)
 
@@ -106,29 +112,8 @@ async def upload_master_documents(
 
 @router.put("/masters/{master_id}/approve", response_model=MasterProfileResponse)
 def approve_master_profile(master_id: int, db: Session = Depends(get_db)):
-    master = get_master_or_404(master_id, db)
-
-    if not master.id_card_front_path:
-        raise HTTPException(
-            status_code=400,
-            detail="Сначала загрузите лицевую сторону удостоверения",
-        )
-
-    if not master.id_card_back_path:
-        raise HTTPException(
-            status_code=400,
-            detail="Сначала загрузите обратную сторону удостоверения",
-        )
-
-    if not master.selfie_photo_path:
-        raise HTTPException(
-            status_code=400,
-            detail="Сначала загрузите фото лица",
-        )
-
-    master.verification_status = "approved"
-
-    db.commit()
-    db.refresh(master)
-
-    return master
+    get_master_or_404(master_id, db)
+    raise HTTPException(
+        status_code=403,
+        detail="Одобрение мастера доступно только администратору",
+    )

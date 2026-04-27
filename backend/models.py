@@ -30,6 +30,7 @@ class Account(Base):
 
     balance_amount = Column(String, nullable=False, default="0")
     available_withdraw_amount = Column(String, nullable=False, default="0")
+    frozen_balance_amount = Column(String, nullable=False, default="0")
 
     orders = relationship(
         "Order",
@@ -121,6 +122,8 @@ class Order(Base):
     master_rating = Column(Float, nullable=True)
     price = Column(String, nullable=True)
     client_price = Column(String, nullable=True)
+    payout_status = Column(String, nullable=False, default="unpaid")
+    payout_updated_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -233,12 +236,38 @@ class Complaint(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    reason = Column(String, nullable=False, default="other")
     text = Column(String, nullable=False)
     status = Column(String, nullable=False, default="new")
+    resolution = Column(String, nullable=True)
+    admin_comment = Column(String, nullable=True)
+    payment_blocked = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
 
     order = relationship("Order", back_populates="complaints", foreign_keys=[order_id])
     user = relationship("Account", back_populates="complaints", foreign_keys=[user_id])
+    history = relationship(
+        "ComplaintHistory",
+        back_populates="complaint",
+        cascade="all, delete-orphan",
+        order_by="ComplaintHistory.created_at",
+    )
+
+
+class ComplaintHistory(Base):
+    __tablename__ = "complaint_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    complaint_id = Column(Integer, ForeignKey("complaints.id"), nullable=False, index=True)
+    actor = Column(String, nullable=False, default="system")
+    status = Column(String, nullable=False)
+    resolution = Column(String, nullable=True)
+    comment = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    complaint = relationship("Complaint", back_populates="history")
 
 
 class Notification(Base):

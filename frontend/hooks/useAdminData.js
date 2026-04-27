@@ -70,25 +70,37 @@ export default function useAdminData() {
     }
   }, [loadPendingMasters]);
 
-  const updateComplaintStatus = useCallback(async (complaintId, status, setIsLoading) => {
+  const updateComplaintStatus = useCallback(async (
+    complaintId,
+    statusOrPayload,
+    setIsLoading,
+  ) => {
     try {
       setIsLoading(true);
       setSuccessText("");
 
+      const updatePayload =
+        typeof statusOrPayload === "string"
+          ? { status: statusOrPayload }
+          : statusOrPayload || {};
+
       const data = await updateComplaintStatusRequest({
         complaintId,
-        status,
+        status: updatePayload.status,
+        resolution: updatePayload.resolution,
+        adminComment: updatePayload.adminComment,
       });
 
       setComplaints((prev) =>
         prev.map((item) =>
-          item.id === complaintId ? { ...item, status: data.status } : item,
+          item.id === complaintId ? { ...item, ...data } : item,
         ),
       );
 
       const statusTextMap = {
         new: "Жалоба помечена как новая",
         in_progress: "Жалоба взята в работу",
+        needs_details: "По спору запрошены детали",
         resolved: "Жалоба решена",
         rejected: "Жалоба отклонена",
       };

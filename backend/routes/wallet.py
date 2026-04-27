@@ -193,6 +193,7 @@ def get_master_balance(
         master_id=master.id,
         balance_amount=master.balance_amount or "0",
         available_withdraw_amount=master.available_withdraw_amount or "0",
+        frozen_balance_amount=master.frozen_balance_amount or "0",
     )
 
 

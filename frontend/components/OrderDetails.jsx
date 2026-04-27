@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  COMPLAINT_REASONS,
   ORDER_PROGRESS_STEPS,
   ORDER_STATUSES,
+  PAYMENT_BLOCKING_COMPLAINT_STATUSES,
   formatPublicOrderCode,
 } from "../lib/orders";
 import { API_BASE_URL } from "../lib/constants";
@@ -11,6 +13,15 @@ import useOrderDetailsActions from "../hooks/useOrderDetailsActions";
 
 const REVIEW_COMMENT_MAX_LENGTH = 300;
 const COMPLAINT_MAX_LENGTH = 1000;
+
+function formatDateTime(value) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("ru-RU");
+}
 
 function SectionCard({ title, subtitle = "", children, className = "" }) {
   return (
@@ -85,6 +96,8 @@ export default function OrderDetails({
     isSubmittingReview,
     showComplaintForm,
     setShowComplaintForm,
+    complaintReason,
+    setComplaintReason,
     complaintText,
     isSubmittingComplaint,
     complaintSubmitted,
@@ -97,6 +110,7 @@ export default function OrderDetails({
     handleSubmitComplaint,
     showReviewForm,
     canComplain,
+    hasActiveComplaint,
   } = useOrderDetailsActions({
     selectedOrder,
     onStatusChange,
@@ -132,6 +146,14 @@ export default function OrderDetails({
   if (!selectedOrder) return null;
 
   const copiedPhone = copiedPhoneOrderId === selectedOrder.id;
+  const complaints = Array.isArray(selectedOrder.complaints)
+    ? selectedOrder.complaints
+    : [];
+  const isPaymentCancelled =
+    selectedOrder.payout_status === "refunded_to_client";
+  const activeComplaint = complaints.find((item) =>
+    PAYMENT_BLOCKING_COMPLAINT_STATUSES.includes(item.status),
+  );
   const statusSteps = ORDER_PROGRESS_STEPS;
   const currentIndex = statusSteps.findIndex(
     (step) => step.key === selectedOrder.status,
@@ -506,8 +528,8 @@ export default function OrderDetails({
 
                 {canComplain && (
                   <SectionCard
-                    title="Проблема с заказом"
-                    subtitle="Если возникла проблема, отправьте жалобу администратору"
+                    title="Открыть спор по заказу"
+                    subtitle="Опишите проблему, чтобы администратор мог принять решение"
                     className="border-red-200 bg-red-50/60"
                   >
                     <div className="space-y-4">
@@ -520,8 +542,27 @@ export default function OrderDetails({
                         </ActionButton>
                       ) : (
                         <div className="space-y-3">
+                          <div className="rounded-3xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">
+                            Пока спор открыт, оплата по заказу будет временно
+                            заблокирована до решения администратора.
+                          </div>
+
+                          <select
+                            value={complaintReason}
+                            onChange={(event) =>
+                              setComplaintReason(event.target.value)
+                            }
+                            className="min-h-[52px] w-full rounded-3xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-[#25302c] outline-none transition focus:border-red-400 sm:text-base"
+                          >
+                            {COMPLAINT_REASONS.map((item) => (
+                              <option key={item.value} value={item.value}>
+                                {item.label}
+                              </option>
+                            ))}
+                          </select>
+
                           <textarea
-                            placeholder="Опишите проблему: например, мастер не приехал, был грубым, сломал мебель, сделал некачественно и т.д."
+                            placeholder="Опишите ситуацию подробно: что произошло, когда, какая сумма или работа вызвала спор."
                             value={complaintText}
                             onChange={handleComplaintChange}
                             maxLength={COMPLAINT_MAX_LENGTH}
@@ -564,6 +605,86 @@ export default function OrderDetails({
                   </SectionCard>
                 )}
 
+                {complaints.length > 0 && (
+                  <SectionCard
+                    title="История спора"
+                    subtitle="Здесь остаются причина, статус и решение администратора"
+                    className={
+                      activeComplaint
+                        ? "border-orange-200 bg-orange-50/50"
+                        : "bg-[#fcfdfc]"
+                    }
+                  >
+                    <div className="space-y-4">
+                      {activeComplaint && (
+                        <div className="rounded-3xl border border-orange-200 bg-white p-4 text-sm font-semibold text-orange-800">
+                          Оплата заблокирована: спор сейчас в статусе{" "}
+                          {activeComplaint.status_label ||
+                            activeComplaint.status}
+                          .
+                        </div>
+                      )}
+
+                      {complaints.map((complaint) => (
+                        <div
+                          key={complaint.id}
+                          className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full border border-[#dbe9d7] bg-[#f8fcf7] px-3 py-1 text-xs font-semibold text-[#5e8d58]">
+                              {complaint.reason_label || "Другое"}
+                            </span>
+                            <span className="rounded-full border border-gray-200 bg-[#fbfcfb] px-3 py-1 text-xs font-semibold text-gray-600">
+                              {complaint.status_label || complaint.status}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 break-words text-sm leading-6 text-gray-700 [overflow-wrap:anywhere]">
+                            {complaint.text}
+                          </p>
+
+                          {complaint.resolution_label && (
+                            <div className="mt-3 rounded-3xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">
+                              Решение: {complaint.resolution_label}
+                            </div>
+                          )}
+
+                          {complaint.admin_comment && (
+                            <div className="mt-3 rounded-3xl border border-gray-200 bg-[#fbfcfb] p-4 text-sm text-gray-700">
+                              <span className="font-semibold text-[#25302c]">
+                                Комментарий администратора:
+                              </span>{" "}
+                              {complaint.admin_comment}
+                            </div>
+                          )}
+
+                          <div className="mt-3 text-xs font-medium text-gray-500">
+                            Создано: {formatDateTime(complaint.created_at)}
+                          </div>
+
+                          {Array.isArray(complaint.history) &&
+                            complaint.history.length > 0 && (
+                              <div className="mt-4 space-y-2">
+                                {complaint.history.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="rounded-2xl border border-gray-100 bg-[#fbfcfb] p-3 text-xs text-gray-600"
+                                  >
+                                    <span className="font-semibold text-[#25302c]">
+                                      {item.status_label || item.status}
+                                    </span>{" "}
+                                    · {formatDateTime(item.created_at)}
+                                    {item.comment ? ` · ${item.comment}` : ""}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                        </div>
+                      ))}
+                    </div>
+                  </SectionCard>
+                )}
+
                 {selectedOrder.status === ORDER_STATUSES.COMPLETED && (
                   <SectionCard
                     title="Оплата"
@@ -578,12 +699,34 @@ export default function OrderDetails({
                         </p>
                       </div>
 
+                      {hasActiveComplaint && (
+                        <div className="rounded-3xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-orange-800">
+                          Оплата временно заблокирована до решения
+                          администратора по открытому спору.
+                        </div>
+                      )}
+
+                      {isPaymentCancelled && (
+                        <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                          Оплата по этому заказу отменена решением
+                          администратора.
+                        </div>
+                      )}
+
                       <ActionButton
                         onClick={handlePay}
-                        disabled={isPaying}
+                        disabled={
+                          isPaying || hasActiveComplaint || isPaymentCancelled
+                        }
                         variant="primary"
                       >
-                        {isPaying ? "Оплата..." : "Оплатить"}
+                        {isPaymentCancelled
+                          ? "Оплата отменена"
+                          : hasActiveComplaint
+                          ? "Оплата заблокирована"
+                          : isPaying
+                            ? "Оплата..."
+                            : "Оплатить"}
                       </ActionButton>
                     </div>
                   </SectionCard>

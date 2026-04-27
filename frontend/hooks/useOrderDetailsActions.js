@@ -6,6 +6,8 @@ import {
   createReviewRequest,
   createComplaintRequest,
   ORDER_STATUSES,
+  COMPLAINT_REASONS,
+  PAYMENT_BLOCKING_COMPLAINT_STATUSES,
 } from "../lib/orders";
 
 const REVIEW_COMMENT_MAX_LENGTH = 300;
@@ -24,6 +26,9 @@ export default function useOrderDetailsActions({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const [showComplaintForm, setShowComplaintForm] = useState(false);
+  const [complaintReason, setComplaintReason] = useState(
+    COMPLAINT_REASONS[0]?.value || "other",
+  );
   const [complaintText, setComplaintText] = useState("");
   const [isSubmittingComplaint, setIsSubmittingComplaint] = useState(false);
   const [complaintSubmitted, setComplaintSubmitted] = useState(false);
@@ -33,6 +38,7 @@ export default function useOrderDetailsActions({
     setRating(0);
     setComment("");
     setShowComplaintForm(false);
+    setComplaintReason(COMPLAINT_REASONS[0]?.value || "other");
     setComplaintText("");
     setComplaintSubmitted(false);
     setProcessingOfferId(null);
@@ -136,13 +142,29 @@ export default function useOrderDetailsActions({
     try {
       setIsSubmittingComplaint(true);
 
-      await createComplaintRequest({
+      const complaint = await createComplaintRequest({
         orderId: selectedOrder.id,
+        reason: complaintReason,
         text: complaintText.trim(),
+      });
+
+      onStatusChange({
+        ...selectedOrder,
+        active_payment_blocking_complaint:
+          complaint.payment_blocked === undefined
+            ? PAYMENT_BLOCKING_COMPLAINT_STATUSES.includes(complaint.status)
+            : complaint.payment_blocked,
+        complaints: [
+          complaint,
+          ...(Array.isArray(selectedOrder.complaints)
+            ? selectedOrder.complaints
+            : []),
+        ],
       });
 
       setComplaintSubmitted(true);
       setShowComplaintForm(false);
+      setComplaintReason(COMPLAINT_REASONS[0]?.value || "other");
       setComplaintText("");
       alert("Жалоба отправлена администратору");
     } catch (error) {
@@ -158,12 +180,27 @@ export default function useOrderDetailsActions({
     !selectedOrder?.reviewed &&
     !submitted;
 
+  const hasActiveComplaintStatus = Array.isArray(selectedOrder?.complaints)
+    ? selectedOrder.complaints.some((item) =>
+        PAYMENT_BLOCKING_COMPLAINT_STATUSES.includes(item.status),
+      )
+    : false;
+
+  const hasActiveComplaint = Array.isArray(selectedOrder?.complaints)
+    ? selectedOrder.complaints.some((item) =>
+        item.payment_blocked === undefined
+          ? PAYMENT_BLOCKING_COMPLAINT_STATUSES.includes(item.status)
+          : item.payment_blocked,
+      )
+    : Boolean(selectedOrder?.active_payment_blocking_complaint);
+
   const canComplain =
-    selectedOrder?.status === ORDER_STATUSES.ASSIGNED ||
-    selectedOrder?.status === ORDER_STATUSES.ON_THE_WAY ||
-    selectedOrder?.status === ORDER_STATUSES.ON_SITE ||
-    selectedOrder?.status === ORDER_STATUSES.COMPLETED ||
-    selectedOrder?.status === ORDER_STATUSES.PAID;
+    !hasActiveComplaintStatus &&
+    (selectedOrder?.status === ORDER_STATUSES.ASSIGNED ||
+      selectedOrder?.status === ORDER_STATUSES.ON_THE_WAY ||
+      selectedOrder?.status === ORDER_STATUSES.ON_SITE ||
+      selectedOrder?.status === ORDER_STATUSES.COMPLETED ||
+      selectedOrder?.status === ORDER_STATUSES.PAID);
 
   return {
     rating,
@@ -177,6 +214,8 @@ export default function useOrderDetailsActions({
     isSubmittingReview,
     showComplaintForm,
     setShowComplaintForm,
+    complaintReason,
+    setComplaintReason,
     complaintText,
     isSubmittingComplaint,
     complaintSubmitted,
@@ -191,5 +230,6 @@ export default function useOrderDetailsActions({
 
     showReviewForm,
     canComplain,
+    hasActiveComplaint,
   };
 }

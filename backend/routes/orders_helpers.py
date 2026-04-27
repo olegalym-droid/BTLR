@@ -8,6 +8,14 @@ from schemas import (
     OrderResponse,
     OrderOfferResponse,
     OfferMasterResponse,
+    ComplaintSummaryResponse,
+    ComplaintHistoryResponse,
+)
+from complaint_constants import (
+    ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES,
+    get_complaint_reason_label,
+    get_complaint_resolution_label,
+    get_complaint_status_label,
 )
 
 MAX_ORDER_PHOTOS = 4
@@ -69,6 +77,77 @@ def build_order_response(
             )
         )
 
+    complaint_items = sorted(
+        order.complaints or [],
+        key=lambda item: (item.created_at or datetime.min, item.id or 0),
+        reverse=True,
+    )
+    complaints = []
+    active_payment_blocking_complaint = False
+
+    for complaint in complaint_items:
+        is_payment_blocking = (
+            complaint.payment_blocked
+            and complaint.status in ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES
+        )
+        active_payment_blocking_complaint = (
+            active_payment_blocking_complaint or is_payment_blocking
+        )
+
+        history = [
+            ComplaintHistoryResponse(
+                id=history_item.id,
+                status=history_item.status,
+                status_label=get_complaint_status_label(history_item.status),
+                resolution=history_item.resolution,
+                resolution_label=get_complaint_resolution_label(
+                    history_item.resolution,
+                ),
+                comment=history_item.comment,
+                actor=history_item.actor,
+                created_at=(
+                    history_item.created_at.isoformat()
+                    if history_item.created_at
+                    else None
+                ),
+            )
+            for history_item in (complaint.history or [])
+        ]
+
+        complaints.append(
+            ComplaintSummaryResponse(
+                id=complaint.id,
+                order_id=complaint.order_id,
+                reason=complaint.reason or "other",
+                reason_label=get_complaint_reason_label(complaint.reason),
+                text=complaint.text,
+                status=complaint.status,
+                status_label=get_complaint_status_label(complaint.status),
+                resolution=complaint.resolution,
+                resolution_label=get_complaint_resolution_label(
+                    complaint.resolution,
+                ),
+                admin_comment=complaint.admin_comment,
+                payment_blocked=is_payment_blocking,
+                created_at=(
+                    complaint.created_at.isoformat()
+                    if complaint.created_at
+                    else None
+                ),
+                updated_at=(
+                    complaint.updated_at.isoformat()
+                    if complaint.updated_at
+                    else None
+                ),
+                resolved_at=(
+                    complaint.resolved_at.isoformat()
+                    if complaint.resolved_at
+                    else None
+                ),
+                history=history,
+            )
+        )
+
     return OrderResponse(
         id=order.id,
         user_id=order.user_id,
@@ -85,10 +164,13 @@ def build_order_response(
         user_phone=order.user.phone if order.user else None,
         price=order.price,
         client_price=order.client_price,
+        payout_status=order.payout_status,
         reviewed=reviewed,
         offers=offers,
         photos=order.photos,
         report_photos=order.report_photos,
+        complaints=complaints,
+        active_payment_blocking_complaint=active_payment_blocking_complaint,
     )
 
 
