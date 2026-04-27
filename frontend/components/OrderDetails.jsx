@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   COMPLAINT_REASONS,
   ORDER_PROGRESS_STEPS,
@@ -10,6 +10,7 @@ import {
 } from "../lib/orders";
 import { API_BASE_URL } from "../lib/constants";
 import useOrderDetailsActions from "../hooks/useOrderDetailsActions";
+import ChatModal from "./chat/ChatModal";
 
 const REVIEW_COMMENT_MAX_LENGTH = 300;
 const COMPLAINT_MAX_LENGTH = 1000;
@@ -118,6 +119,7 @@ export default function OrderDetails({
 
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [copiedPhoneOrderId, setCopiedPhoneOrderId] = useState(null);
+  const [isMasterChatOpen, setIsMasterChatOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -143,6 +145,14 @@ export default function OrderDetails({
     return () => mobileQuery.removeListener(updateDeviceState);
   }, []);
 
+  const masterChatStartRequest = useMemo(
+    () => ({
+      conversationType: "order",
+      orderId: selectedOrder?.id || null,
+    }),
+    [selectedOrder?.id],
+  );
+
   if (!selectedOrder) return null;
 
   const copiedPhone = copiedPhoneOrderId === selectedOrder.id;
@@ -159,20 +169,13 @@ export default function OrderDetails({
     (step) => step.key === selectedOrder.status,
   );
 
-  const canContactMaster =
+  const canChatMaster =
     Boolean(selectedOrder.master_id) &&
-    Boolean(selectedOrder.master_phone) &&
     selectedOrder.status !== ORDER_STATUSES.SEARCHING &&
     selectedOrder.status !== ORDER_STATUSES.PENDING_USER_CONFIRMATION;
 
   const normalizedPhone = String(selectedOrder.master_phone || "").trim();
-  const whatsappPhone = normalizedPhone.replace(/[^\d]/g, "");
-  const whatsappUrl =
-    whatsappPhone.length >= 10 ? `https://wa.me/${whatsappPhone}` : null;
-  const messageLinkHref = whatsappUrl || `tel:${normalizedPhone}`;
-  const messageLinkLabel = whatsappUrl
-    ? "Написать мастеру"
-    : "Связаться с мастером";
+  const hasMasterPhone = Boolean(normalizedPhone);
 
   const handleCopyPhone = async () => {
     if (!normalizedPhone) return;
@@ -383,36 +386,39 @@ export default function OrderDetails({
                       </div>
                     )}
 
-                    {canContactMaster && (
+                    {canChatMaster && (
                       <div className="space-y-3 pt-2">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <a
-                            href={messageLinkHref}
-                            target={whatsappUrl ? "_blank" : undefined}
-                            rel={whatsappUrl ? "noreferrer" : undefined}
+                          <button
+                            type="button"
+                            onClick={() => setIsMasterChatOpen(true)}
                             className="flex w-full items-center justify-center rounded-2xl bg-[#7fb276] px-4 py-3.5 text-center text-sm font-semibold text-white transition hover:bg-[#6ea765] sm:text-base"
                           >
-                            {messageLinkLabel}
-                          </a>
+                            Написать мастеру
+                          </button>
 
-                          {isMobileDevice ? (
+                          {hasMasterPhone && isMobileDevice ? (
                             <a
                               href={`tel:${normalizedPhone}`}
                               className="flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3.5 text-center text-sm font-semibold text-[#25302c] transition hover:bg-gray-50 sm:text-base"
                             >
                               Позвонить мастеру
                             </a>
-                          ) : (
+                          ) : hasMasterPhone ? (
                             <ActionButton
                               onClick={handleCopyPhone}
                               variant="secondary"
                             >
                               {copiedPhone ? "Номер скопирован" : "Скопировать номер"}
                             </ActionButton>
+                          ) : (
+                            <div className="flex w-full items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-3.5 text-center text-sm font-semibold text-gray-400 sm:text-base">
+                              Телефон не указан
+                            </div>
                           )}
                         </div>
 
-                        {!isMobileDevice && (
+                        {!isMobileDevice && hasMasterPhone && (
                           <div className="rounded-3xl border border-gray-200 bg-white p-4">
                             <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
                               Телефон мастера
@@ -823,6 +829,15 @@ export default function OrderDetails({
           />
         </div>
       )}
+
+      <ChatModal
+        isOpen={isMasterChatOpen}
+        onClose={() => setIsMasterChatOpen(false)}
+        viewerRole="user"
+        accountId={selectedOrder.user_id}
+        startRequest={masterChatStartRequest}
+        title="Чат с мастером"
+      />
     </>
   );
 }

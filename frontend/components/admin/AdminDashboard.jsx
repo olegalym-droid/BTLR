@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   LogOut,
+  MessageCircle,
   Search,
   Shield,
   UserRound,
@@ -9,6 +10,7 @@ import {
 import AdminMastersSection from "./AdminMastersSection";
 import AdminComplaintsSection from "./AdminComplaintsSection";
 import AdminWithdrawalsSection from "./AdminWithdrawalsSection";
+import ChatCenter from "../chat/ChatCenter";
 import { API_BASE_URL } from "../../lib/constants";
 import { getAdminHeaders } from "../../lib/admin";
 
@@ -52,6 +54,7 @@ const TAB_ITEMS = [
   { id: "complaints", label: "Жалобы", icon: Shield },
   { id: "withdrawals", label: "Выводы", icon: WalletCards },
   { id: "accounts", label: "Поиск аккаунтов", icon: Search },
+  { id: "chats", label: "Чаты", icon: MessageCircle },
 ];
 
 function formatDateTime(value) {
@@ -330,7 +333,7 @@ export default function AdminDashboard({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 rounded-[28px] border border-gray-200 bg-white p-2 shadow-[0_14px_42px_rgba(15,23,42,0.07)] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 rounded-[28px] border border-gray-200 bg-white p-2 shadow-[0_14px_42px_rgba(15,23,42,0.07)] sm:grid-cols-2 lg:grid-cols-5">
         {TAB_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -384,6 +387,8 @@ export default function AdminDashboard({
           updateWithdrawalStatus={updateWithdrawalStatus}
         />
       )}
+
+      {activeTab === "chats" && <ChatCenter viewerRole="admin" />}
 
       {activeTab === "accounts" && (
         <div className="space-y-6">

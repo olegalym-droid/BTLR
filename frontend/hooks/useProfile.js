@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DEFAULT_PROFILE, EMPTY_ADDRESS_FORM } from "../lib/constants";
 import {
   getStoredProfile,
@@ -22,11 +22,11 @@ export default function useProfile() {
     return () => clearTimeout(timer);
   }, [profileSaved]);
 
-  const syncProfileFromStorage = () => {
+  const syncProfileFromStorage = useCallback(() => {
     const storedProfile = getStoredProfile();
     setProfile(storedProfile);
     setAddress(getPrimaryAddressFromProfile(storedProfile));
-  };
+  }, []);
 
   const saveProfile = () => {
     saveStoredProfile(profile);
@@ -114,7 +114,7 @@ export default function useProfile() {
   };
 
   const resetProfileState = () => {
-    setProfile(DEFAULT_PROFILE);
+    setProfile({ ...DEFAULT_PROFILE, addresses: [] });
     setNewAddressForm(EMPTY_ADDRESS_FORM);
     setAddress("");
     setProfileSaved(false);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminLoginRequest } from "../lib/admin";
+import { clearAuthData } from "../lib/auth";
 import useAdminData from "./useAdminData";
 
 export default function useAdminCabinet({ onLogout }) {
@@ -29,6 +30,12 @@ export default function useAdminCabinet({ onLogout }) {
     if (typeof window === "undefined") {
       return;
     }
+
+    clearAuthData("user");
+    clearAuthData("master");
+
+    window.localStorage.removeItem("app_selected_role");
+    window.localStorage.removeItem("app_active_tab");
 
     window.sessionStorage.setItem("admin_login", adminLogin);
     window.sessionStorage.setItem("admin_password", adminPassword);
@@ -167,8 +174,14 @@ export default function useAdminCabinet({ onLogout }) {
       } catch (error) {
         if (!isMounted) return;
 
-        clearAdminSession();
-        setIsLoggedIn(false);
+        console.warn("Не удалось автоматически загрузить админку:", error);
+        saveAdminSession(stored.login, stored.password);
+        setLogin(stored.login);
+        setPassword(stored.password);
+        setIsLoggedIn(true);
+        setSuccessText(
+          "Данные админки временно не загрузились. Сессия сохранена, обновите страницу после запуска сервера.",
+        );
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -188,6 +201,7 @@ export default function useAdminCabinet({ onLogout }) {
     loadPendingMasters,
     loadWithdrawalRequests,
     saveAdminSession,
+    setSuccessText,
   ]);
 
   const logout = () => {

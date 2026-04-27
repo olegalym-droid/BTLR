@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   ClipboardList,
+  MessageCircle,
   User,
   Wallet,
 } from "lucide-react";
@@ -8,6 +9,7 @@ import MasterProfileSection from "./MasterProfileSection";
 import MasterWalletSection from "./MasterWalletSection";
 import MasterScheduleSection from "./MasterScheduleSection";
 import MasterOrdersTabsSection from "./MasterOrdersTabsSection";
+import ChatCenter from "../chat/ChatCenter";
 
 const SECTIONS = [
   {
@@ -30,12 +32,17 @@ const SECTIONS = [
     label: "Кошелёк",
     icon: Wallet,
   },
+  {
+    key: "chats",
+    label: "Чаты",
+    icon: MessageCircle,
+  },
 ];
 
 function SectionTabs({ activeSection, setActiveSection }) {
   return (
     <nav className="rounded-[28px] border border-gray-200 bg-white p-2 shadow-sm">
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         {SECTIONS.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.key;
@@ -202,6 +209,10 @@ export default function MasterDashboard({
 
         {activeSection === "wallet" && (
           <MasterWalletSection masterProfile={masterProfile} />
+        )}
+
+        {activeSection === "chats" && (
+          <ChatCenter viewerRole="master" accountId={masterProfile?.id} />
         )}
       </div>
 

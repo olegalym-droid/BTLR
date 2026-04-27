@@ -4,6 +4,7 @@ import {
   ChevronRight,
   House,
   MapPin,
+  MessageCircle,
   Phone,
   PlusCircle,
   Save,
@@ -16,6 +17,7 @@ import {
 import { API_BASE_URL } from "../../lib/constants";
 import { getStoredAuthUser } from "../../lib/auth";
 import { formatPublicOrderCode } from "../../lib/orders";
+import ChatModal from "../chat/ChatModal";
 
 const NOTIFICATIONS_PREF_KEY = "user_notifications_enabled";
 
@@ -231,6 +233,7 @@ export default function ProfileScreen({
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] =
     useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [isAdminChatOpen, setIsAdminChatOpen] = useState(false);
 
   const intervalRef = useRef(null);
 
@@ -238,6 +241,12 @@ export default function ProfileScreen({
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.is_read).length,
     [notifications],
+  );
+  const adminChatStartRequest = useMemo(
+    () => ({
+      conversationType: "admin",
+    }),
+    [],
   );
 
   useEffect(() => {
@@ -532,6 +541,35 @@ export default function ProfileScreen({
         </div>
 
         <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#f1f5ee] text-[#72a06d]">
+                <MessageCircle size={24} />
+              </div>
+
+              <div>
+                <h2 className="text-2xl font-bold text-[#25302c]">
+                  Чат с администратором
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Напишите администратору внутри приложения, без перехода в WhatsApp
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAdminChatOpen(true)}
+              disabled={!authUser?.id}
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#7fb276] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#6fa565] disabled:opacity-60"
+            >
+              <MessageCircle size={18} />
+              Открыть чат
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-bold text-[#25302c]">Личные данные</h2>
 
           <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -714,6 +752,15 @@ export default function ProfileScreen({
           )}
         </div>
       </div>
+
+      <ChatModal
+        isOpen={isAdminChatOpen}
+        onClose={() => setIsAdminChatOpen(false)}
+        viewerRole="user"
+        accountId={authUser?.id}
+        startRequest={adminChatStartRequest}
+        title="Чат с администратором"
+      />
 
       {isNotificationsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">

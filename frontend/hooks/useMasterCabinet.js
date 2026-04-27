@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import useMasterAuth from "./useMasterAuth";
 import useMasterSession from "./useMasterSession";
 import useMasterData from "./useMasterData";
@@ -8,6 +8,7 @@ export default function useMasterCabinet({ onLogout }) {
   const session = useMasterSession();
   const auth = useMasterAuth();
   const data = useMasterData();
+  const [startupError, setStartupError] = useState("");
 
   const {
     isLoggedIn,
@@ -118,14 +119,45 @@ export default function useMasterCabinet({ onLogout }) {
   useEffect(() => {
     const authUser = loadStoredMaster();
 
-    if (authUser?.id) {
-      loadMasterData(authUser.id)
-        .then(() => setIsLoggedIn(true))
-        .catch((error) =>
-          alert(error.message || "Не удалось загрузить кабинет мастера"),
-        );
+    if (!authUser?.id) {
+      return;
     }
-  }, [loadMasterData, loadStoredMaster, setIsLoggedIn]);
+
+    let isMounted = true;
+
+    loadMasterData(authUser.id)
+      .then(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setStartupError("");
+        setIsLoggedIn(true);
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+
+        console.warn("Не удалось загрузить кабинет мастера:", error);
+        setStartupError(
+          error.message || "Не удалось загрузить кабинет мастера",
+        );
+        setSuccessText(
+          "Кабинет временно не загрузился. Сессия сохранена, попробуйте обновить страницу.",
+        );
+        setIsLoggedIn(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    loadMasterData,
+    loadStoredMaster,
+    setIsLoggedIn,
+    setSuccessText,
+  ]);
 
   return {
     // auth
@@ -190,6 +222,7 @@ export default function useMasterCabinet({ onLogout }) {
     hasUploadedAllDocuments,
 
     successText,
+    startupError,
     openedPhoto,
     setOpenedPhoto,
 

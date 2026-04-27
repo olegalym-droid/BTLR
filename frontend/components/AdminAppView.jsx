@@ -1,6 +1,11 @@
 import AdminDashboard from "./admin/AdminDashboard";
+import AdminLogin from "./admin/AdminLogin";
 
 export default function AdminAppView({
+  login,
+  setLogin,
+  password,
+  setPassword,
   isLoggedIn,
   pendingMasters,
   selectedMaster,
@@ -9,13 +14,24 @@ export default function AdminAppView({
   withdrawalRequests,
   successText,
   handleApproveMaster,
+  handleLogin,
   isLoading,
   updateComplaintStatus,
   updateWithdrawalStatus,
   logout,
 }) {
   if (!isLoggedIn) {
-    return null;
+    return (
+      <AdminLogin
+        login={login}
+        setLogin={setLogin}
+        password={password}
+        setPassword={setPassword}
+        handleLogin={handleLogin}
+        isLoading={isLoading}
+        onBack={() => window.location.replace("/")}
+      />
+    );
   }
 
   return (

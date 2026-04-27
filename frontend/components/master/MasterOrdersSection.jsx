@@ -18,6 +18,7 @@ import {
 import { getStatusLabel, ORDER_STATUSES } from "../../lib/orders";
 import { API_BASE_URL } from "../../lib/constants";
 import MasterOrderPhotos from "./MasterOrderPhotos";
+import ChatModal from "../chat/ChatModal";
 
 const ITEMS_PER_PAGE = 3;
 const MAX_REPORT_PHOTOS = 8;
@@ -67,6 +68,7 @@ export default function MasterOrdersSection({
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [copiedPhonesByOrder, setCopiedPhonesByOrder] = useState({});
+  const [activeChatOrder, setActiveChatOrder] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -101,6 +103,14 @@ export default function MasterOrdersSection({
         safeCurrentPage * ITEMS_PER_PAGE,
       ),
     [masterOrders, safeCurrentPage],
+  );
+
+  const activeChatStartRequest = useMemo(
+    () => ({
+      conversationType: "order",
+      orderId: activeChatOrder?.id || null,
+    }),
+    [activeChatOrder?.id],
   );
 
   const handleRefresh = async () => {
@@ -177,15 +187,7 @@ export default function MasterOrdersSection({
   const renderClientContactBlock = (order) => {
     const normalizedPhone = String(order.user_phone || "").trim();
 
-    if (!normalizedPhone) return null;
-
-    const whatsappPhone = normalizedPhone.replace(/[^\d]/g, "");
-    const whatsappUrl =
-      whatsappPhone.length >= 10 ? `https://wa.me/${whatsappPhone}` : null;
-    const messageLinkHref = whatsappUrl || `tel:${normalizedPhone}`;
-    const messageLinkLabel = whatsappUrl
-      ? "Написать клиенту"
-      : "Связаться с клиентом";
+    const hasClientPhone = Boolean(normalizedPhone);
 
     return (
       <div className="rounded-[28px] border border-gray-200 bg-gradient-to-br from-[#fbfdfb] to-white p-5 shadow-sm">
@@ -205,17 +207,16 @@ export default function MasterOrdersSection({
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <a
-            href={messageLinkHref}
-            target={whatsappUrl ? "_blank" : undefined}
-            rel={whatsappUrl ? "noreferrer" : undefined}
+          <button
+            type="button"
+            onClick={() => setActiveChatOrder(order)}
             className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl bg-[#151c23] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-black"
           >
             <MessageCircle size={20} />
-            {messageLinkLabel}
-          </a>
+            Написать клиенту
+          </button>
 
-          {isMobileDevice ? (
+          {hasClientPhone && isMobileDevice ? (
             <a
               href={`tel:${normalizedPhone}`}
               className="flex min-h-[56px] items-center justify-center gap-2 rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-bold text-[#26312c] transition hover:bg-[#f7faf6]"
@@ -223,7 +224,7 @@ export default function MasterOrdersSection({
               <Phone size={20} />
               Позвонить клиенту
             </a>
-          ) : (
+          ) : hasClientPhone ? (
             <button
               type="button"
               onClick={() => handleCopyPhone(order.id, normalizedPhone)}
@@ -234,10 +235,14 @@ export default function MasterOrdersSection({
                 ? "Номер скопирован"
                 : "Скопировать номер"}
             </button>
+          ) : (
+            <div className="flex min-h-[56px] items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-white px-5 py-3 text-sm font-bold text-gray-500">
+              Телефон не указан
+            </div>
           )}
         </div>
 
-        {!isMobileDevice && (
+        {!isMobileDevice && hasClientPhone && (
           <div className="mt-4 flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f1f8f1] text-[#5f9557]">
               <Phone size={21} />
@@ -522,6 +527,7 @@ export default function MasterOrdersSection({
   };
 
   return (
+    <>
     <section className="rounded-[32px] border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -632,6 +638,15 @@ export default function MasterOrdersSection({
           )}
         </div>
       )}
+      <ChatModal
+        isOpen={Boolean(activeChatOrder)}
+        onClose={() => setActiveChatOrder(null)}
+        viewerRole="master"
+        accountId={masterProfile?.id}
+        startRequest={activeChatStartRequest}
+        title="Чат с клиентом"
+      />
     </section>
+    </>
   );
 }

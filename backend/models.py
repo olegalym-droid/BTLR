@@ -172,6 +172,13 @@ class Order(Base):
         foreign_keys="Notification.order_id",
     )
 
+    chat_conversations = relationship(
+        "ChatConversation",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        foreign_keys="ChatConversation.order_id",
+    )
+
 
 class OrderResponseOffer(Base):
     __tablename__ = "order_response_offers"
@@ -284,6 +291,54 @@ class Notification(Base):
 
     user = relationship("Account", back_populates="notifications", foreign_keys=[user_id])
     order = relationship("Order", back_populates="notifications", foreign_keys=[order_id])
+
+
+class ChatConversation(Base):
+    __tablename__ = "chat_conversations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_type = Column(String, nullable=False, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
+    master_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    order = relationship(
+        "Order",
+        back_populates="chat_conversations",
+        foreign_keys=[order_id],
+    )
+    user = relationship("Account", foreign_keys=[user_id])
+    master = relationship("Account", foreign_keys=[master_id])
+    messages = relationship(
+        "ChatMessage",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="ChatMessage.created_at",
+    )
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(
+        Integer,
+        ForeignKey("chat_conversations.id"),
+        nullable=False,
+        index=True,
+    )
+    sender_role = Column(String, nullable=False)
+    sender_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    text = Column(String, nullable=False)
+    is_read_by_user = Column(Boolean, nullable=False, default=False)
+    is_read_by_master = Column(Boolean, nullable=False, default=False)
+    is_read_by_admin = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    conversation = relationship("ChatConversation", back_populates="messages")
+    sender = relationship("Account", foreign_keys=[sender_account_id])
 
 
 class MasterSchedule(Base):

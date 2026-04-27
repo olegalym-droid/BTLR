@@ -1,10 +1,40 @@
 from pathlib import Path
 from uuid import uuid4
 
+from fastapi import HTTPException
 
-ORDERS_UPLOADS_DIR = Path("uploads/orders")
-MASTER_DOCS_UPLOADS_DIR = Path("uploads/master_docs")
-ORDER_REPORTS_UPLOADS_DIR = Path("uploads/order_reports")
+BASE_DIR = Path(__file__).resolve().parents[1]
+UPLOADS_DIR = BASE_DIR / "uploads"
+ORDERS_UPLOADS_DIR = UPLOADS_DIR / "orders"
+MASTER_DOCS_UPLOADS_DIR = UPLOADS_DIR / "master_docs"
+ORDER_REPORTS_UPLOADS_DIR = UPLOADS_DIR / "order_reports"
+
+ALLOWED_IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+
+def get_safe_image_suffix(filename: str) -> str:
+    suffix = Path(filename).suffix.lower() or ".jpg"
+
+    if suffix not in ALLOWED_IMAGE_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail="Можно загружать только изображения JPG, PNG или WEBP",
+        )
+
+    return suffix
+
+
+async def read_validated_upload_file(file) -> bytes:
+    content = await file.read()
+
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail="Файл слишком большой. Максимальный размер: 5 МБ",
+        )
+
+    return content
 
 
 async def save_order_photos(photos, order_id, db, OrderPhoto):
@@ -19,11 +49,11 @@ async def save_order_photos(photos, order_id, db, OrderPhoto):
         if not photo.filename:
             continue
 
-        suffix = Path(photo.filename).suffix or ".jpg"
+        suffix = get_safe_image_suffix(photo.filename)
         filename = f"{uuid4()}{suffix}"
         file_path = ORDERS_UPLOADS_DIR / filename
 
-        content = await photo.read()
+        content = await read_validated_upload_file(photo)
         file_path.write_bytes(content)
 
         order_photo = OrderPhoto(
@@ -52,11 +82,11 @@ async def save_order_report_photos(photos, order_id, master_id, db, OrderReportP
         if not photo.filename:
             continue
 
-        suffix = Path(photo.filename).suffix or ".jpg"
+        suffix = get_safe_image_suffix(photo.filename)
         filename = f"order_{order_id}_master_{master_id}_{uuid4()}{suffix}"
         file_path = ORDER_REPORTS_UPLOADS_DIR / filename
 
-        content = await photo.read()
+        content = await read_validated_upload_file(photo)
         file_path.write_bytes(content)
 
         report_photo = OrderReportPhoto(
@@ -79,11 +109,11 @@ async def save_master_document(file, prefix: str) -> str | None:
 
     MASTER_DOCS_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-    suffix = Path(file.filename).suffix or ".jpg"
+    suffix = get_safe_image_suffix(file.filename)
     filename = f"{prefix}_{uuid4()}{suffix}"
     file_path = MASTER_DOCS_UPLOADS_DIR / filename
 
-    content = await file.read()
+    content = await read_validated_upload_file(file)
     file_path.write_bytes(content)
 
     return f"uploads/master_docs/{filename}"

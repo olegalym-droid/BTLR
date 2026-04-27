@@ -108,17 +108,18 @@ export default function Home() {
         window.sessionStorage.getItem("admin_password") ||
         window.localStorage.getItem("admin_password");
 
-      if (masterAuth?.id && masterAuth.role === "master") {
-        window.location.replace("/master");
-        return;
-      }
-
       if (adminLogin && adminPassword) {
         window.location.replace("/admin");
         return;
       }
 
+      if (masterAuth?.id && masterAuth.role === "master") {
+        window.location.replace("/master");
+        return;
+      }
+
       if (userAuth?.id && userAuth.role === "user") {
+        syncProfileFromStorage();
         setIsAuthenticated(true);
         setSelectedRole("user");
         setIsBootChecking(false);
@@ -131,7 +132,7 @@ export default function Home() {
     };
 
     boot();
-  }, [setIsAuthenticated, setSelectedRole]);
+  }, [setIsAuthenticated, setSelectedRole, syncProfileFromStorage]);
 
   const handleAuthSuccess = () => {
     const authUser = getStoredAuthUser();

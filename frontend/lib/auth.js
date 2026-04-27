@@ -5,6 +5,8 @@ const AUTH_USER_KEY = "auth_user";
 const REMEMBER_LOGIN_KEY = "btlr_remember_login";
 const REMEMBER_LOGIN_ROLE_KEY = "btlr_remember_login_role";
 const REMEMBER_ADMIN_LOGIN_KEY = "btlr_remember_admin_login";
+const LEGACY_PROFILE_STORAGE_KEY = "resident_profile";
+const USER_PROFILE_STORAGE_PREFIX = "resident_profile_";
 
 const getRoleStorageKeys = (role) => {
   const normalizedRole = String(role || "").trim();
@@ -31,7 +33,65 @@ const readJson = (value, fallback = null) => {
   }
 };
 
-const clearRoleSession = (role) => {
+const createApiError = (message, options = {}) => {
+  const error = new Error(message);
+  error.status = options.status;
+  error.isNetworkError = Boolean(options.isNetworkError);
+  return error;
+};
+
+const readResponseJson = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+const normalizePhone = (value) => String(value || "").replace(/[^\d+]/g, "");
+
+const getUserProfileStorageKey = (id, phone = "") => {
+  const phonePart = normalizePhone(phone);
+  return phonePart
+    ? `${USER_PROFILE_STORAGE_PREFIX}${id}_${phonePart}`
+    : `${USER_PROFILE_STORAGE_PREFIX}${id}`;
+};
+
+const getLegacyUserProfileStorageKey = (id) =>
+  `${USER_PROFILE_STORAGE_PREFIX}${id}`;
+
+const normalizeUserProfile = (profile, { fullName = "", phone = "" } = {}) => {
+  const addresses = Array.isArray(profile?.addresses)
+    ? profile.addresses.filter((item) => String(item || "").trim())
+    : [];
+
+  const rawPrimaryIndex =
+    typeof profile?.primaryAddressIndex === "number"
+      ? profile.primaryAddressIndex
+      : 0;
+
+  const primaryAddressIndex =
+    addresses.length > 0
+      ? Math.min(Math.max(rawPrimaryIndex, 0), addresses.length - 1)
+      : 0;
+
+  return {
+    ...(profile || {}),
+    name: profile?.name || fullName || "",
+    phone: profile?.phone || phone || "",
+    addresses,
+    primaryAddressIndex,
+  };
+};
+
+const canUseLegacyUserProfile = (legacyProfile, phone) => {
+  const legacyPhone = normalizePhone(legacyProfile?.phone);
+  const currentPhone = normalizePhone(phone);
+
+  return Boolean(legacyPhone && currentPhone && legacyPhone === currentPhone);
+};
+
+const removeRoleSession = (role) => {
   if (typeof window === "undefined") {
     return;
   }
@@ -42,6 +102,59 @@ const clearRoleSession = (role) => {
   localStorage.removeItem(authUserKey);
   sessionStorage.removeItem(authFlagKey);
   sessionStorage.removeItem(authUserKey);
+};
+
+const removeLegacySession = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem(AUTH_FLAG_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+  sessionStorage.removeItem(AUTH_FLAG_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+};
+
+const clearAdminSession = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("admin_login");
+  localStorage.removeItem("admin_password");
+  sessionStorage.removeItem("admin_login");
+  sessionStorage.removeItem("admin_password");
+};
+
+const clearOtherSessionsForRole = (role) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (role === "user") {
+    removeRoleSession("master");
+    clearAdminSession();
+  }
+
+  if (role === "master") {
+    removeRoleSession("user");
+    clearAdminSession();
+  }
+
+  removeLegacySession();
+};
+
+const clearRoleSession = (role) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  removeRoleSession(role);
+  removeLegacySession();
+
+  if (role === "admin") {
+    clearAdminSession();
+  }
 };
 
 const getStoredRoleAuthUser = (role) => {
@@ -62,6 +175,30 @@ const getStoredRoleAuthUser = (role) => {
   }
 
   return null;
+};
+
+const updateStoredRoleAuthUser = (role, updates) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const { authUserKey } = getRoleStorageKeys(role);
+
+  [localStorage, sessionStorage].forEach((storage) => {
+    const currentUser = readJson(storage.getItem(authUserKey), null);
+
+    if (!currentUser) {
+      return;
+    }
+
+    storage.setItem(
+      authUserKey,
+      JSON.stringify({
+        ...currentUser,
+        ...updates,
+      }),
+    );
+  });
 };
 
 export const getStoredAuth = (role = "") => {
@@ -101,7 +238,7 @@ export const registerRequest = async ({
     }),
   });
 
-  const data = await response.json();
+  const data = await readResponseJson(response);
 
   if (!response.ok) {
     throw new Error(data.detail || "Ошибка регистрации");
@@ -142,6 +279,8 @@ export const saveAuthData = (
 
   const { authFlagKey, authUserKey } = getRoleStorageKeys(role);
 
+  clearOtherSessionsForRole(role);
+
   const targetStorage = rememberMe ? localStorage : sessionStorage;
   const otherStorage = rememberMe ? sessionStorage : localStorage;
 
@@ -159,39 +298,44 @@ export const saveAuthData = (
   targetStorage.setItem(authUserKey, JSON.stringify(normalizedUser));
 
   if (role === "user") {
-    const profileKey = `resident_profile_${id}`;
+    const profileKey = getUserProfileStorageKey(id, phone);
     const existingProfileRaw = localStorage.getItem(profileKey);
+    let profileToSave = readJson(existingProfileRaw, null);
 
-    let shouldResetProfile = false;
+    if (!profileToSave) {
+      const legacyProfileKey = getLegacyUserProfileStorageKey(id);
+      const legacyScopedProfile = readJson(
+        localStorage.getItem(legacyProfileKey),
+        null,
+      );
 
-    if (!existingProfileRaw) {
-      shouldResetProfile = true;
-    } else {
-      try {
-        const existingProfile = JSON.parse(existingProfileRaw);
-
-        const savedPhone = String(existingProfile?.phone || "").trim();
-        const currentPhone = String(phone || "").trim();
-
-        if (savedPhone !== currentPhone) {
-          shouldResetProfile = true;
-        }
-      } catch (error) {
-        shouldResetProfile = true;
+      if (canUseLegacyUserProfile(legacyScopedProfile, phone)) {
+        profileToSave = legacyScopedProfile;
+        localStorage.removeItem(legacyProfileKey);
       }
     }
 
-    if (shouldResetProfile) {
-      localStorage.setItem(
-        profileKey,
-        JSON.stringify({
-          name: full_name || "",
-          phone: phone || "",
-          addresses: [],
-          primaryAddressIndex: 0,
-        }),
+    if (!profileToSave) {
+      const legacyGlobalProfile = readJson(
+        localStorage.getItem(LEGACY_PROFILE_STORAGE_KEY),
+        null,
       );
+
+      if (canUseLegacyUserProfile(legacyGlobalProfile, phone)) {
+        profileToSave = legacyGlobalProfile;
+        localStorage.removeItem(LEGACY_PROFILE_STORAGE_KEY);
+      }
     }
+
+    localStorage.setItem(
+      profileKey,
+      JSON.stringify(
+        normalizeUserProfile(profileToSave, {
+          fullName: full_name || "",
+          phone: phone || "",
+        }),
+      ),
+    );
   }
 };
 
@@ -208,11 +352,8 @@ export const clearAuthData = (role = "") => {
   clearRoleSession("user");
   clearRoleSession("master");
   clearRoleSession("admin");
-
-  localStorage.removeItem(AUTH_FLAG_KEY);
-  localStorage.removeItem(AUTH_USER_KEY);
-  sessionStorage.removeItem(AUTH_FLAG_KEY);
-  sessionStorage.removeItem(AUTH_USER_KEY);
+  clearAdminSession();
+  removeLegacySession();
 };
 
 export const getStoredAuthUser = (role = "") => {
@@ -242,6 +383,21 @@ export const getStoredAuthUser = (role = "") => {
       return null;
     })()
   );
+};
+
+const getAuthorizedMasterId = (masterId) => {
+  const authMaster = getStoredAuthUser("master");
+  const resolvedMasterId = masterId || authMaster?.id;
+
+  if (!authMaster?.id || authMaster.role !== "master" || !resolvedMasterId) {
+    throw new Error("Master is not authenticated");
+  }
+
+  if (authMaster?.id && Number(resolvedMasterId) !== Number(authMaster.id)) {
+    throw new Error("Master session does not match this profile");
+  }
+
+  return resolvedMasterId;
 };
 
 export const saveRememberedLogin = ({
@@ -300,14 +456,23 @@ export const clearRememberedLogin = () => {
 };
 
 export const loadMasterProfileRequest = async (masterId) => {
-  const resolvedMasterId = masterId || getStoredAuthUser("master")?.id;
+  const resolvedMasterId = getAuthorizedMasterId(masterId);
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
   }
 
-  const response = await fetch(`${API_BASE_URL}/masters/${resolvedMasterId}`);
-  const data = await response.json();
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/masters/${resolvedMasterId}`);
+  } catch (error) {
+    throw createApiError(
+      error.message || "Не удалось связаться с сервером",
+      { isNetworkError: true },
+    );
+  }
+
+  const data = await readResponseJson(response);
 
   if (!response.ok) {
     throw new Error(data.detail || "Не удалось загрузить профиль мастера");
@@ -323,7 +488,7 @@ export const updateMasterProfileRequest = async ({
   experienceYears = "",
   workCity = "",
 }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser("master")?.id;
+  const resolvedMasterId = getAuthorizedMasterId(masterId);
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -333,10 +498,9 @@ export const updateMasterProfileRequest = async ({
 
   formData.append("full_name", fullName.trim());
   formData.append("about_me", aboutMe);
-  formData.append(
-    "experience_years",
-    experienceYears === "" ? "" : String(experienceYears),
-  );
+  if (String(experienceYears).trim() !== "") {
+    formData.append("experience_years", String(experienceYears));
+  }
   formData.append("work_city", workCity);
 
   const response = await fetch(
@@ -347,17 +511,21 @@ export const updateMasterProfileRequest = async ({
     },
   );
 
-  const data = await response.json();
+  const data = await readResponseJson(response);
 
   if (!response.ok) {
     throw new Error(data.detail || "Не удалось обновить профиль мастера");
   }
 
+  updateStoredRoleAuthUser("master", {
+    fullName: data.full_name || "",
+  });
+
   return data;
 };
 
 export const uploadMasterAvatarRequest = async ({ masterId, avatar }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser("master")?.id;
+  const resolvedMasterId = getAuthorizedMasterId(masterId);
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");
@@ -392,7 +560,7 @@ export const uploadMasterDocumentsRequest = async ({
   idCardBack,
   selfiePhoto,
 }) => {
-  const resolvedMasterId = masterId || getStoredAuthUser("master")?.id;
+  const resolvedMasterId = getAuthorizedMasterId(masterId);
 
   if (!resolvedMasterId) {
     throw new Error("Мастер не авторизован");

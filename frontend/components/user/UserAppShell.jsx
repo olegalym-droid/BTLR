@@ -40,6 +40,7 @@ export default function UserAppShell({
   onLogout,
 }) {
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   const {
     orderCreated,
@@ -94,7 +95,17 @@ export default function UserAppShell({
   }, [category]);
 
   useEffect(() => {
+    const authUser = getStoredAuthUser("user");
+
+    if (!authUser?.id || authUser.role !== "user") {
+      window.location.replace("/");
+      return;
+    }
+
     syncProfileFromStorage();
+
+    const timer = window.setTimeout(() => setIsAuthReady(true), 0);
+    return () => window.clearTimeout(timer);
   }, [syncProfileFromStorage]);
 
   useEffect(() => {
@@ -194,6 +205,10 @@ export default function UserAppShell({
 
     window.location.href = "/";
   };
+
+  if (!isAuthReady) {
+    return <main className="min-h-screen bg-gray-100" />;
+  }
 
   return (
     <main className="min-h-screen bg-gray-100">

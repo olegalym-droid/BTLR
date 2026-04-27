@@ -5,16 +5,16 @@ from pydantic import BaseModel, Field
 
 class RegisterRequest(BaseModel):
     role: str = Field(..., pattern="^(user|master)$")
-    phone: str
-    password: str
-    full_name: str | None = None
+    phone: str = Field(..., min_length=6, max_length=32)
+    password: str = Field(..., min_length=6, max_length=128)
+    full_name: str | None = Field(default=None, max_length=100)
     categories: Optional[list[str]] = None
 
 
 class LoginRequest(BaseModel):
     role: str = Field(..., pattern="^(user|master)$")
-    phone: str
-    password: str
+    phone: str = Field(..., min_length=6, max_length=32)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class AuthResponse(BaseModel):
@@ -41,13 +41,13 @@ class OrderReportPhotoResponse(BaseModel):
 
 
 class OrderCreateRequest(BaseModel):
-    user_id: int
-    category: str
-    service_name: str
-    description: str
-    address: str
-    scheduled_at: str
-    client_price: str | None = None
+    user_id: int = Field(..., gt=0)
+    category: str = Field(..., min_length=1, max_length=80)
+    service_name: str = Field(..., min_length=1, max_length=120)
+    description: str = Field(..., min_length=1, max_length=2000)
+    address: str = Field(..., min_length=1, max_length=300)
+    scheduled_at: str = Field(..., min_length=1, max_length=80)
+    client_price: str | None = Field(default=None, max_length=32)
 
 
 class MasterCategoryResponse(BaseModel):
@@ -83,7 +83,7 @@ class MasterProfileResponse(BaseModel):
     available_withdraw_amount: str | None = None
     frozen_balance_amount: str | None = None
 
-    master_categories: list[MasterCategoryResponse] = []
+    master_categories: list[MasterCategoryResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -141,7 +141,7 @@ class ComplaintSummaryResponse(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     resolved_at: str | None = None
-    history: list[ComplaintHistoryResponse] = []
+    history: list[ComplaintHistoryResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -165,10 +165,10 @@ class OrderResponse(BaseModel):
     client_price: str | None = None
     payout_status: str | None = None
     reviewed: bool = False
-    offers: list[OrderOfferResponse] = []
-    photos: list[OrderPhotoResponse] = []
-    report_photos: list[OrderReportPhotoResponse] = []
-    complaints: list[ComplaintSummaryResponse] = []
+    offers: list[OrderOfferResponse] = Field(default_factory=list)
+    photos: list[OrderPhotoResponse] = Field(default_factory=list)
+    report_photos: list[OrderReportPhotoResponse] = Field(default_factory=list)
+    complaints: list[ComplaintSummaryResponse] = Field(default_factory=list)
     active_payment_blocking_complaint: bool = False
 
     class Config:
@@ -176,10 +176,10 @@ class OrderResponse(BaseModel):
 
 
 class ComplaintCreateRequest(BaseModel):
-    order_id: int
-    user_id: int
-    reason: str
-    text: str
+    order_id: int = Field(..., gt=0)
+    user_id: int = Field(..., gt=0)
+    reason: str = Field(..., min_length=1, max_length=64)
+    text: str = Field(..., min_length=1, max_length=2000)
 
 
 class ComplaintOrderInfoResponse(BaseModel):
@@ -221,7 +221,7 @@ class ComplaintResponse(BaseModel):
     updated_at: str | None = None
     resolved_at: str | None = None
     order: ComplaintOrderInfoResponse | None = None
-    history: list[ComplaintHistoryResponse] = []
+    history: list[ComplaintHistoryResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -249,9 +249,9 @@ class MasterBalanceResponse(BaseModel):
 
 
 class MasterWithdrawalRequestCreate(BaseModel):
-    amount: str
-    card_number: str
-    card_holder_name: str
+    amount: str = Field(..., min_length=1, max_length=32)
+    card_number: str = Field(..., min_length=12, max_length=32)
+    card_holder_name: str = Field(..., min_length=2, max_length=100)
 
 
 class MasterWithdrawalRequestResponse(BaseModel):
@@ -266,3 +266,49 @@ class MasterWithdrawalRequestResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ChatStartRequest(BaseModel):
+    sender_role: str = Field(..., pattern="^(user|master)$")
+    sender_id: int = Field(..., gt=0)
+    conversation_type: str = Field(..., pattern="^(order|admin)$")
+    order_id: int | None = Field(default=None, gt=0)
+
+
+class AdminChatStartRequest(BaseModel):
+    target_role: str = Field(..., pattern="^(user|master)$")
+    target_account_id: int = Field(..., gt=0)
+
+
+class ChatMessageCreateRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+    sender_role: str | None = Field(default=None, pattern="^(user|master|admin)$")
+    sender_id: int | None = Field(default=None, gt=0)
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    conversation_id: int
+    sender_role: str
+    sender_account_id: int | None = None
+    text: str
+    is_own: bool = False
+    created_at: str
+
+
+class ChatConversationResponse(BaseModel):
+    id: int
+    conversation_type: str
+    title: str
+    subtitle: str | None = None
+    order_id: int | None = None
+    user_id: int | None = None
+    master_id: int | None = None
+    user_name: str | None = None
+    user_phone: str | None = None
+    master_name: str | None = None
+    master_phone: str | None = None
+    last_message: str | None = None
+    last_message_at: str | None = None
+    unread_count: int = 0
+    updated_at: str

@@ -17,6 +17,7 @@ from routes.complaints import router as complaints_router
 from routes.notifications import router as notifications_router
 from routes.schedules import router as schedules_router
 from routes.wallet import router as wallet_router
+from routes.chats import router as chats_router, admin_router as admin_chats_router
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -133,14 +134,7 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {
-            "ok": True,
-            "allowed_origins": get_allowed_origins(),
-            "admin_login_configured": bool(os.getenv("ADMIN_LOGIN")),
-            "admin_password_configured": bool(os.getenv("ADMIN_PASSWORD")),
-            "env_path": str(ENV_PATH),
-            "env_exists": ENV_PATH.exists(),
-        }
+        return {"ok": True}
 
     app.include_router(auth_router)
     app.include_router(orders_router)
@@ -151,6 +145,8 @@ def create_app() -> FastAPI:
     app.include_router(notifications_router)
     app.include_router(schedules_router)
     app.include_router(wallet_router)
+    app.include_router(chats_router)
+    app.include_router(admin_chats_router)
 
     return app
 

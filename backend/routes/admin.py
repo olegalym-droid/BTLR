@@ -1,8 +1,9 @@
 import os
 from datetime import datetime, time
+from hmac import compare_digest
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -59,18 +60,18 @@ ALLOWED_ORDER_STATUSES = {
 
 
 class AdminLoginRequest(BaseModel):
-    login: str
-    password: str
+    login: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=1, max_length=128)
 
 
 class ComplaintStatusUpdateRequest(BaseModel):
-    status: str | None = None
-    resolution: str | None = None
-    admin_comment: str | None = None
+    status: str | None = Field(default=None, max_length=32)
+    resolution: str | None = Field(default=None, max_length=64)
+    admin_comment: str | None = Field(default=None, max_length=1000)
 
 
 class WithdrawalStatusUpdateRequest(BaseModel):
-    status: str
+    status: str = Field(..., min_length=1, max_length=32)
 
 
 def get_admin_credentials() -> tuple[str, str]:
@@ -95,7 +96,10 @@ def verify_admin(
 ):
     admin_login, admin_password = get_admin_credentials()
 
-    if x_admin_login != admin_login or x_admin_password != admin_password:
+    is_login_valid = compare_digest(x_admin_login or "", admin_login)
+    is_password_valid = compare_digest(x_admin_password or "", admin_password)
+
+    if not is_login_valid or not is_password_valid:
         raise HTTPException(
             status_code=401,
             detail="Неверные данные администратора",
