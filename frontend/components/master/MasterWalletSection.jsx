@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   Banknote,
   CheckCircle2,
+  ClipboardList,
   CreditCard,
   Info,
+  Lock,
   RefreshCw,
   Send,
   ShieldCheck,
@@ -73,6 +76,31 @@ function getWithdrawalStatusClasses(status) {
   }
 
   return "border-yellow-200 bg-yellow-50 text-yellow-800";
+}
+
+function getOrderStatusLabel(status) {
+  const labels = {
+    searching: "Ищем мастера",
+    pending_user_confirmation: "Ожидает выбора",
+    assigned: "Мастер назначен",
+    on_the_way: "Мастер едет",
+    on_site: "Мастер на месте",
+    completed: "Работа выполнена",
+    paid: "Оплачено",
+  };
+
+  return labels[status] || status || "—";
+}
+
+function getPayoutStatusLabel(status) {
+  const labels = {
+    unpaid: "Не начислено",
+    frozen: "Заморожено",
+    available: "Доступно к выводу",
+    refunded_to_client: "Возврат клиенту",
+  };
+
+  return labels[status] || status || "—";
 }
 
 function detectCardInfo(cardNumber, cardBrand = "") {
@@ -179,6 +207,14 @@ export default function MasterWalletSection({ masterProfile }) {
       message: "Номер карты выглядит корректно",
     };
   }, [cardDigits]);
+
+  const frozenItems = useMemo(
+    () =>
+      Array.isArray(walletBalance?.frozen_items)
+        ? walletBalance.frozen_items
+        : [],
+    [walletBalance?.frozen_items],
+  );
 
   const loadWalletData = useCallback(async () => {
     if (!masterProfile?.id) {
@@ -371,6 +407,89 @@ export default function MasterWalletSection({ masterProfile }) {
                   </div>
                 </div>
               </div>
+
+              {frozenItems.length > 0 && (
+                <div className="rounded-3xl border border-orange-200 bg-white p-5">
+                  <div className="mb-4 flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                      <Lock size={20} />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-bold text-[#151c23]">
+                        Почему деньги заморожены
+                      </p>
+                      <p className="mt-1 text-xs font-semibold leading-5 text-gray-500">
+                        Здесь показаны заказы и споры, которые удерживают деньги
+                        или блокируют оплату.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {frozenItems.map((item) => (
+                      <div
+                        key={`${item.order_id}-${item.complaint_id || "payout"}`}
+                        className="rounded-2xl border border-gray-200 bg-[#fbfcfb] p-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
+                            Заказ #{item.order_id}
+                          </span>
+                          {item.complaint_id ? (
+                            <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-xs font-bold text-orange-700">
+                              Спор #{item.complaint_id}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <p className="mt-3 break-words text-sm font-bold text-[#151c23] [overflow-wrap:anywhere]">
+                          {item.service_name}
+                        </p>
+                        <p className="mt-1 text-xs font-semibold text-gray-500">
+                          {item.category}
+                        </p>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-xs font-semibold text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Banknote size={15} className="text-orange-600" />
+                            Сумма: {formatMoney(item.amount)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ClipboardList
+                              size={15}
+                              className="text-orange-600"
+                            />
+                            Заказ: {getOrderStatusLabel(item.order_status)}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck
+                              size={15}
+                              className="text-orange-600"
+                            />
+                            Деньги: {getPayoutStatusLabel(item.payout_status)}
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle
+                              size={15}
+                              className="mt-0.5 shrink-0 text-orange-600"
+                            />
+                            <span>
+                              {item.reason}
+                              {item.complaint_reason_label
+                                ? `: ${item.complaint_reason_label}`
+                                : ""}
+                              {item.complaint_status_label
+                                ? `, статус ${item.complaint_status_label}`
+                                : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm font-semibold leading-6 text-blue-700">
                 <div className="mb-2 flex items-center gap-2">

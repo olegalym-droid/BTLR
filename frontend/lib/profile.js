@@ -73,8 +73,8 @@ const normalizeProfile = (profile, authUser) => {
   return {
     ...cloneDefaultProfile(),
     ...(profile || {}),
-    name: profile?.name || authUser?.fullName || "",
-    phone: profile?.phone || authUser?.phone || "",
+    name: authUser?.fullName || profile?.name || "",
+    phone: authUser?.phone || profile?.phone || "",
     addresses,
     primaryAddressIndex,
   };

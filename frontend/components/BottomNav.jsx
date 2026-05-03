@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../lib/constants";
 import { getStoredAuthUser } from "../lib/auth";
-import { ClipboardList, User, Wrench } from "lucide-react";
+import { ClipboardList, MessageCircle, User, Wrench } from "lucide-react";
+import { loadChatConversations } from "../lib/chats";
 
 const NAV_ITEMS = [
   {
@@ -15,14 +16,22 @@ const NAV_ITEMS = [
     icon: ClipboardList,
   },
   {
+    key: "chats",
+    label: "Чаты",
+    icon: MessageCircle,
+  },
+  {
     key: "profile",
     label: "Профиль",
     icon: User,
   },
 ];
 
+const NAV_POLL_INTERVAL_MS = 15000;
+
 export default function BottomNav({ activeTab, onTabChange }) {
   const [notifications, setNotifications] = useState([]);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.is_read).length,
@@ -55,6 +64,22 @@ export default function BottomNav({ activeTab, onTabChange }) {
         }
 
         setNotifications(Array.isArray(data) ? data : []);
+
+        const conversations = await loadChatConversations({
+          viewerRole: "user",
+          accountId: authUser.id,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setChatUnreadCount(
+          conversations.reduce(
+            (sum, item) => sum + Number(item.unread_count || 0),
+            0,
+          ),
+        );
       } catch (error) {
         console.error("Ошибка загрузки уведомлений в навигации:", error);
 
@@ -63,6 +88,7 @@ export default function BottomNav({ activeTab, onTabChange }) {
         }
 
         setNotifications([]);
+        setChatUnreadCount(0);
       }
     };
 
@@ -70,7 +96,7 @@ export default function BottomNav({ activeTab, onTabChange }) {
 
     const interval = setInterval(() => {
       loadNotifications();
-    }, 5000);
+    }, NAV_POLL_INTERVAL_MS);
 
     return () => {
       isMounted = false;
@@ -80,11 +106,13 @@ export default function BottomNav({ activeTab, onTabChange }) {
 
   return (
     <nav className="rounded-[28px] border border-gray-200 bg-white p-2 shadow-sm">
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.key;
           const showUnreadBadge = item.key === "profile" && unreadCount > 0;
+          const showChatBadge = item.key === "chats" && chatUnreadCount > 0;
+          const badgeValue = showChatBadge ? chatUnreadCount : unreadCount;
 
           return (
             <button
@@ -104,9 +132,9 @@ export default function BottomNav({ activeTab, onTabChange }) {
               >
                 <Icon size={22} strokeWidth={2} />
 
-                {showUnreadBadge && (
+                {(showUnreadBadge || showChatBadge) && (
                   <span className="absolute -right-1 -top-1 flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#ef4444] px-1 text-[11px] font-bold text-white shadow">
-                    {unreadCount > 9 ? "9+" : unreadCount}
+                    {badgeValue > 9 ? "9+" : badgeValue}
                   </span>
                 )}
               </div>

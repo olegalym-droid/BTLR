@@ -7,6 +7,9 @@ const REMEMBER_LOGIN_ROLE_KEY = "btlr_remember_login_role";
 const REMEMBER_ADMIN_LOGIN_KEY = "btlr_remember_admin_login";
 const LEGACY_PROFILE_STORAGE_KEY = "resident_profile";
 const USER_PROFILE_STORAGE_PREFIX = "resident_profile_";
+const APP_ROLE_KEY = "app_selected_role";
+const APP_USER_TAB_KEY = "app_active_tab";
+const APP_MASTER_SECTION_KEY = "app_master_active_section";
 
 const getRoleStorageKeys = (role) => {
   const normalizedRole = String(role || "").trim();
@@ -77,8 +80,8 @@ const normalizeUserProfile = (profile, { fullName = "", phone = "" } = {}) => {
 
   return {
     ...(profile || {}),
-    name: profile?.name || fullName || "",
-    phone: profile?.phone || phone || "",
+    name: fullName || profile?.name || "",
+    phone: phone || profile?.phone || "",
     addresses,
     primaryAddressIndex,
   };
@@ -133,11 +136,13 @@ const clearOtherSessionsForRole = (role) => {
 
   if (role === "user") {
     removeRoleSession("master");
+    localStorage.removeItem(APP_MASTER_SECTION_KEY);
     clearAdminSession();
   }
 
   if (role === "master") {
     removeRoleSession("user");
+    localStorage.removeItem(APP_USER_TAB_KEY);
     clearAdminSession();
   }
 
@@ -151,6 +156,18 @@ const clearRoleSession = (role) => {
 
   removeRoleSession(role);
   removeLegacySession();
+
+  if (localStorage.getItem(APP_ROLE_KEY) === role) {
+    localStorage.removeItem(APP_ROLE_KEY);
+  }
+
+  if (role === "user") {
+    localStorage.removeItem(APP_USER_TAB_KEY);
+  }
+
+  if (role === "master") {
+    localStorage.removeItem(APP_MASTER_SECTION_KEY);
+  }
 
   if (role === "admin") {
     clearAdminSession();
@@ -221,9 +238,17 @@ export const registerRequest = async ({
   role,
   phone,
   password,
+  firstName = "",
+  lastName = "",
   fullName = "",
   categories = [],
 }) => {
+  const resolvedFullName =
+    fullName ||
+    `${String(firstName).trim()} ${String(lastName).trim()}`
+      .replace(/\s+/g, " ")
+      .trim();
+
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
     headers: {
@@ -233,7 +258,9 @@ export const registerRequest = async ({
       role,
       phone,
       password,
-      full_name: fullName || null,
+      first_name: String(firstName).trim() || null,
+      last_name: String(lastName).trim() || null,
+      full_name: resolvedFullName || null,
       categories: role === "master" ? categories : [],
     }),
   });
@@ -296,6 +323,7 @@ export const saveAuthData = (
 
   targetStorage.setItem(authFlagKey, "true");
   targetStorage.setItem(authUserKey, JSON.stringify(normalizedUser));
+  localStorage.setItem(APP_ROLE_KEY, role);
 
   if (role === "user") {
     const profileKey = getUserProfileStorageKey(id, phone);
@@ -354,6 +382,9 @@ export const clearAuthData = (role = "") => {
   clearRoleSession("admin");
   clearAdminSession();
   removeLegacySession();
+  localStorage.removeItem(APP_ROLE_KEY);
+  localStorage.removeItem(APP_USER_TAB_KEY);
+  localStorage.removeItem(APP_MASTER_SECTION_KEY);
 };
 
 export const getStoredAuthUser = (role = "") => {
@@ -483,7 +514,6 @@ export const loadMasterProfileRequest = async (masterId) => {
 
 export const updateMasterProfileRequest = async ({
   masterId,
-  fullName,
   aboutMe = "",
   experienceYears = "",
   workCity = "",
@@ -496,7 +526,6 @@ export const updateMasterProfileRequest = async ({
 
   const formData = new FormData();
 
-  formData.append("full_name", fullName.trim());
   formData.append("about_me", aboutMe);
   if (String(experienceYears).trim() !== "") {
     formData.append("experience_years", String(experienceYears));

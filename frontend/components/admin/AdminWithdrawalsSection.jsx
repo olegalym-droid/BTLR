@@ -54,6 +54,7 @@ function getCardSystemLabel(brand) {
 
 export default function AdminWithdrawalsSection({
   withdrawalRequests,
+  isLoading,
   updateWithdrawalStatus,
 }) {
   if (!withdrawalRequests.length) {
@@ -110,7 +111,10 @@ export default function AdminWithdrawalsSection({
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => updateWithdrawalStatus(item.id, "approved")}
+                    disabled={isLoading}
+                    onClick={() =>
+                      updateWithdrawalStatus(item.id, "approved", item)
+                    }
                     className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] bg-[#4f7f56] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#416f48]"
                   >
                     <CheckCircle2 size={20} />
@@ -119,7 +123,10 @@ export default function AdminWithdrawalsSection({
 
                   <button
                     type="button"
-                    onClick={() => updateWithdrawalStatus(item.id, "rejected")}
+                    disabled={isLoading}
+                    onClick={() =>
+                      updateWithdrawalStatus(item.id, "rejected", item)
+                    }
                     className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] border border-gray-300 bg-white px-5 py-3 text-sm font-bold text-[#111827] shadow-sm transition hover:bg-[#f8faf8]"
                   >
                     <XCircle size={20} />

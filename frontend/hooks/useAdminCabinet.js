@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminLoginRequest } from "../lib/admin";
-import { clearAuthData } from "../lib/auth";
+import {
+  clearAdminSession,
+  getStoredAdminSession,
+  saveAdminSession,
+} from "../lib/session";
 import useAdminData from "./useAdminData";
 
-export default function useAdminCabinet({ onLogout }) {
+export default function useAdminCabinet({ onLogout } = {}) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isSessionChecking, setIsSessionChecking] = useState(true);
+  const [startupError, setStartupError] = useState("");
 
   const {
+    adminOverview,
+    adminActionLogs,
     pendingMasters,
     selectedMaster,
     setSelectedMaster,
@@ -17,6 +25,8 @@ export default function useAdminCabinet({ onLogout }) {
     withdrawalRequests,
     successText,
     setSuccessText,
+    loadAdminOverview,
+    loadAdminActionLogs,
     loadPendingMasters,
     loadComplaints,
     loadWithdrawalRequests,
@@ -26,56 +36,6 @@ export default function useAdminCabinet({ onLogout }) {
     resetAdminDataState,
   } = useAdminData();
 
-  const saveAdminSession = useCallback((adminLogin, adminPassword) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    clearAuthData("user");
-    clearAuthData("master");
-
-    window.localStorage.removeItem("app_selected_role");
-    window.localStorage.removeItem("app_active_tab");
-
-    window.sessionStorage.setItem("admin_login", adminLogin);
-    window.sessionStorage.setItem("admin_password", adminPassword);
-
-    window.localStorage.removeItem("admin_login");
-    window.localStorage.removeItem("admin_password");
-  }, []);
-
-  const clearAdminSession = useCallback(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    window.sessionStorage.removeItem("admin_login");
-    window.sessionStorage.removeItem("admin_password");
-
-    window.localStorage.removeItem("admin_login");
-    window.localStorage.removeItem("admin_password");
-  }, []);
-
-  const getStoredAdminSession = useCallback(() => {
-    if (typeof window === "undefined") {
-      return {
-        login: "",
-        password: "",
-      };
-    }
-
-    return {
-      login:
-        window.sessionStorage.getItem("admin_login") ||
-        window.localStorage.getItem("admin_login") ||
-        "",
-      password:
-        window.sessionStorage.getItem("admin_password") ||
-        window.localStorage.getItem("admin_password") ||
-        "",
-    };
-  }, []);
-
   const loginWithCredentials = useCallback(async (adminLogin, adminPassword) => {
     await adminLoginRequest({
       login: adminLogin,
@@ -83,9 +43,12 @@ export default function useAdminCabinet({ onLogout }) {
     });
 
     saveAdminSession(adminLogin, adminPassword);
+    setStartupError("");
 
     await Promise.all([
       loadPendingMasters(adminLogin, adminPassword),
+      loadAdminOverview(adminLogin, adminPassword),
+      loadAdminActionLogs(adminLogin, adminPassword),
       loadComplaints(adminLogin, adminPassword),
       loadWithdrawalRequests(adminLogin, adminPassword),
     ]);
@@ -94,9 +57,10 @@ export default function useAdminCabinet({ onLogout }) {
     setSuccessText("Вход администратора выполнен");
   }, [
     loadComplaints,
+    loadAdminActionLogs,
+    loadAdminOverview,
     loadPendingMasters,
     loadWithdrawalRequests,
-    saveAdminSession,
     setSuccessText,
   ]);
 
@@ -117,6 +81,7 @@ export default function useAdminCabinet({ onLogout }) {
       await approveMasterAction(masterId, setIsLoading);
     } catch (error) {
       alert(error.message || "Не удалось одобрить мастера");
+      throw error;
     }
   };
 
@@ -150,7 +115,11 @@ export default function useAdminCabinet({ onLogout }) {
     const stored = getStoredAdminSession();
 
     if (!stored.login || !stored.password) {
-      return;
+      const timer = window.setTimeout(() => {
+        setIsSessionChecking(false);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
 
     let isMounted = true;
@@ -161,6 +130,8 @@ export default function useAdminCabinet({ onLogout }) {
 
         await Promise.all([
           loadPendingMasters(stored.login, stored.password),
+          loadAdminOverview(stored.login, stored.password),
+          loadAdminActionLogs(stored.login, stored.password),
           loadComplaints(stored.login, stored.password),
           loadWithdrawalRequests(stored.login, stored.password),
         ]);
@@ -168,6 +139,7 @@ export default function useAdminCabinet({ onLogout }) {
         if (!isMounted) return;
 
         saveAdminSession(stored.login, stored.password);
+        setStartupError("");
         setLogin(stored.login);
         setPassword(stored.password);
         setIsLoggedIn(true);
@@ -176,6 +148,7 @@ export default function useAdminCabinet({ onLogout }) {
 
         console.warn("Не удалось автоматически загрузить админку:", error);
         saveAdminSession(stored.login, stored.password);
+        setStartupError(error.message || "Не удалось загрузить админку");
         setLogin(stored.login);
         setPassword(stored.password);
         setIsLoggedIn(true);
@@ -185,6 +158,7 @@ export default function useAdminCabinet({ onLogout }) {
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          setIsSessionChecking(false);
         }
       }
     };
@@ -195,12 +169,11 @@ export default function useAdminCabinet({ onLogout }) {
       isMounted = false;
     };
   }, [
-    clearAdminSession,
-    getStoredAdminSession,
     loadComplaints,
+    loadAdminActionLogs,
+    loadAdminOverview,
     loadPendingMasters,
     loadWithdrawalRequests,
-    saveAdminSession,
     setSuccessText,
   ]);
 
@@ -209,6 +182,7 @@ export default function useAdminCabinet({ onLogout }) {
     setLogin("");
     setPassword("");
     setIsLoggedIn(false);
+    setStartupError("");
     resetAdminDataState();
 
     if (onLogout) {
@@ -223,6 +197,10 @@ export default function useAdminCabinet({ onLogout }) {
     setPassword,
     isLoading,
     isLoggedIn,
+    isSessionChecking,
+    startupError,
+    adminOverview,
+    adminActionLogs,
     pendingMasters,
     selectedMaster,
     setSelectedMaster,
@@ -231,6 +209,8 @@ export default function useAdminCabinet({ onLogout }) {
     successText,
     handleLogin,
     handleApproveMaster,
+    loadAdminOverview,
+    loadAdminActionLogs,
     loadPendingMasters,
     loadComplaints,
     loadWithdrawalRequests,

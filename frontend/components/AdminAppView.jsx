@@ -7,6 +7,8 @@ export default function AdminAppView({
   password,
   setPassword,
   isLoggedIn,
+  adminOverview,
+  adminActionLogs,
   pendingMasters,
   selectedMaster,
   setSelectedMaster,
@@ -16,6 +18,8 @@ export default function AdminAppView({
   handleApproveMaster,
   handleLogin,
   isLoading,
+  loadAdminActionLogs,
+  loadAdminOverview,
   updateComplaintStatus,
   updateWithdrawalStatus,
   logout,
@@ -37,6 +41,8 @@ export default function AdminAppView({
   return (
     <AdminDashboard
       pendingMasters={pendingMasters}
+      adminOverview={adminOverview}
+      adminActionLogs={adminActionLogs}
       selectedMaster={selectedMaster}
       setSelectedMaster={setSelectedMaster}
       complaints={complaints}
@@ -44,6 +50,8 @@ export default function AdminAppView({
       successText={successText}
       isLoading={isLoading}
       handleApproveMaster={handleApproveMaster}
+      loadAdminActionLogs={loadAdminActionLogs}
+      loadAdminOverview={loadAdminOverview}
       updateComplaintStatus={updateComplaintStatus}
       updateWithdrawalStatus={updateWithdrawalStatus}
       logout={logout}

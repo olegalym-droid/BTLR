@@ -3,6 +3,7 @@ import ProfileScreen from "./screens/ProfileScreen";
 import ServicesScreen from "./screens/ServicesScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import SuccessScreen from "./screens/SuccessScreen";
+import ChatCenter from "./chat/ChatCenter";
 
 export default function UserAppView({
   activeTab,
@@ -33,16 +34,14 @@ export default function UserAppView({
   createOrder,
   getStatusLabel,
   profile,
-  setProfile,
+  userAccountId,
   newAddressForm,
   setNewAddressForm,
   profileSaved,
   addAddress,
   removeAddress,
   setPrimaryAddress,
-  saveProfile,
   handleLogout,
-  formatPhoneInput,
   onOpenOrder,
 }) {
   const handleOpenOrderFromNotification = (orderId) => {
@@ -107,6 +106,7 @@ export default function UserAppView({
         selectedTime={selectedTime}
         setSelectedTime={setSelectedTime}
         createOrder={createOrder}
+        profile={profile}
       />
     );
   }
@@ -122,19 +122,20 @@ export default function UserAppView({
     );
   }
 
+  if (activeTab === "chats") {
+    return <ChatCenter viewerRole="user" accountId={userAccountId} />;
+  }
+
   return (
     <ProfileScreen
       profile={profile}
-      setProfile={setProfile}
       newAddressForm={newAddressForm}
       setNewAddressForm={setNewAddressForm}
       profileSaved={profileSaved}
       addAddress={addAddress}
       removeAddress={removeAddress}
       setPrimaryAddress={setPrimaryAddress}
-      saveProfile={saveProfile}
       handleLogout={handleLogout}
-      formatPhoneInput={formatPhoneInput}
       onOpenOrder={handleOpenOrderFromNotification}
     />
   );

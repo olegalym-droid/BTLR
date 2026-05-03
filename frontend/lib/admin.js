@@ -66,6 +66,40 @@ export const loadPendingMastersRequest = async (
   return Array.isArray(data) ? data : [];
 };
 
+export const loadAdminOverviewRequest = async (
+  adminLoginArg = null,
+  adminPasswordArg = null,
+) => {
+  const response = await fetch(`${API_BASE_URL}/admin/overview`, {
+    headers: getAdminHeaders(adminLoginArg, adminPasswordArg),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить сводку админки");
+  }
+
+  return data && typeof data === "object" ? data : {};
+};
+
+export const loadAdminActionLogsRequest = async (
+  adminLoginArg = null,
+  adminPasswordArg = null,
+) => {
+  const response = await fetch(`${API_BASE_URL}/admin/action-logs`, {
+    headers: getAdminHeaders(adminLoginArg, adminPasswordArg),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Не удалось загрузить журнал админки");
+  }
+
+  return Array.isArray(data) ? data : [];
+};
+
 export const loadComplaintsRequest = async (
   adminLoginArg = null,
   adminPasswordArg = null,

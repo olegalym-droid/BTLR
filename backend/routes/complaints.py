@@ -12,6 +12,7 @@ from complaint_constants import (
 )
 from database import get_db
 from models import Account, Complaint, ComplaintHistory, Notification, Order
+from chat_service import add_admin_system_message, add_order_system_message
 from payment_ledger import (
     PAYOUT_AVAILABLE,
     PAYOUT_FROZEN,
@@ -240,6 +241,36 @@ def create_complaint(
             created_at=now,
         )
     )
+
+    reason_label = get_complaint_reason_label(reason)
+    system_text = (
+        f"Открыт спор по заказу #{order.id}. "
+        f"Причина: {reason_label}. Оплата заблокирована до решения администратора."
+    )
+
+    add_order_system_message(
+        order,
+        db,
+        system_text,
+        read_by_user=True,
+        read_by_master=False,
+    )
+    add_admin_system_message(
+        user,
+        db,
+        system_text,
+        read_by_user=True,
+        read_by_admin=False,
+    )
+
+    if order.master is not None:
+        add_admin_system_message(
+            order.master,
+            db,
+            system_text,
+            read_by_master=False,
+            read_by_admin=True,
+        )
 
     for notification in create_complaint_created_notifications(complaint):
         db.add(notification)

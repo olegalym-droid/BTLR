@@ -23,10 +23,15 @@ function getRoleLabel(role) {
   if (role === "user") return "Клиент";
   if (role === "master") return "Мастер";
   if (role === "admin") return "Админ";
+  if (role === "system") return "Система";
   return role;
 }
 
-export default function ChatCenter({ viewerRole, accountId = null }) {
+export default function ChatCenter({
+  viewerRole,
+  accountId = null,
+  initialTarget = null,
+}) {
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -36,6 +41,7 @@ export default function ChatCenter({ viewerRole, accountId = null }) {
   const [isSending, setIsSending] = useState(false);
   const [targetRole, setTargetRole] = useState("user");
   const [targetAccountId, setTargetAccountId] = useState("");
+  const [handledInitialTargetKey, setHandledInitialTargetKey] = useState("");
 
   const canUseChat = viewerRole === "admin" || Boolean(accountId);
 
@@ -97,6 +103,47 @@ export default function ChatCenter({ viewerRole, accountId = null }) {
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  useEffect(() => {
+    if (viewerRole !== "admin" || !initialTarget?.targetAccountId) {
+      return;
+    }
+
+    const nextKey =
+      initialTarget.key ||
+      `${initialTarget.targetRole}-${initialTarget.targetAccountId}`;
+
+    if (handledInitialTargetKey === nextKey) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const openInitialTarget = async () => {
+      try {
+        const conversation = await startAdminChatConversation({
+          targetRole: initialTarget.targetRole || "user",
+          targetAccountId: initialTarget.targetAccountId,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSelectedConversation(conversation);
+        setHandledInitialTargetKey(nextKey);
+        await loadConversations();
+      } catch (error) {
+        alert(error.message || "Не удалось открыть чат");
+      }
+    };
+
+    openInitialTarget();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [handledInitialTargetKey, initialTarget, loadConversations, viewerRole]);
 
   useEffect(() => {
     loadMessages(selectedConversation);
@@ -320,38 +367,55 @@ export default function ChatCenter({ viewerRole, accountId = null }) {
                 Сообщений пока нет
               </div>
             ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.is_own ? "justify-end" : "justify-start"}`}
-                >
+              messages.map((message) => {
+                const isSystem = message.sender_role === "system";
+
+                if (isSystem) {
+                  return (
+                    <div key={message.id} className="flex justify-center">
+                      <div className="max-w-[88%] rounded-[20px] border border-yellow-200 bg-yellow-50 px-4 py-3 text-center text-sm font-semibold leading-6 text-yellow-900 shadow-sm [overflow-wrap:anywhere]">
+                        {message.text}
+                        <div className="mt-2 text-[11px] font-semibold text-yellow-700">
+                          {formatChatDate(message.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
                   <div
-                    className={`max-w-[82%] rounded-[22px] px-4 py-3 shadow-sm ${
-                      message.is_own
-                        ? "bg-[#5f9557] text-white"
-                        : "border border-gray-200 bg-white text-[#151c23]"
-                    }`}
+                    key={message.id}
+                    className={`flex ${message.is_own ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`mb-1 text-[11px] font-bold uppercase ${
-                        message.is_own ? "text-white/75" : "text-gray-400"
+                      className={`max-w-[82%] rounded-[22px] px-4 py-3 shadow-sm ${
+                        message.is_own
+                          ? "bg-[#5f9557] text-white"
+                          : "border border-gray-200 bg-white text-[#151c23]"
                       }`}
                     >
-                      {getRoleLabel(message.sender_role)}
-                    </div>
-                    <p className="whitespace-pre-wrap break-words text-sm leading-6 [overflow-wrap:anywhere]">
-                      {message.text}
-                    </p>
-                    <div
-                      className={`mt-2 text-[11px] font-semibold ${
-                        message.is_own ? "text-white/70" : "text-gray-400"
-                      }`}
-                    >
-                      {formatChatDate(message.created_at)}
+                      <div
+                        className={`mb-1 text-[11px] font-bold uppercase ${
+                          message.is_own ? "text-white/75" : "text-gray-400"
+                        }`}
+                      >
+                        {getRoleLabel(message.sender_role)}
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-6 [overflow-wrap:anywhere]">
+                        {message.text}
+                      </p>
+                      <div
+                        className={`mt-2 text-[11px] font-semibold ${
+                          message.is_own ? "text-white/70" : "text-gray-400"
+                        }`}
+                      >
+                        {formatChatDate(message.created_at)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { loadOrdersRequest } from "../lib/orders";
 import { getStoredAuthUser } from "../lib/auth";
 
+const USER_ORDERS_POLL_INTERVAL_MS = 10000;
+
 export default function useUserOrdersData() {
   const [orders, setOrders] = useState(() => {
     const authUser = getStoredAuthUser();
@@ -56,7 +58,7 @@ export default function useUserOrdersData() {
 
     const interval = setInterval(() => {
       runLoadOrders();
-    }, 5000);
+    }, USER_ORDERS_POLL_INTERVAL_MS);
 
     return () => {
       isMounted = false;

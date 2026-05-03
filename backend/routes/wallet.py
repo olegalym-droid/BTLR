@@ -1,12 +1,19 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from database import get_db
-from models import Account, MasterWithdrawalRequest
+from complaint_constants import (
+    ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES,
+    get_complaint_reason_label,
+    get_complaint_status_label,
+)
+from models import Account, MasterWithdrawalRequest, Order
+from payment_ledger import PAYOUT_FROZEN
 from schemas import (
     MasterBalanceResponse,
+    MasterFrozenBalanceItemResponse,
     MasterWithdrawalRequestCreate,
     MasterWithdrawalRequestResponse,
 )
@@ -179,6 +186,85 @@ def serialize_withdrawal_request(
     )
 
 
+def get_active_payment_complaint(order: Order):
+    complaints = sorted(
+        order.complaints or [],
+        key=lambda item: (item.created_at or datetime.min, item.id or 0),
+        reverse=True,
+    )
+
+    return next(
+        (
+            item
+            for item in complaints
+            if item.payment_blocked
+            and item.status in ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES
+        ),
+        None,
+    )
+
+
+def build_master_frozen_items(
+    master_id: int,
+    db: Session,
+) -> list[MasterFrozenBalanceItemResponse]:
+    orders = (
+        db.query(Order)
+        .options(joinedload(Order.complaints))
+        .filter(Order.master_id == master_id)
+        .order_by(Order.created_at.desc(), Order.id.desc())
+        .all()
+    )
+
+    result = []
+
+    for order in orders:
+        active_complaint = get_active_payment_complaint(order)
+        is_frozen_payout = order.payout_status == PAYOUT_FROZEN
+
+        if not is_frozen_payout and active_complaint is None:
+            continue
+
+        if active_complaint is not None:
+            reason = (
+                "Деньги удерживаются из-за активного спора"
+                if is_frozen_payout
+                else "Оплата будет заблокирована до решения спора"
+            )
+        else:
+            reason = "Деньги заморожены до завершения проверки"
+
+        result.append(
+            MasterFrozenBalanceItemResponse(
+                order_id=order.id,
+                service_name=order.service_name,
+                category=order.category,
+                amount=order.price or order.client_price,
+                order_status=order.status,
+                payout_status=order.payout_status,
+                reason=reason,
+                complaint_id=active_complaint.id if active_complaint else None,
+                complaint_reason_label=(
+                    get_complaint_reason_label(active_complaint.reason)
+                    if active_complaint
+                    else None
+                ),
+                complaint_status_label=(
+                    get_complaint_status_label(active_complaint.status)
+                    if active_complaint
+                    else None
+                ),
+                created_at=(
+                    order.created_at.isoformat()
+                    if order.created_at
+                    else None
+                ),
+            )
+        )
+
+    return result
+
+
 @router.get(
     "/{master_id}/balance",
     response_model=MasterBalanceResponse,
@@ -194,6 +280,7 @@ def get_master_balance(
         balance_amount=master.balance_amount or "0",
         available_withdraw_amount=master.available_withdraw_amount or "0",
         frozen_balance_amount=master.frozen_balance_amount or "0",
+        frozen_items=build_master_frozen_items(master.id, db),
     )
 
 

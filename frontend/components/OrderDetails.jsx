@@ -79,6 +79,151 @@ function ActionButton({
   );
 }
 
+function getYearsLabel(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "Не указан";
+  }
+
+  const years = Number(value);
+  if (Number.isNaN(years)) {
+    return String(value);
+  }
+
+  return `${years} лет`;
+}
+
+function getComplaintUserMessage(complaint, order) {
+  if (complaint.status === "resolved") {
+    if (complaint.resolution === "client_favor") {
+      return "Спор решён в вашу пользу. Оплата по этому заказу не уйдёт мастеру.";
+    }
+
+    if (complaint.resolution === "master_favor") {
+      return "Спор решён в пользу мастера. Если заказ завершён, оплату можно провести в карточке заказа.";
+    }
+
+    return "Спор закрыт администратором. Решение и комментарий сохранены ниже.";
+  }
+
+  if (complaint.status === "rejected") {
+    return "Жалоба отклонена. Если заказ завершён, оплата снова доступна.";
+  }
+
+  if (complaint.status === "needs_details") {
+    return "Администратор запросил детали. Оплата пока заблокирована до уточнения ситуации.";
+  }
+
+  if (complaint.status === "in_progress") {
+    return "Администратор рассматривает спор. Оплата временно заблокирована.";
+  }
+
+  if (complaint.payment_blocked || order?.active_payment_blocking_complaint) {
+    return "Спор открыт. Пока он активен, оплатить заказ нельзя.";
+  }
+
+  return "Статус спора обновлён. История решений сохранена ниже.";
+}
+
+function buildMasterPhotoUrl(photoPath) {
+  return photoPath ? `${API_BASE_URL}/${photoPath}` : null;
+}
+
+function PublicMasterProfileModal({ profile, onClose }) {
+  if (!profile) {
+    return null;
+  }
+
+  const photoUrl = buildMasterPhotoUrl(profile.photoPath);
+  const categories = Array.isArray(profile.categories) ? profile.categories : [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[30px] bg-white p-5 shadow-2xl sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt="Фото мастера"
+                className="h-20 w-20 shrink-0 rounded-full border border-gray-200 object-cover shadow-sm"
+              />
+            ) : (
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-[#eef6ea] text-sm font-semibold text-[#5e8d58]">
+                Нет фото
+              </div>
+            )}
+
+            <div className="min-w-0">
+              <p className="break-words text-2xl font-bold text-[#25302c] [overflow-wrap:anywhere]">
+                {profile.fullName || "Мастер"}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-500">
+                Публичный профиль мастера
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-xl leading-none text-gray-500 transition hover:bg-gray-50"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <InfoTile label="Рейтинг" value={profile.rating ?? 0} />
+          <InfoTile
+            label="Завершено заказов"
+            value={profile.completedOrdersCount ?? 0}
+          />
+          <InfoTile label="Опыт" value={getYearsLabel(profile.experienceYears)} />
+          <InfoTile label="Город" value={profile.workCity || "Не указан"} />
+        </div>
+
+        {categories.length > 0 && (
+          <div className="mt-4 rounded-3xl border border-gray-200 bg-[#fbfcfb] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              Категории
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {categories.map((item, index) => (
+                <span
+                  key={`${item}-${index}`}
+                  className="rounded-full bg-[#eef6ea] px-3 py-1.5 text-xs font-semibold text-[#5e8d58]"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 rounded-3xl border border-gray-200 bg-[#fbfcfb] p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            О себе
+          </p>
+          <p className="mt-2 break-words text-sm leading-6 text-[#25302c] [overflow-wrap:anywhere]">
+            {profile.aboutMe || "Мастер пока не добавил описание."}
+          </p>
+        </div>
+
+        {profile.price && (
+          <div className="mt-4 rounded-3xl border border-[#dbe9d7] bg-[#f8fcf7] p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              Цена по этому заказу
+            </p>
+            <p className="mt-2 break-words text-xl font-bold text-[#25302c] [overflow-wrap:anywhere]">
+              {profile.price}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function OrderDetails({
   selectedOrder,
   getStatusLabel,
@@ -120,6 +265,8 @@ export default function OrderDetails({
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [copiedPhoneOrderId, setCopiedPhoneOrderId] = useState(null);
   const [isMasterChatOpen, setIsMasterChatOpen] = useState(false);
+  const [isAdminChatOpen, setIsAdminChatOpen] = useState(false);
+  const [publicMasterProfile, setPublicMasterProfile] = useState(null);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -152,6 +299,35 @@ export default function OrderDetails({
     }),
     [selectedOrder?.id],
   );
+
+  const adminChatStartRequest = useMemo(
+    () => ({
+      conversationType: "admin",
+    }),
+    [],
+  );
+
+  const selectedMasterPublicProfile = useMemo(() => {
+    if (!selectedOrder?.master_id) {
+      return null;
+    }
+
+    return {
+      id: selectedOrder.master_id,
+      fullName: selectedOrder.master_name,
+      rating: selectedOrder.master_rating,
+      aboutMe: selectedOrder.master_about_me,
+      experienceYears: selectedOrder.master_experience_years,
+      workCity: selectedOrder.master_work_city,
+      completedOrdersCount: selectedOrder.master_completed_orders_count,
+      categories: selectedOrder.master_categories,
+      photoPath:
+        selectedOrder.master_avatar_path ||
+        selectedOrder.master_selfie_photo_path ||
+        null,
+      price: selectedOrder.price || selectedOrder.client_price || "",
+    };
+  }, [selectedOrder]);
 
   if (!selectedOrder) return null;
 
@@ -375,6 +551,17 @@ export default function OrderDetails({
                         </p>
                       )}
 
+                    {selectedMasterPublicProfile && (
+                      <ActionButton
+                        onClick={() =>
+                          setPublicMasterProfile(selectedMasterPublicProfile)
+                        }
+                        variant="secondary"
+                      >
+                        Открыть публичный профиль
+                      </ActionButton>
+                    )}
+
                     {selectedOrder.price && (
                       <div className="rounded-3xl border border-[#dbe9d7] bg-[#f8fcf7] p-4">
                         <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
@@ -448,6 +635,22 @@ export default function OrderDetails({
                           const photoUrl = photoPath
                             ? `${API_BASE_URL}/${photoPath}`
                             : null;
+                          const offerMasterProfile = {
+                            id: master?.id,
+                            fullName: master?.full_name,
+                            rating: master?.rating,
+                            aboutMe: master?.about_me,
+                            experienceYears: master?.experience_years,
+                            workCity: master?.work_city,
+                            completedOrdersCount:
+                              master?.completed_orders_count,
+                            categories: master?.categories,
+                            photoPath,
+                            price:
+                              offer.offered_price ||
+                              selectedOrder.client_price ||
+                              "",
+                          };
 
                           return (
                             <div
@@ -502,6 +705,15 @@ export default function OrderDetails({
                                     </div>
                                   </div>
                                 </div>
+
+                                <ActionButton
+                                  onClick={() =>
+                                    setPublicMasterProfile(offerMasterProfile)
+                                  }
+                                  variant="secondary"
+                                >
+                                  Открыть публичный профиль
+                                </ActionButton>
 
                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                   <ActionButton
@@ -645,6 +857,17 @@ export default function OrderDetails({
                             </span>
                           </div>
 
+                          <div
+                            className={`mt-3 rounded-3xl border p-4 text-sm font-semibold leading-6 ${
+                              complaint.status === "resolved" ||
+                              complaint.status === "rejected"
+                                ? "border-green-200 bg-green-50 text-green-800"
+                                : "border-orange-200 bg-orange-50 text-orange-800"
+                            }`}
+                          >
+                            {getComplaintUserMessage(complaint, selectedOrder)}
+                          </div>
+
                           <p className="mt-3 break-words text-sm leading-6 text-gray-700 [overflow-wrap:anywhere]">
                             {complaint.text}
                           </p>
@@ -663,6 +886,15 @@ export default function OrderDetails({
                               {complaint.admin_comment}
                             </div>
                           )}
+
+                          <div className="mt-3">
+                            <ActionButton
+                              onClick={() => setIsAdminChatOpen(true)}
+                              variant="secondary"
+                            >
+                              Написать администратору по спору
+                            </ActionButton>
+                          </div>
 
                           <div className="mt-3 text-xs font-medium text-gray-500">
                             Создано: {formatDateTime(complaint.created_at)}
@@ -830,6 +1062,11 @@ export default function OrderDetails({
         </div>
       )}
 
+      <PublicMasterProfileModal
+        profile={publicMasterProfile}
+        onClose={() => setPublicMasterProfile(null)}
+      />
+
       <ChatModal
         isOpen={isMasterChatOpen}
         onClose={() => setIsMasterChatOpen(false)}
@@ -837,6 +1074,15 @@ export default function OrderDetails({
         accountId={selectedOrder.user_id}
         startRequest={masterChatStartRequest}
         title="Чат с мастером"
+      />
+
+      <ChatModal
+        isOpen={isAdminChatOpen}
+        onClose={() => setIsAdminChatOpen(false)}
+        viewerRole="user"
+        accountId={selectedOrder.user_id}
+        startRequest={adminChatStartRequest}
+        title="Чат с администратором"
       />
     </>
   );

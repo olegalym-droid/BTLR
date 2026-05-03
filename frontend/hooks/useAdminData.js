@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import {
+  loadAdminActionLogsRequest,
+  loadAdminOverviewRequest,
   loadPendingMastersRequest,
   loadComplaintsRequest,
   loadWithdrawalRequestsRequest,
@@ -9,11 +11,45 @@ import {
 } from "../lib/admin";
 
 export default function useAdminData() {
+  const [adminOverview, setAdminOverview] = useState(null);
+  const [adminActionLogs, setAdminActionLogs] = useState([]);
   const [pendingMasters, setPendingMasters] = useState([]);
   const [selectedMaster, setSelectedMaster] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
   const [successText, setSuccessText] = useState("");
+
+  const loadAdminOverview = useCallback(async (
+    adminLoginArg = null,
+    adminPasswordArg = null,
+  ) => {
+    const data = await loadAdminOverviewRequest(
+      adminLoginArg,
+      adminPasswordArg,
+    );
+
+    setAdminOverview(data);
+    return data;
+  }, []);
+
+  const loadAdminActionLogs = useCallback(async (
+    adminLoginArg = null,
+    adminPasswordArg = null,
+  ) => {
+    try {
+      const data = await loadAdminActionLogsRequest(
+        adminLoginArg,
+        adminPasswordArg,
+      );
+
+      setAdminActionLogs(data);
+      return data;
+    } catch (error) {
+      console.warn("Не удалось загрузить журнал админки:", error);
+      setAdminActionLogs([]);
+      return [];
+    }
+  }, []);
 
   const loadPendingMasters = useCallback(async (
     adminLoginArg = null,
@@ -62,13 +98,17 @@ export default function useAdminData() {
 
       await approveMasterRequest(masterId);
 
-      await loadPendingMasters();
+      await Promise.all([
+        loadPendingMasters(),
+        loadAdminOverview(),
+        loadAdminActionLogs(),
+      ]);
       setSelectedMaster(null);
       setSuccessText("Мастер успешно одобрен");
     } finally {
       setIsLoading(false);
     }
-  }, [loadPendingMasters]);
+  }, [loadAdminActionLogs, loadAdminOverview, loadPendingMasters]);
 
   const updateComplaintStatus = useCallback(async (
     complaintId,
@@ -96,6 +136,7 @@ export default function useAdminData() {
           item.id === complaintId ? { ...item, ...data } : item,
         ),
       );
+      await Promise.all([loadAdminOverview(), loadAdminActionLogs()]);
 
       const statusTextMap = {
         new: "Жалоба помечена как новая",
@@ -111,7 +152,7 @@ export default function useAdminData() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadAdminActionLogs, loadAdminOverview]);
 
   const updateWithdrawalStatus = useCallback(async (
     withdrawalId,
@@ -132,6 +173,7 @@ export default function useAdminData() {
           item.id === withdrawalId ? { ...item, status: data.status } : item,
         ),
       );
+      await Promise.all([loadAdminOverview(), loadAdminActionLogs()]);
 
       const statusTextMap = {
         approved: "Заявка на вывод одобрена",
@@ -146,9 +188,11 @@ export default function useAdminData() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadAdminActionLogs, loadAdminOverview]);
 
   const resetAdminDataState = useCallback(() => {
+    setAdminOverview(null);
+    setAdminActionLogs([]);
     setPendingMasters([]);
     setSelectedMaster(null);
     setComplaints([]);
@@ -157,6 +201,10 @@ export default function useAdminData() {
   }, []);
 
   return {
+    adminOverview,
+    setAdminOverview,
+    adminActionLogs,
+    setAdminActionLogs,
     pendingMasters,
     setPendingMasters,
     selectedMaster,
@@ -167,6 +215,8 @@ export default function useAdminData() {
     setWithdrawalRequests,
     successText,
     setSuccessText,
+    loadAdminOverview,
+    loadAdminActionLogs,
     loadPendingMasters,
     loadComplaints,
     loadWithdrawalRequests,

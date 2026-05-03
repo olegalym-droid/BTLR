@@ -7,7 +7,6 @@ import {
   MessageCircle,
   Phone,
   PlusCircle,
-  Save,
   User,
   LogOut,
   X,
@@ -215,16 +214,13 @@ function NotificationItem({
 
 export default function ProfileScreen({
   profile,
-  setProfile,
   newAddressForm,
   setNewAddressForm,
   profileSaved,
   addAddress,
   removeAddress,
   setPrimaryAddress,
-  saveProfile,
   handleLogout,
-  formatPhoneInput,
   onOpenOrder,
 }) {
   const [notifications, setNotifications] = useState([]);
@@ -409,6 +405,8 @@ export default function ProfileScreen({
   };
 
   const primaryAddress = profile.addresses?.[profile.primaryAddressIndex] || "";
+  const displayName = profile.name || authUser?.fullName || "Не указано";
+  const displayPhone = profile.phone || authUser?.phone || "Не указан";
 
   return (
     <>
@@ -570,54 +568,43 @@ export default function ProfileScreen({
         </div>
 
         <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold text-[#25302c]">Личные данные</h2>
+          <h2 className="text-2xl font-bold text-[#25302c]">Данные аккаунта</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Имя, фамилия и телефон берутся из регистрации. В профиле отдельно
+            хранятся только адреса для заказов.
+          </p>
 
           <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#25302c]">Имя</label>
-              <div className="relative">
-                <User
-                  size={20}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#76a16f]"
-                />
-                <input
-                  value={profile.name}
-                  onChange={(event) =>
-                    setProfile((prev) => ({
-                      ...prev,
-                      name: event.target.value,
-                    }))
-                  }
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 text-[#25302c] outline-none"
-                  placeholder="Введите имя"
-                />
+            <div className="rounded-2xl border border-gray-200 bg-[#fbfcfb] px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1f5ee] text-[#72a06d]">
+                  <User size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Имя и фамилия
+                  </p>
+                  <p className="mt-1 break-words text-base font-semibold text-[#25302c]">
+                    {displayName}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-[#25302c]">
-                Телефон
-              </label>
-              <div className="relative">
-                <Phone
-                  size={20}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#76a16f]"
-                />
-                <input
-                  value={profile.phone}
-                  onChange={(event) =>
-                    setProfile((prev) => ({
-                      ...prev,
-                      phone: formatPhoneInput(event.target.value),
-                    }))
-                  }
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-4 text-[#25302c] outline-none"
-                  placeholder="+7 777 123 45 67"
-                />
+            <div className="rounded-2xl border border-gray-200 bg-[#fbfcfb] px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1f5ee] text-[#72a06d]">
+                  <Phone size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Телефон
+                  </p>
+                  <p className="mt-1 break-words text-base font-semibold text-[#25302c]">
+                    {displayPhone}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-gray-400">
-                Введите номер в международном формате
-              </p>
             </div>
           </div>
         </div>
@@ -724,16 +711,7 @@ export default function ProfileScreen({
             ) : null}
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={saveProfile}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7fb276] px-4 py-4 text-base font-semibold text-white"
-            >
-              <Save size={20} />
-              Сохранить изменения
-            </button>
-
+          <div className="mt-6">
             <button
               type="button"
               onClick={handleLogout}

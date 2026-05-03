@@ -18,6 +18,7 @@ import {
   clearRememberedLogin,
 } from "../../lib/auth";
 import { formatPhoneInput } from "../../lib/profile";
+import { getRolePath, setStoredActiveRole } from "../../lib/session";
 import { AVAILABLE_CATEGORIES } from "../master/masterConstants";
 
 const LOGIN_ROLE_OPTIONS = [
@@ -188,13 +189,6 @@ function BrandPanel({ isAdminLogin }) {
   );
 }
 
-const getRolePath = (role) => {
-  if (role === "user") return "/user";
-  if (role === "master") return "/master";
-  if (role === "admin") return "/admin";
-  return "/";
-};
-
 export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
   const [mode, setMode] = useState("login");
 
@@ -206,7 +200,8 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
   const [adminLogin, setAdminLogin] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
-  const [registerFullName, setRegisterFullName] = useState("");
+  const [registerFirstName, setRegisterFirstName] = useState("");
+  const [registerLastName, setRegisterLastName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("");
@@ -281,7 +276,7 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
           rememberMe,
         });
 
-        window.location.href = getRolePath("admin");
+        window.location.replace(getRolePath("admin"));
         return;
       }
 
@@ -304,6 +299,7 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
       });
 
       saveAuthData(authData, rememberMe);
+      setStoredActiveRole(authData.role);
 
       saveRememberedLogin({
         role: loginRole,
@@ -316,7 +312,7 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
         onUserOrMasterSuccess(authData.role);
       }
 
-      window.location.href = getRolePath(authData.role);
+      window.location.replace(getRolePath(authData.role));
     } catch (error) {
       alert(error.message || "Ошибка входа");
     } finally {
@@ -331,8 +327,8 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
         return;
       }
 
-      if (!registerFullName.trim()) {
-        alert("Введите имя");
+      if (!registerFirstName.trim() || !registerLastName.trim()) {
+        alert("Введите имя и фамилию");
         return;
       }
 
@@ -363,21 +359,28 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
 
       setIsRegisterLoading(true);
 
+      const registerFullName = `${registerFirstName.trim()} ${registerLastName.trim()}`
+        .replace(/\s+/g, " ")
+        .trim();
+
       const authData = await registerRequest({
         role: registerRole,
         phone: registerPhone,
         password: registerPassword,
+        firstName: registerFirstName,
+        lastName: registerLastName,
         fullName: registerFullName,
         categories: registerRole === "master" ? selectedCategories : [],
       });
 
       saveAuthData(authData, true);
+      setStoredActiveRole(authData.role);
 
       if (typeof onUserOrMasterSuccess === "function") {
         onUserOrMasterSuccess(authData.role);
       }
 
-      window.location.href = getRolePath(authData.role);
+      window.location.replace(getRolePath(authData.role));
     } catch (error) {
       alert(error.message || "Ошибка регистрации");
     } finally {
@@ -592,20 +595,34 @@ export default function UnifiedAuth({ onUserOrMasterSuccess, onAdminSuccess }) {
                       options={REGISTER_ROLE_OPTIONS}
                     />
 
-                    <div className="relative">
-                      <User className={ICON_CLASSNAME} size={22} />
-                      <input
-                        type="text"
-                        name="register_full_name"
-                        autoComplete="off"
-                        value={registerFullName}
-                        onChange={(e) => setRegisterFullName(e.target.value)}
-                        placeholder={
-                          registerRole === "master" ? "Имя мастера" : "Ваше имя"
-                        }
-                        className={INPUT_CLASSNAME}
-                        maxLength={50}
-                      />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="relative">
+                        <User className={ICON_CLASSNAME} size={22} />
+                        <input
+                          type="text"
+                          name="register_first_name"
+                          autoComplete="given-name"
+                          value={registerFirstName}
+                          onChange={(e) => setRegisterFirstName(e.target.value)}
+                          placeholder="Имя"
+                          className={INPUT_CLASSNAME}
+                          maxLength={50}
+                        />
+                      </div>
+
+                      <div className="relative">
+                        <User className={ICON_CLASSNAME} size={22} />
+                        <input
+                          type="text"
+                          name="register_last_name"
+                          autoComplete="family-name"
+                          value={registerLastName}
+                          onChange={(e) => setRegisterLastName(e.target.value)}
+                          placeholder="Фамилия"
+                          className={INPUT_CLASSNAME}
+                          maxLength={50}
+                        />
+                      </div>
                     </div>
 
                     <div className="relative">

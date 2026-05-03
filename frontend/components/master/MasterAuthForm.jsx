@@ -24,6 +24,13 @@ export default function MasterAuthForm({
   successText,
   onBack,
 }) {
+  const nameParts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ");
+  const updateFullName = (nextFirstName, nextLastName) => {
+    setFullName(`${nextFirstName.trim()} ${nextLastName.trim()}`.trim());
+  };
+
   return (
     <div className="flex min-h-[80vh] items-center justify-center">
       <div className="w-full max-w-md space-y-5 rounded-3xl border border-gray-300 bg-white p-6 shadow">
@@ -67,14 +74,25 @@ export default function MasterAuthForm({
         </div>
 
         {mode === "register" && (
-          <input
-            type="text"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Имя мастера"
-            className={INPUT_CLASSNAME}
-            maxLength={50}
-          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => updateFullName(e.target.value, lastName)}
+              placeholder="Имя"
+              className={INPUT_CLASSNAME}
+              maxLength={50}
+            />
+
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => updateFullName(firstName, e.target.value)}
+              placeholder="Фамилия"
+              className={INPUT_CLASSNAME}
+              maxLength={50}
+            />
+          </div>
         )}
 
         <input

@@ -31,7 +31,6 @@ def get_master_profile(master_id: int, db: Session = Depends(get_db)):
 @router.put("/masters/{master_id}/profile", response_model=MasterProfileResponse)
 def update_master_profile(
     master_id: int,
-    full_name: str = Form(...),
     about_me: str = Form(""),
     experience_years: int | None = Form(None),
     work_city: str = Form(""),
@@ -39,7 +38,6 @@ def update_master_profile(
 ):
     master = get_master_or_404(master_id, db)
 
-    master.full_name = full_name.strip()
     master.about_me = about_me.strip() or None
     master.experience_years = experience_years
     master.work_city = work_city.strip() or None

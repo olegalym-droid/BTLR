@@ -1,11 +1,28 @@
 import { useCallback, useState } from "react";
 import { getStoredAuthUser, clearAuthData } from "../lib/auth";
+import {
+  clearStoredMasterSection,
+  getStoredMasterSection,
+  saveStoredMasterSection,
+} from "../lib/session";
 
 export default function useMasterSession() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
-  const [activeSection, setActiveSection] = useState("profile");
+  const [activeSectionState, setActiveSectionState] = useState(
+    getStoredMasterSection,
+  );
+
+  const setActiveSection = useCallback((section) => {
+    setActiveSectionState((prev) => {
+      const nextSection =
+        typeof section === "function" ? section(prev) : section;
+
+      saveStoredMasterSection(nextSection);
+      return nextSection;
+    });
+  }, []);
 
   const loadStoredMaster = useCallback(() => {
     const authUser = getStoredAuthUser("master");
@@ -22,7 +39,8 @@ export default function useMasterSession() {
     setIsLoggedIn(false);
     setSuccessText("");
     setOpenedPhoto(null);
-    setActiveSection("profile");
+    clearStoredMasterSection();
+    setActiveSectionState("profile");
 
     if (Array.isArray(resetters)) {
       resetters.forEach((reset) => {
@@ -44,7 +62,7 @@ export default function useMasterSession() {
     setSuccessText,
     openedPhoto,
     setOpenedPhoto,
-    activeSection,
+    activeSection: activeSectionState,
     setActiveSection,
     loadStoredMaster,
     logoutMasterSession,

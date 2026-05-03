@@ -20,24 +20,28 @@ const DECISION_OPTIONS = [
   {
     resolution: "client_favor",
     label: "В пользу клиента",
+    impact: "Деньги мастеру не уйдут",
     status: "resolved",
     className: "bg-[#1f9d4c] text-white hover:bg-[#198941]",
   },
   {
     resolution: "master_favor",
     label: "В пользу мастера",
+    impact: "Деньги станут доступны мастеру",
     status: "resolved",
     className: "bg-[#4f7f56] text-white hover:bg-[#416f48]",
   },
   {
     resolution: "needs_details",
     label: "Запросить детали",
+    impact: "Оплата остаётся заблокирована",
     status: "needs_details",
     className: "bg-yellow-500 text-white hover:bg-yellow-600",
   },
   {
     resolution: "rejected",
     label: "Отклонить жалобу",
+    impact: "Оплата снова доступна",
     status: "rejected",
     className: "bg-red-500 text-white hover:bg-red-600",
   },
@@ -155,6 +159,7 @@ export default function AdminComplaintsSection({
   complaints,
   isLoading,
   updateComplaintStatus,
+  onOpenChatTarget,
 }) {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedPaymentMode, setSelectedPaymentMode] = useState("all");
@@ -537,6 +542,33 @@ export default function AdminComplaintsSection({
 
                     <button
                       type="button"
+                      onClick={() =>
+                        onOpenChatTarget?.("user", complaint.user_id)
+                      }
+                      className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600 shadow-sm transition hover:bg-[#f8faf8]"
+                    >
+                      <MessageSquare size={20} />
+                      Чат с клиентом
+                    </button>
+
+                    {complaint.order?.master_id ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenChatTarget?.(
+                            "master",
+                            complaint.order.master_id,
+                          )
+                        }
+                        className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-600 shadow-sm transition hover:bg-[#f8faf8]"
+                      >
+                        <MessageSquare size={20} />
+                        Чат с мастером
+                      </button>
+                    ) : null}
+
+                    <button
+                      type="button"
                       disabled={
                         isProcessing || complaint.status === "in_progress"
                       }
@@ -648,11 +680,14 @@ export default function AdminComplaintsSection({
                           type="button"
                           disabled={isProcessing}
                           onClick={() => handleDecision(complaint, decision)}
-                          className={`inline-flex min-h-[56px] items-center justify-center rounded-[18px] px-4 py-3 text-sm font-bold shadow-sm transition disabled:opacity-60 ${decision.className}`}
+                          className={`inline-flex min-h-[72px] flex-col items-center justify-center rounded-[18px] px-4 py-3 text-sm font-bold shadow-sm transition disabled:opacity-60 ${decision.className}`}
                         >
-                          {isProcessing
-                            ? "Обновление..."
-                            : decision.label}
+                          <span>
+                            {isProcessing ? "Обновление..." : decision.label}
+                          </span>
+                          <span className="mt-1 text-xs font-semibold opacity-80">
+                            {decision.impact}
+                          </span>
                         </button>
                       ))}
                     </div>

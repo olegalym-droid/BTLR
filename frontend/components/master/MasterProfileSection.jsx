@@ -99,8 +99,6 @@ function FilePicker({ label, value, onChange }) {
 
 export default function MasterProfileSection({
   masterProfile,
-  fullName,
-  setFullName,
   aboutMe,
   setAboutMe,
   experienceYears,
@@ -144,6 +142,7 @@ export default function MasterProfileSection({
   const statusInfo = getStatusInfo(status);
   const StatusIcon = statusInfo.Icon;
   const isApproved = status === "approved";
+  const displayName = masterProfile?.full_name || "Не указано";
 
   return (
     <div className="space-y-6">
@@ -204,6 +203,11 @@ export default function MasterProfileSection({
                 <span className="mt-4 rounded-full bg-[#edf6eb] px-4 py-2 text-xs font-bold text-[#5f9557]">
                   {statusInfo.label}
                 </span>
+
+                <p className="mt-3 text-xs leading-5 text-gray-500">
+                  Имя и телефон берутся из регистрации. Ниже редактируется
+                  только публичный профиль мастера.
+                </p>
               </div>
 
               <div className="mt-5 space-y-3">
@@ -285,23 +289,31 @@ export default function MasterProfileSection({
 
                 <div>
                   <h3 className="text-lg font-bold text-[#151c23]">
-                    Личные данные
+                    Публичный профиль
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Эти данные видит клиент при выборе мастера.
+                    Эти данные видит клиент при выборе мастера: описание, опыт,
+                    город и категории.
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-4">
-                <Field label="Имя">
-                  <input
-                    value={fullName}
-                    onChange={(event) => setFullName(event.target.value)}
-                    placeholder="ФИО"
-                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-medium text-[#151c23] outline-none transition placeholder:text-gray-400 focus:border-[#72a06d] focus:ring-4 focus:ring-[#eef6ea]"
-                  />
-                </Field>
+                <div className="rounded-2xl border border-gray-200 bg-[#fbfcfb] px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f1f6ef] text-[#5f9557]">
+                      <User size={20} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Имя и фамилия из аккаунта
+                      </p>
+                      <p className="mt-1 break-words text-sm font-semibold text-[#26312c]">
+                        {displayName}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 <Field label="О себе">
                   <textarea

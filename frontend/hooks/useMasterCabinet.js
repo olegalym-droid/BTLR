@@ -173,6 +173,8 @@ export default function useMasterCabinet({ onLogout }) {
     toggleCategory,
 
     // profile
+    fullName,
+    setFullName,
     aboutMe,
     setAboutMe,
     experienceYears,

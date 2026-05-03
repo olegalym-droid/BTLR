@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   CalendarDays,
   Camera,
   CheckCircle2,
@@ -69,6 +70,7 @@ export default function MasterOrdersSection({
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [copiedPhonesByOrder, setCopiedPhonesByOrder] = useState({});
   const [activeChatOrder, setActiveChatOrder] = useState(null);
+  const [activeAdminChatOrder, setActiveAdminChatOrder] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -111,6 +113,13 @@ export default function MasterOrdersSection({
       orderId: activeChatOrder?.id || null,
     }),
     [activeChatOrder?.id],
+  );
+
+  const activeAdminChatStartRequest = useMemo(
+    () => ({
+      conversationType: "admin",
+    }),
+    [],
   );
 
   const handleRefresh = async () => {
@@ -258,6 +267,53 @@ export default function MasterOrdersSection({
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const renderDisputeBlock = (order) => {
+    const complaints = Array.isArray(order.complaints) ? order.complaints : [];
+
+    if (complaints.length === 0) {
+      return null;
+    }
+
+    const activeComplaint =
+      complaints.find((item) =>
+        ["new", "in_progress", "needs_details"].includes(item.status),
+      ) || complaints[0];
+
+    return (
+      <div className="rounded-[28px] border border-orange-200 bg-orange-50 p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-orange-600">
+            <AlertTriangle size={22} />
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-base font-bold text-orange-900">
+              Спор по заказу
+            </p>
+            <p className="mt-1 break-words text-sm font-semibold text-orange-800 [overflow-wrap:anywhere]">
+              {activeComplaint.reason_label || "Другое"} ·{" "}
+              {activeComplaint.status_label || activeComplaint.status}
+            </p>
+            {activeComplaint.admin_comment ? (
+              <p className="mt-2 break-words text-sm text-orange-900 [overflow-wrap:anywhere]">
+                {activeComplaint.admin_comment}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveAdminChatOrder(order)}
+          className="mt-4 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-[#151c23] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-black"
+        >
+          <MessageCircle size={20} />
+          Чат с администратором
+        </button>
       </div>
     );
   };
@@ -609,6 +665,7 @@ export default function MasterOrdersSection({
               </div>
 
               {renderClientContactBlock(order)}
+              {renderDisputeBlock(order)}
 
               {renderMasterOrderAction(order)}
             </article>
@@ -645,6 +702,14 @@ export default function MasterOrdersSection({
         accountId={masterProfile?.id}
         startRequest={activeChatStartRequest}
         title="Чат с клиентом"
+      />
+      <ChatModal
+        isOpen={Boolean(activeAdminChatOrder)}
+        onClose={() => setActiveAdminChatOrder(null)}
+        viewerRole="master"
+        accountId={masterProfile?.id}
+        startRequest={activeAdminChatStartRequest}
+        title="Чат с администратором"
       />
     </section>
     </>

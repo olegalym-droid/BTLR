@@ -38,6 +38,17 @@ def calculate_offer_priority(offer) -> tuple:
     )
 
 
+def get_master_category_names(master) -> list[str]:
+    if not master:
+        return []
+
+    return [
+        item.category_name
+        for item in (master.master_categories or [])
+        if item.category_name
+    ]
+
+
 def build_order_response(
     order: Order,
     reviewed: bool = False,
@@ -70,9 +81,12 @@ def build_order_response(
                     full_name=offer.master.full_name,
                     about_me=offer.master.about_me,
                     experience_years=offer.master.experience_years,
+                    work_city=offer.master.work_city,
                     rating=offer.master.rating,
+                    completed_orders_count=offer.master.completed_orders_count,
                     avatar_path=offer.master.avatar_path,
                     selfie_photo_path=offer.master.selfie_photo_path,
+                    categories=get_master_category_names(offer.master),
                 ),
             )
         )
@@ -161,6 +175,19 @@ def build_order_response(
         master_name=order.master_name,
         master_rating=order.master_rating,
         master_phone=order.master.phone if order.master else None,
+        master_about_me=order.master.about_me if order.master else None,
+        master_experience_years=(
+            order.master.experience_years if order.master else None
+        ),
+        master_work_city=order.master.work_city if order.master else None,
+        master_completed_orders_count=(
+            order.master.completed_orders_count if order.master else None
+        ),
+        master_avatar_path=order.master.avatar_path if order.master else None,
+        master_selfie_photo_path=(
+            order.master.selfie_photo_path if order.master else None
+        ),
+        master_categories=get_master_category_names(order.master),
         user_phone=order.user.phone if order.user else None,
         price=order.price,
         client_price=order.client_price,

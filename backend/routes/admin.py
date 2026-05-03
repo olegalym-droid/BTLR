@@ -28,6 +28,7 @@ from models import (
     MasterSchedule,
     Review,
     Notification,
+    AdminActionLog,
 )
 from schemas import (
     MasterProfileResponse,
@@ -36,7 +37,10 @@ from schemas import (
     ComplaintHistoryResponse,
     ComplaintOrderInfoResponse,
     MasterWithdrawalRequestResponse,
+    AdminOverviewResponse,
+    AdminActionLogResponse,
 )
+from chat_service import add_admin_system_message, add_order_system_message
 from routes.orders_helpers import build_order_response, is_order_reviewed
 from payment_ledger import (
     get_order_payout_amount,
@@ -57,6 +61,13 @@ ALLOWED_ORDER_STATUSES = {
     "completed",
     "paid",
 }
+ACTIVE_ADMIN_ORDER_STATUSES = [
+    "searching",
+    "pending_user_confirmation",
+    "assigned",
+    "on_the_way",
+    "on_site",
+]
 
 
 class AdminLoginRequest(BaseModel):
@@ -243,6 +254,36 @@ def serialize_withdrawal_request(
         card_holder_name=item.card_holder_name,
         status=item.status,
         created_at=item.created_at.isoformat() if item.created_at else "",
+    )
+
+
+def serialize_admin_action_log(item: AdminActionLog) -> AdminActionLogResponse:
+    return AdminActionLogResponse(
+        id=item.id,
+        action=item.action,
+        entity_type=item.entity_type,
+        entity_id=item.entity_id,
+        details=item.details,
+        created_at=item.created_at.isoformat() if item.created_at else "",
+    )
+
+
+def add_admin_action_log(
+    db: Session,
+    *,
+    action: str,
+    entity_type: str | None = None,
+    entity_id: int | None = None,
+    details: str | None = None,
+) -> None:
+    db.add(
+        AdminActionLog(
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=details,
+            created_at=datetime.utcnow(),
+        )
     )
 
 
@@ -628,6 +669,86 @@ def admin_login(payload: AdminLoginRequest):
     }
 
 
+@router.get("/overview", response_model=AdminOverviewResponse)
+def get_admin_overview(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    pending_masters = (
+        db.query(Account)
+        .filter(
+            Account.role == "master",
+            Account.verification_status == "pending",
+        )
+        .count()
+    )
+
+    active_complaints = (
+        db.query(Complaint)
+        .filter(Complaint.status.in_(ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES))
+        .count()
+    )
+
+    pending_withdrawals = (
+        db.query(MasterWithdrawalRequest)
+        .filter(MasterWithdrawalRequest.status == "pending")
+        .count()
+    )
+
+    active_orders = (
+        db.query(Order)
+        .filter(Order.status.in_(ACTIVE_ADMIN_ORDER_STATUSES))
+        .count()
+    )
+
+    orders_searching = (
+        db.query(Order)
+        .filter(
+            Order.status.in_(
+                ["searching", "pending_user_confirmation"],
+            )
+        )
+        .count()
+    )
+
+    orders_in_work = (
+        db.query(Order)
+        .filter(Order.status.in_(["assigned", "on_the_way", "on_site"]))
+        .count()
+    )
+
+    orders_completed_unpaid = (
+        db.query(Order)
+        .filter(Order.status == "completed")
+        .count()
+    )
+
+    return AdminOverviewResponse(
+        pending_masters=pending_masters,
+        active_complaints=active_complaints,
+        pending_withdrawals=pending_withdrawals,
+        active_orders=active_orders,
+        orders_searching=orders_searching,
+        orders_in_work=orders_in_work,
+        orders_completed_unpaid=orders_completed_unpaid,
+    )
+
+
+@router.get("/action-logs", response_model=list[AdminActionLogResponse])
+def get_admin_action_logs(
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_admin),
+):
+    items = (
+        db.query(AdminActionLog)
+        .order_by(AdminActionLog.created_at.desc(), AdminActionLog.id.desc())
+        .limit(50)
+        .all()
+    )
+
+    return [serialize_admin_action_log(item) for item in items]
+
+
 @router.get("/masters/pending", response_model=list[MasterProfileResponse])
 def get_pending_masters(
     db: Session = Depends(get_db),
@@ -701,6 +822,13 @@ def approve_master_by_admin(
         )
 
     master.verification_status = "approved"
+    add_admin_action_log(
+        db,
+        action="Мастер одобрен",
+        entity_type="master",
+        entity_id=master.id,
+        details=master.full_name or master.phone,
+    )
 
     db.commit()
     db.refresh(master)
@@ -929,6 +1057,58 @@ def update_complaint_status(
         ):
             db.add(notification)
 
+        status_label = get_complaint_status_label(normalized_status)
+        reason_label = get_complaint_reason_label(complaint.reason)
+        resolution_label = get_complaint_resolution_label(complaint.resolution)
+        resolution_text = f" Решение: {resolution_label}." if resolution_label else ""
+        comment_text = (
+            f" Комментарий администратора: {complaint.admin_comment}"
+            if complaint.admin_comment
+            else ""
+        )
+        system_text = (
+            f"Администратор обновил спор по заказу #{complaint.order_id}: "
+            f"{status_label}. Причина: {reason_label}.{resolution_text}{comment_text}"
+        )
+
+        add_order_system_message(
+            complaint.order,
+            db,
+            system_text,
+            read_by_user=False,
+            read_by_master=False,
+        )
+        add_admin_system_message(
+            complaint.user,
+            db,
+            system_text,
+            read_by_user=False,
+            read_by_admin=True,
+        )
+
+        if complaint.order and complaint.order.master:
+            add_admin_system_message(
+                complaint.order.master,
+                db,
+                system_text,
+                read_by_master=False,
+                read_by_admin=True,
+            )
+
+        details = f"Статус: {get_complaint_status_label(normalized_status)}"
+        if complaint.resolution:
+            details = f"{details}; решение: {get_complaint_resolution_label(complaint.resolution)}"
+        if complaint.order_id:
+            details = f"{details}; заказ #{complaint.order_id}"
+
+        add_admin_action_log(
+            db,
+            action="Спор обновлен",
+            entity_type="complaint",
+            entity_id=complaint.id,
+            details=details,
+        )
+
     db.commit()
     db.refresh(complaint)
 
@@ -1030,6 +1210,17 @@ def update_withdrawal_status(
         master.available_withdraw_amount = str(current_available + amount_value)
 
     withdrawal.status = next_status
+    add_admin_action_log(
+        db,
+        action=(
+            "Вывод одобрен"
+            if next_status == "approved"
+            else "Вывод отклонен"
+        ),
+        entity_type="withdrawal",
+        entity_id=withdrawal.id,
+        details=f"Мастер #{withdrawal.master_id}; сумма {withdrawal.amount}",
+    )
 
     db.commit()
     db.refresh(withdrawal)

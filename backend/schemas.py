@@ -7,6 +7,8 @@ class RegisterRequest(BaseModel):
     role: str = Field(..., pattern="^(user|master)$")
     phone: str = Field(..., min_length=6, max_length=32)
     password: str = Field(..., min_length=6, max_length=128)
+    first_name: str | None = Field(default=None, max_length=50)
+    last_name: str | None = Field(default=None, max_length=50)
     full_name: str | None = Field(default=None, max_length=100)
     categories: Optional[list[str]] = None
 
@@ -94,9 +96,12 @@ class OfferMasterResponse(BaseModel):
     full_name: str | None = None
     about_me: str | None = None
     experience_years: int | None = None
+    work_city: str | None = None
     rating: float
+    completed_orders_count: int = 0
     avatar_path: str | None = None
     selfie_photo_path: str | None = None
+    categories: list[str] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -160,6 +165,13 @@ class OrderResponse(BaseModel):
     master_name: str | None = None
     master_rating: float | None = None
     master_phone: str | None = None
+    master_about_me: str | None = None
+    master_experience_years: int | None = None
+    master_work_city: str | None = None
+    master_completed_orders_count: int | None = None
+    master_avatar_path: str | None = None
+    master_selfie_photo_path: str | None = None
+    master_categories: list[str] = Field(default_factory=list)
     user_phone: str | None = None
     price: str | None = None
     client_price: str | None = None
@@ -241,11 +253,26 @@ class NotificationResponse(BaseModel):
         from_attributes = True
 
 
+class MasterFrozenBalanceItemResponse(BaseModel):
+    order_id: int
+    service_name: str
+    category: str
+    amount: str | None = None
+    order_status: str
+    payout_status: str | None = None
+    reason: str
+    complaint_id: int | None = None
+    complaint_reason_label: str | None = None
+    complaint_status_label: str | None = None
+    created_at: str | None = None
+
+
 class MasterBalanceResponse(BaseModel):
     master_id: int
     balance_amount: str
     available_withdraw_amount: str
     frozen_balance_amount: str = "0"
+    frozen_items: list[MasterFrozenBalanceItemResponse] = Field(default_factory=list)
 
 
 class MasterWithdrawalRequestCreate(BaseModel):
@@ -262,6 +289,28 @@ class MasterWithdrawalRequestResponse(BaseModel):
     card_brand: str | None = None
     card_holder_name: str
     status: str
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class AdminOverviewResponse(BaseModel):
+    pending_masters: int = 0
+    active_complaints: int = 0
+    pending_withdrawals: int = 0
+    active_orders: int = 0
+    orders_searching: int = 0
+    orders_in_work: int = 0
+    orders_completed_unpaid: int = 0
+
+
+class AdminActionLogResponse(BaseModel):
+    id: int
+    action: str
+    entity_type: str | None = None
+    entity_id: int | None = None
+    details: str | None = None
     created_at: str
 
     class Config:

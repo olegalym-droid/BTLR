@@ -11,6 +11,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=AuthResponse)
 def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+    first_name = (payload.first_name or "").strip()
+    last_name = (payload.last_name or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+
+    if not full_name:
+        full_name = (payload.full_name or "").strip()
+
+    if len(full_name.split()) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Введите имя и фамилию",
+        )
+
     normalized_categories: list[str] = []
     if payload.role == "master":
         seen_categories = set()
@@ -45,7 +58,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     account = Account(
         role=payload.role,
         phone=payload.phone,
-        full_name=payload.full_name,
+        full_name=full_name,
         hashed_password=hash_password(payload.password),
         verification_status=verification_status,
     )

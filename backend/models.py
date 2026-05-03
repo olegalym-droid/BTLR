@@ -293,6 +293,17 @@ class Notification(Base):
     order = relationship("Order", back_populates="notifications", foreign_keys=[order_id])
 
 
+class AdminActionLog(Base):
+    __tablename__ = "admin_action_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action = Column(String, nullable=False)
+    entity_type = Column(String, nullable=True, index=True)
+    entity_id = Column(Integer, nullable=True, index=True)
+    details = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 class ChatConversation(Base):
     __tablename__ = "chat_conversations"
 

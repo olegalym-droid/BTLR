@@ -2,45 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import BottomNav from "../BottomNav";
-import AppContent from "../AppContent";
-import { servicesByCategory } from "../../lib/constants";
-import { formatPhoneInput } from "../../lib/profile";
+import StatePanel from "../StatePanel";
+import UserAppView from "../UserAppView";
+import { API_BASE_URL, servicesByCategory } from "../../lib/constants";
 import { getStatusLabel } from "../../lib/orders";
 import useOrders from "../../hooks/useOrders";
 import useProfile from "../../hooks/useProfile";
 import useOrderForm from "../../hooks/useOrderForm";
 import { getStoredAuthUser, clearAuthData } from "../../lib/auth";
-
-const EMPTY_ADMIN_STATE = {
-  login: "",
-  setLogin: () => {},
-  password: "",
-  setPassword: () => {},
-  isLoading: false,
-  isLoggedIn: false,
-  pendingMasters: [],
-  selectedMaster: null,
-  setSelectedMaster: () => {},
-  complaints: [],
-  withdrawalRequests: [],
-  successText: "",
-  handleLogin: async () => {},
-  handleApproveMaster: async () => {},
-  loadPendingMasters: async () => [],
-  loadComplaints: async () => [],
-  loadWithdrawalRequests: async () => [],
-  loginWithCredentials: async () => {},
-  updateComplaintStatus: async () => {},
-  updateWithdrawalStatus: async () => {},
-  logout: () => {},
-};
+import {
+  getCurrentSessionRole,
+  getRolePath,
+  getStoredUserTab,
+  saveStoredUserTab,
+  setStoredActiveRole,
+} from "../../lib/session";
 
 export default function UserAppShell({
-  initialTab = "services",
   onLogout,
 }) {
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [activeTab, setActiveTab] = useState(getStoredUserTab);
+  const [sessionStatus, setSessionStatus] = useState("checking");
 
   const {
     orderCreated,
@@ -57,12 +39,10 @@ export default function UserAppShell({
 
   const {
     profile,
-    setProfile,
     address: profileAddress,
     newAddressForm,
     setNewAddressForm,
     profileSaved,
-    saveProfile,
     addAddress,
     removeAddress,
     setPrimaryAddress,
@@ -89,22 +69,36 @@ export default function UserAppShell({
   } = useOrderForm({ initialAddress: profileAddress });
 
   const categories = Object.keys(servicesByCategory);
+  const authUser = useMemo(() => getStoredAuthUser("user"), []);
 
   const availableServices = useMemo(() => {
     return category ? servicesByCategory[category] || [] : [];
   }, [category]);
 
   useEffect(() => {
-    const authUser = getStoredAuthUser("user");
+    const role = getCurrentSessionRole();
+    let timer;
 
-    if (!authUser?.id || authUser.role !== "user") {
-      window.location.replace("/");
+    if (role && role !== "user") {
+      window.location.replace(getRolePath(role));
       return;
     }
 
-    syncProfileFromStorage();
+    const authUser = getStoredAuthUser("user");
 
-    const timer = window.setTimeout(() => setIsAuthReady(true), 0);
+    if (!authUser?.id || authUser.role !== "user") {
+      timer = window.setTimeout(() => {
+        setSessionStatus("missing");
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    setStoredActiveRole("user");
+    syncProfileFromStorage();
+    timer = window.setTimeout(() => {
+      setSessionStatus("ready");
+    }, 0);
+
     return () => window.clearTimeout(timer);
   }, [syncProfileFromStorage]);
 
@@ -141,9 +135,12 @@ export default function UserAppShell({
     });
 
     if (!success) return;
+
+    return success;
   };
 
   const handleTabChange = async (tab) => {
+    saveStoredUserTab(tab);
     setActiveTab(tab);
     setOrderCreated(false);
     setSelectedOrder(null);
@@ -165,6 +162,7 @@ export default function UserAppShell({
       return;
     }
 
+    saveStoredUserTab("orders");
     setActiveTab("orders");
     setOrderCreated(false);
 
@@ -174,7 +172,7 @@ export default function UserAppShell({
     if (!foundOrder) {
       try {
         const response = await fetch(
-          `http://127.0.0.1:8000/orders/${orderId}?user_id=${authUser.id}`,
+          `${API_BASE_URL}/orders/${orderId}?user_id=${authUser.id}`,
         );
         const data = await response.json();
 
@@ -203,11 +201,31 @@ export default function UserAppShell({
       return;
     }
 
-    window.location.href = "/";
+    window.location.replace("/");
   };
 
-  if (!isAuthReady) {
-    return <main className="min-h-screen bg-gray-100" />;
+  if (sessionStatus === "checking") {
+    return (
+      <main className="min-h-screen bg-gray-100">
+        <StatePanel
+          title="Открываем кабинет"
+          text="Проверяем сохраненный вход пользователя."
+        />
+      </main>
+    );
+  }
+
+  if (sessionStatus === "missing") {
+    return (
+      <main className="min-h-screen bg-gray-100">
+        <StatePanel
+          title="Нужно войти"
+          text="Для кабинета пользователя нужна активная сессия."
+          actionLabel="Перейти ко входу"
+          onAction={() => window.location.replace("/")}
+        />
+      </main>
+    );
   }
 
   return (
@@ -218,60 +236,44 @@ export default function UserAppShell({
         </div>
 
         <div className="rounded-2xl bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-6">
-          <AppContent
-            session={{
-              selectedRole: "user",
-              setSelectedRole: () => {},
-              isAuthenticated: true,
-              setIsAuthenticated: () => {},
-              activeTab,
-              setActiveTab,
-              handleAuthSuccess: () => {},
-            }}
-            ordersState={{
-              orderCreated,
-              setOrderCreated,
-              selectedOrder,
-              setSelectedOrder,
-              updateSelectedOrder,
-              activeOrders,
-              completedOrders,
-            }}
-            orderForm={{
-              category,
-              setCategory,
-              serviceName,
-              setServiceName,
-              description,
-              setDescription,
-              clientPrice,
-              setClientPrice,
-              address,
-              setAddress,
-              selectedDate,
-              setSelectedDate,
-              selectedTime,
-              setSelectedTime,
-            }}
-            profileState={{
-              profile,
-              setProfile,
-              newAddressForm,
-              setNewAddressForm,
-              profileSaved,
-              addAddress,
-              removeAddress,
-              setPrimaryAddress,
-              saveProfile,
-              onOpenOrder: handleOpenOrderFromNotification,
-            }}
-            adminState={EMPTY_ADMIN_STATE}
+          <UserAppView
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            orderCreated={orderCreated}
+            setOrderCreated={setOrderCreated}
+            selectedOrder={selectedOrder}
+            setSelectedOrder={setSelectedOrder}
+            updateSelectedOrder={updateSelectedOrder}
+            activeOrders={activeOrders}
+            completedOrders={completedOrders}
             categories={categories}
+            category={category}
+            setCategory={setCategory}
+            serviceName={serviceName}
+            setServiceName={setServiceName}
             availableServices={availableServices}
+            description={description}
+            setDescription={setDescription}
+            clientPrice={clientPrice}
+            setClientPrice={setClientPrice}
+            address={address}
+            setAddress={setAddress}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedTime={selectedTime}
+            setSelectedTime={setSelectedTime}
             createOrder={createOrder}
             getStatusLabel={getStatusLabel}
+            profile={profile}
+            userAccountId={authUser?.id}
+            newAddressForm={newAddressForm}
+            setNewAddressForm={setNewAddressForm}
+            profileSaved={profileSaved}
+            addAddress={addAddress}
+            removeAddress={removeAddress}
+            setPrimaryAddress={setPrimaryAddress}
             handleLogout={handleLogout}
-            formatPhoneInput={formatPhoneInput}
+            onOpenOrder={handleOpenOrderFromNotification}
           />
         </div>
       </div>

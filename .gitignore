@@ -30,7 +30,12 @@ Thumbs.db
 # Logs
 # ======================
 *.log
+.codex-*.err
+.codex-*.out
+.codex-tmp/
 .codex-dev-server*.err
+backend/.codex-*.err
+frontend/.codex-*.err
 
 # ======================
 # Database

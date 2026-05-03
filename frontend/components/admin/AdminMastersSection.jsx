@@ -136,7 +136,9 @@ export default function AdminMastersSection({
 
           <button
             type="button"
-            onClick={() => handleApproveMaster(selectedMaster.id)}
+            onClick={() =>
+              handleApproveMaster(selectedMaster.id, selectedMaster.full_name)
+            }
             disabled={isLoading}
             className={PRIMARY_BUTTON_CLASSNAME}
           >

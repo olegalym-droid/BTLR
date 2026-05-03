@@ -35,8 +35,8 @@ export default function useMasterAuth() {
     }
 
     if (mode === "register") {
-      if (!fullName?.trim()) {
-        throw new Error("Введите имя");
+      if (String(fullName || "").trim().split(/\s+/).length < 2) {
+        throw new Error("Введите имя и фамилию");
       }
 
       if (password !== confirmPassword) {
@@ -58,10 +58,14 @@ export default function useMasterAuth() {
       let authData;
 
       if (mode === "register") {
+        const [firstName = "", ...lastNameParts] = fullName.trim().split(/\s+/);
+
         authData = await registerRequest({
           role: "master",
           phone,
           password,
+          firstName,
+          lastName: lastNameParts.join(" "),
           fullName,
           categories: selectedCategories,
         });

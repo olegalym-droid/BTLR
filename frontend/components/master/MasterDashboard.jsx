@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   CalendarDays,
   ClipboardList,
@@ -10,6 +11,7 @@ import MasterWalletSection from "./MasterWalletSection";
 import MasterScheduleSection from "./MasterScheduleSection";
 import MasterOrdersTabsSection from "./MasterOrdersTabsSection";
 import ChatCenter from "../chat/ChatCenter";
+import { loadChatConversations } from "../../lib/chats";
 
 const SECTIONS = [
   {
@@ -39,7 +41,9 @@ const SECTIONS = [
   },
 ];
 
-function SectionTabs({ activeSection, setActiveSection }) {
+const MASTER_CHAT_POLL_INTERVAL_MS = 12000;
+
+function SectionTabs({ activeSection, setActiveSection, chatUnreadCount = 0 }) {
   return (
     <nav className="rounded-[28px] border border-gray-200 bg-white p-2 shadow-sm">
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
@@ -59,11 +63,16 @@ function SectionTabs({ activeSection, setActiveSection }) {
               }`}
             >
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+                className={`relative flex h-10 w-10 items-center justify-center rounded-2xl ${
                   isActive ? "bg-[#d7ead6]" : "bg-[#f2f5f2]"
                 }`}
               >
                 <Icon size={21} strokeWidth={2.2} />
+                {item.key === "chats" && chatUnreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex min-h-[20px] min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">
+                    {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
+                  </span>
+                ) : null}
               </span>
 
               <span>{item.label}</span>
@@ -77,8 +86,6 @@ function SectionTabs({ activeSection, setActiveSection }) {
 
 export default function MasterDashboard({
   masterProfile,
-  fullName,
-  setFullName,
   aboutMe,
   setAboutMe,
   experienceYears,
@@ -131,19 +138,65 @@ export default function MasterDashboard({
   handleSaveMasterSchedule,
   removeScheduleItem,
 }) {
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!masterProfile?.id) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadUnreadChats = async () => {
+      try {
+        const conversations = await loadChatConversations({
+          viewerRole: "master",
+          accountId: masterProfile.id,
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setChatUnreadCount(
+          conversations.reduce(
+            (sum, item) => sum + Number(item.unread_count || 0),
+            0,
+          ),
+        );
+      } catch (error) {
+        console.error("Ошибка загрузки непрочитанных чатов мастера:", error);
+
+        if (isMounted) {
+          setChatUnreadCount(0);
+        }
+      }
+    };
+
+    loadUnreadChats();
+    const intervalId = window.setInterval(
+      loadUnreadChats,
+      MASTER_CHAT_POLL_INTERVAL_MS,
+    );
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [masterProfile?.id]);
+
   return (
     <>
       <div className="space-y-6">
         <SectionTabs
           activeSection={activeSection}
           setActiveSection={setActiveSection}
+          chatUnreadCount={masterProfile?.id ? chatUnreadCount : 0}
         />
 
         {activeSection === "profile" && (
           <MasterProfileSection
             masterProfile={masterProfile}
-            fullName={fullName}
-            setFullName={setFullName}
             aboutMe={aboutMe}
             setAboutMe={setAboutMe}
             experienceYears={experienceYears}

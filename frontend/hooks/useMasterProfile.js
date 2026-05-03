@@ -52,10 +52,6 @@ export default function useMasterProfile() {
       throw new Error("Профиль мастера не загружен");
     }
 
-    if (!fullName.trim()) {
-      throw new Error("Введите имя");
-    }
-
     const normalizedExperience =
       String(experienceYears).trim() === ""
         ? ""
@@ -70,7 +66,6 @@ export default function useMasterProfile() {
 
     const updatedProfile = await updateMasterProfileRequest({
       masterId: masterProfile.id,
-      fullName: fullName.trim(),
       aboutMe,
       experienceYears: normalizedExperience,
       workCity,

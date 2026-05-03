@@ -162,6 +162,7 @@ export default function useMasterCabinetActions({
         "auth_user_user",
         "app_selected_role",
         "app_active_tab",
+        "app_master_active_section",
         "admin_login",
         "admin_password",
       ];
@@ -171,7 +172,7 @@ export default function useMasterCabinetActions({
         window.sessionStorage.removeItem(key);
       });
 
-      window.location.href = "/";
+      window.location.replace("/");
       return;
     }
 

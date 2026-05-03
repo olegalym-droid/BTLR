@@ -1,7 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
+  AlertTriangle,
+  ClipboardList,
+  Clock3,
   LogOut,
   MessageCircle,
+  RefreshCw,
   Search,
   Shield,
   UserRound,
@@ -13,6 +18,7 @@ import AdminWithdrawalsSection from "./AdminWithdrawalsSection";
 import ChatCenter from "../chat/ChatCenter";
 import { API_BASE_URL } from "../../lib/constants";
 import { getAdminHeaders } from "../../lib/admin";
+import { loadChatConversations } from "../../lib/chats";
 
 const ACCOUNT_ROLE_OPTIONS = [
   { value: "", label: "Все роли" },
@@ -47,7 +53,7 @@ const PANEL_CLASSNAME =
 const PRIMARY_BUTTON_CLASSNAME =
   "min-h-[56px] rounded-[18px] bg-[#4f7f56] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#416f48] disabled:opacity-60";
 const SECONDARY_BUTTON_CLASSNAME =
-  "min-h-[56px] rounded-[18px] border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#374151] shadow-sm transition hover:bg-[#f8faf8] disabled:opacity-60";
+  "inline-flex min-h-[56px] items-center justify-center gap-2 rounded-[18px] border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#374151] shadow-sm transition hover:bg-[#f8faf8] disabled:opacity-60";
 
 const TAB_ITEMS = [
   { id: "masters", label: "Мастера", icon: UserRound },
@@ -56,6 +62,8 @@ const TAB_ITEMS = [
   { id: "accounts", label: "Поиск аккаунтов", icon: Search },
   { id: "chats", label: "Чаты", icon: MessageCircle },
 ];
+const ACTIVE_COMPLAINT_STATUSES = ["new", "in_progress", "needs_details"];
+const ADMIN_CHAT_POLL_INTERVAL_MS = 12000;
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -72,6 +80,11 @@ function formatMoney(value) {
   const digits = String(value || "").replace(/[^\d]/g, "");
   const amount = digits ? Number(digits) : 0;
   return `${amount.toLocaleString("ru-RU")} ₸`;
+}
+
+function formatCount(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString("ru-RU");
 }
 
 function getRoleLabel(role) {
@@ -123,7 +136,96 @@ function InfoCard({ title, value, hint = "" }) {
   );
 }
 
+function DetailPanel({ title, subtitle = "", children }) {
+  return (
+    <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
+      <div className="text-sm font-bold text-[#111827]">{title}</div>
+      {subtitle ? (
+        <div className="mt-1 text-xs font-semibold text-gray-500">
+          {subtitle}
+        </div>
+      ) : null}
+      <div className="mt-4">{children}</div>
+    </div>
+  );
+}
+
+function OverviewStatCard({ title, value, hint, icon: Icon, tone = "green" }) {
+  const toneClassName =
+    tone === "red"
+      ? "bg-red-50 text-red-700"
+      : tone === "yellow"
+        ? "bg-yellow-50 text-yellow-700"
+        : tone === "blue"
+          ? "bg-blue-50 text-blue-700"
+          : "bg-[#edf4ed] text-[#4f7f56]";
+
+  return (
+    <div className="rounded-[22px] border border-gray-200 bg-white p-4 shadow-sm">
+      <div
+        className={`flex size-12 items-center justify-center rounded-[16px] ${toneClassName}`}
+      >
+        <Icon size={24} />
+      </div>
+      <div className="mt-4 text-3xl font-bold text-[#111827]">
+        {formatCount(value)}
+      </div>
+      <div className="mt-1 text-sm font-bold text-[#111827]">{title}</div>
+      <div className="mt-1 text-xs font-semibold text-gray-500">{hint}</div>
+    </div>
+  );
+}
+
+function ActivityLogPanel({ logs }) {
+  const items = Array.isArray(logs) ? logs.slice(0, 8) : [];
+
+  return (
+    <div className={PANEL_CLASSNAME}>
+      <div className="flex items-center gap-3">
+        <div className="flex size-11 items-center justify-center rounded-[16px] bg-[#edf4ed] text-[#4f7f56]">
+          <Activity size={22} />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-[#111827]">Журнал действий</h2>
+          <p className="mt-1 text-sm font-semibold text-gray-500">
+            Последние решения администратора
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-[18px] border border-dashed border-gray-300 bg-[#fbfcfb] p-4 text-sm font-semibold text-gray-500">
+            Действий пока нет
+          </div>
+        ) : (
+          items.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-[18px] border border-gray-200 bg-[#fbfcfb] p-4"
+            >
+              <div className="text-sm font-bold text-[#111827]">
+                {item.action}
+              </div>
+              {item.details ? (
+                <div className="mt-1 text-xs font-semibold text-gray-600">
+                  {item.details}
+                </div>
+              ) : null}
+              <div className="mt-2 text-xs font-semibold text-gray-500">
+                {formatDateTime(item.created_at)}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard({
+  adminOverview,
+  adminActionLogs,
   pendingMasters,
   selectedMaster,
   setSelectedMaster,
@@ -132,6 +234,8 @@ export default function AdminDashboard({
   successText,
   isLoading,
   handleApproveMaster,
+  loadAdminActionLogs,
+  loadAdminOverview,
   updateComplaintStatus,
   updateWithdrawalStatus,
   logout,
@@ -151,6 +255,81 @@ export default function AdminDashboard({
   const [orderStatusFilter, setOrderStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatStartTarget, setChatStartTarget] = useState(null);
+
+  const overview = useMemo(() => {
+    const activeComplaintFallback = (Array.isArray(complaints)
+      ? complaints
+      : []
+    ).filter((item) => ACTIVE_COMPLAINT_STATUSES.includes(item.status)).length;
+    const pendingWithdrawalFallback = (Array.isArray(withdrawalRequests)
+      ? withdrawalRequests
+      : []
+    ).filter((item) => item.status === "pending").length;
+
+    return {
+      pending_masters: Number(
+        adminOverview?.pending_masters ?? pendingMasters?.length ?? 0,
+      ),
+      active_complaints: Number(
+        adminOverview?.active_complaints ?? activeComplaintFallback,
+      ),
+      pending_withdrawals: Number(
+        adminOverview?.pending_withdrawals ?? pendingWithdrawalFallback,
+      ),
+      active_orders: Number(adminOverview?.active_orders ?? 0),
+      orders_searching: Number(adminOverview?.orders_searching ?? 0),
+      orders_in_work: Number(adminOverview?.orders_in_work ?? 0),
+      orders_completed_unpaid: Number(
+        adminOverview?.orders_completed_unpaid ?? 0,
+      ),
+    };
+  }, [adminOverview, complaints, pendingMasters, withdrawalRequests]);
+
+  const tabBadgeMap = useMemo(
+    () => ({
+      masters: overview.pending_masters,
+      complaints: overview.active_complaints,
+      withdrawals: overview.pending_withdrawals,
+      chats: chatUnreadCount,
+    }),
+    [chatUnreadCount, overview],
+  );
+
+  const quickActions = useMemo(
+    () => [
+      {
+        id: "masters",
+        label: "Новые мастера",
+        hint: "проверить документы",
+        value: overview.pending_masters,
+        icon: UserRound,
+      },
+      {
+        id: "complaints",
+        label: "Активные споры",
+        hint: "решить жалобы и деньги",
+        value: overview.active_complaints,
+        icon: AlertTriangle,
+      },
+      {
+        id: "withdrawals",
+        label: "Заявки на вывод",
+        hint: "одобрить или отклонить",
+        value: overview.pending_withdrawals,
+        icon: WalletCards,
+      },
+      {
+        id: "accounts",
+        label: "Поиск аккаунта",
+        hint: "пользователь, мастер, заказ",
+        value: overview.active_orders,
+        icon: Search,
+      },
+    ],
+    [overview],
+  );
 
   const accountStats = useMemo(() => {
     return selectedAccount?.stats || null;
@@ -187,6 +366,46 @@ export default function AdminDashboard({
       ? selectedAccount.schedule
       : [];
   }, [selectedAccount]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUnreadChats = async () => {
+      try {
+        const conversations = await loadChatConversations({
+          viewerRole: "admin",
+        });
+
+        if (!isMounted) {
+          return;
+        }
+
+        setChatUnreadCount(
+          conversations.reduce(
+            (sum, item) => sum + Number(item.unread_count || 0),
+            0,
+          ),
+        );
+      } catch (error) {
+        console.error("Ошибка загрузки непрочитанных чатов админа:", error);
+
+        if (isMounted) {
+          setChatUnreadCount(0);
+        }
+      }
+    };
+
+    loadUnreadChats();
+    const intervalId = window.setInterval(
+      loadUnreadChats,
+      ADMIN_CHAT_POLL_INTERVAL_MS,
+    );
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const runSearch = async () => {
     try {
@@ -311,6 +530,80 @@ export default function AdminDashboard({
     });
   };
 
+  const confirmAdminAction = (message) => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    return window.confirm(message);
+  };
+
+  const handleRefreshAdminCenter = async () => {
+    try {
+      await Promise.all([
+        loadAdminOverview ? loadAdminOverview() : Promise.resolve(),
+        loadAdminActionLogs ? loadAdminActionLogs() : Promise.resolve(),
+      ]);
+    } catch (error) {
+      console.error("Ошибка обновления админского пульта:", error);
+      alert(error.message || "Не удалось обновить админский пульт");
+    }
+  };
+
+  const handleConfirmedApproveMaster = async (masterId, masterName = "") => {
+    const namePart = masterName ? ` "${masterName}"` : "";
+
+    if (!confirmAdminAction(`Одобрить мастера${namePart}?`)) {
+      return;
+    }
+
+    await handleApproveMaster(masterId);
+  };
+
+  const handleConfirmedComplaintStatus = async (
+    complaintId,
+    statusOrPayload,
+  ) => {
+    if (!confirmAdminAction(`Изменить статус жалобы #${complaintId}?`)) {
+      return null;
+    }
+
+    return updateComplaintStatus(complaintId, statusOrPayload);
+  };
+
+  const handleConfirmedWithdrawalStatus = async (
+    withdrawalId,
+    status,
+    item = null,
+  ) => {
+    const actionText =
+      status === "approved" ? "одобрить вывод" : "отклонить вывод";
+    const amountText = item?.amount ? ` на ${formatMoney(item.amount)}` : "";
+
+    if (
+      !confirmAdminAction(
+        `Подтвердить действие: ${actionText} #${withdrawalId}${amountText}?`,
+      )
+    ) {
+      return null;
+    }
+
+    return updateWithdrawalStatus(withdrawalId, status);
+  };
+
+  const handleOpenChatTarget = (targetRole, targetAccountId) => {
+    if (!targetAccountId) {
+      return;
+    }
+
+    setChatStartTarget({
+      targetRole,
+      targetAccountId,
+      key: `${targetRole}-${targetAccountId}-${Date.now()}`,
+    });
+    setActiveTab("chats");
+  };
+
   return (
     <div className="space-y-7">
       <div className="flex flex-col gap-5 rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between lg:p-8">
@@ -333,10 +626,116 @@ export default function AdminDashboard({
         </button>
       </div>
 
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className={PANEL_CLASSNAME}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-[#111827]">
+                Рабочий центр
+              </h2>
+              <p className="mt-2 text-sm font-semibold text-gray-500">
+                Быстрый срез по проверкам, спорам, выводам и активным заказам
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRefreshAdminCenter}
+              disabled={isLoading}
+              className={SECONDARY_BUTTON_CLASSNAME}
+            >
+              <RefreshCw size={18} />
+              Обновить
+            </button>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <OverviewStatCard
+              title="Новые мастера"
+              value={overview.pending_masters}
+              hint="ожидают проверки"
+              icon={UserRound}
+            />
+            <OverviewStatCard
+              title="Жалобы"
+              value={overview.active_complaints}
+              hint="активные споры"
+              icon={AlertTriangle}
+              tone="red"
+            />
+            <OverviewStatCard
+              title="Выводы"
+              value={overview.pending_withdrawals}
+              hint="на рассмотрении"
+              icon={Clock3}
+              tone="yellow"
+            />
+            <OverviewStatCard
+              title="Заказы"
+              value={overview.active_orders}
+              hint="сейчас в работе"
+              icon={ClipboardList}
+              tone="blue"
+            />
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-4">
+            {quickActions.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  className="flex min-h-[86px] items-center justify-between gap-3 rounded-[20px] border border-gray-200 bg-[#fbfcfb] p-4 text-left shadow-sm transition hover:border-green-200 hover:bg-white"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-[16px] bg-white text-[#4f7f56]">
+                      <Icon size={22} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold text-[#111827]">
+                        {item.label}
+                      </div>
+                      <div className="mt-1 truncate text-xs font-semibold text-gray-500">
+                        {item.hint}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="shrink-0 rounded-full bg-[#4f7f56] px-3 py-1 text-xs font-bold text-white">
+                    {formatCount(item.value)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <InfoCard
+              title="Ищут мастера"
+              value={formatCount(overview.orders_searching)}
+            />
+            <InfoCard
+              title="В работе"
+              value={formatCount(overview.orders_in_work)}
+            />
+            <InfoCard
+              title="Завершены без оплаты"
+              value={formatCount(overview.orders_completed_unpaid)}
+            />
+          </div>
+        </div>
+
+        <ActivityLogPanel logs={adminActionLogs} />
+      </div>
+
       <div className="grid grid-cols-1 gap-2 rounded-[28px] border border-gray-200 bg-white p-2 shadow-[0_14px_42px_rgba(15,23,42,0.07)] sm:grid-cols-2 lg:grid-cols-5">
         {TAB_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
+          const badgeValue = tabBadgeMap[item.id] || 0;
 
           return (
             <button
@@ -350,7 +749,18 @@ export default function AdminDashboard({
               }`}
             >
               <Icon size={22} />
-              {item.label}
+              <span>{item.label}</span>
+              {badgeValue > 0 ? (
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : "bg-[#edf4ed] text-[#4f7f56]"
+                  }`}
+                >
+                  {formatCount(badgeValue)}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -368,7 +778,7 @@ export default function AdminDashboard({
           selectedMaster={selectedMaster}
           setSelectedMaster={setSelectedMaster}
           isLoading={isLoading}
-          handleApproveMaster={handleApproveMaster}
+          handleApproveMaster={handleConfirmedApproveMaster}
         />
       )}
 
@@ -376,7 +786,8 @@ export default function AdminDashboard({
         <AdminComplaintsSection
           complaints={complaints}
           isLoading={isLoading}
-          updateComplaintStatus={updateComplaintStatus}
+          updateComplaintStatus={handleConfirmedComplaintStatus}
+          onOpenChatTarget={handleOpenChatTarget}
         />
       )}
 
@@ -384,11 +795,13 @@ export default function AdminDashboard({
         <AdminWithdrawalsSection
           withdrawalRequests={withdrawalRequests}
           isLoading={isLoading}
-          updateWithdrawalStatus={updateWithdrawalStatus}
+          updateWithdrawalStatus={handleConfirmedWithdrawalStatus}
         />
       )}
 
-      {activeTab === "chats" && <ChatCenter viewerRole="admin" />}
+      {activeTab === "chats" && (
+        <ChatCenter viewerRole="admin" initialTarget={chatStartTarget} />
+      )}
 
       {activeTab === "accounts" && (
         <div className="space-y-6">
@@ -551,88 +964,132 @@ export default function AdminDashboard({
               </div>
             ) : (
               <div className="mt-5 space-y-6">
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <InfoCard
-                    title="Роль"
-                    value={getRoleLabel(accountData.role)}
-                  />
-                  <InfoCard title="ID" value={String(accountData.id)} />
-                  <InfoCard title="Телефон" value={accountData.phone || "—"} />
-                  <InfoCard
-                    title="Имя"
-                    value={accountData.full_name || "Без имени"}
-                  />
-
-                  {accountData.role === "master" && (
-                    <>
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                  <DetailPanel
+                    title="Аккаунт"
+                    subtitle="Данные, которые берутся из регистрации"
+                  >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                       <InfoCard
-                        title="Статус верификации"
-                        value={accountData.verification_status || "—"}
+                        title="Роль"
+                        value={getRoleLabel(accountData.role)}
+                      />
+                      <InfoCard title="ID" value={String(accountData.id)} />
+                      <InfoCard
+                        title="Телефон"
+                        value={accountData.phone || "—"}
                       />
                       <InfoCard
-                        title="Рейтинг"
-                        value={String(accountData.rating ?? 0)}
+                        title="Имя"
+                        value={accountData.full_name || "Без имени"}
                       />
-                      <InfoCard
-                        title="Завершено заказов"
-                        value={String(accountData.completed_orders_count ?? 0)}
-                      />
-                      <InfoCard
-                        title="Баланс"
-                        value={formatMoney(accountData.balance_amount)}
-                        hint={`Доступно к выводу: ${formatMoney(
-                          accountData.available_withdraw_amount,
-                        )}`}
-                      />
-                      <InfoCard
-                        title="Заморожено"
-                        value={formatMoney(accountData.frozen_balance_amount)}
-                        hint="Активные споры и удержания"
-                      />
-                    </>
-                  )}
-                </div>
-
-                {accountData.role === "master" && (
-                  <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
-                    <div className="text-sm font-bold text-[#111827]">
-                      Информация мастера
                     </div>
+                  </DetailPanel>
 
-                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <div className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
+                  {accountData.role === "master" ? (
+                    <DetailPanel
+                      title="Публичный профиль мастера"
+                      subtitle="То, что клиент видит при выборе мастера"
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <InfoCard
+                          title="Статус"
+                          value={accountData.verification_status || "—"}
+                        />
+                        <InfoCard
+                          title="Рейтинг"
+                          value={String(accountData.rating ?? 0)}
+                        />
+                        <InfoCard
+                          title="Завершено заказов"
+                          value={String(
+                            accountData.completed_orders_count ?? 0,
+                          )}
+                        />
+                        <InfoCard
+                          title="Город"
+                          value={accountData.work_city || "—"}
+                        />
+                        <InfoCard
+                          title="Опыт"
+                          value={
+                            accountData.experience_years === null ||
+                            accountData.experience_years === undefined
+                              ? "—"
+                              : `${accountData.experience_years} лет`
+                          }
+                        />
+                        <InfoCard
+                          title="Документы"
+                          value={`${
+                            [
+                              accountData.id_card_front_path,
+                              accountData.id_card_back_path,
+                              accountData.selfie_photo_path,
+                            ].filter(Boolean).length
+                          }/3`}
+                          hint="Удостоверение и селфи"
+                        />
+                      </div>
+
+                      <div className="mt-3 rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
                         <div className="text-xs font-bold uppercase text-gray-500">
                           О себе
                         </div>
-                        <div className="mt-2 text-sm font-semibold text-[#111827]">
+                        <div className="mt-2 break-words text-sm font-semibold text-[#111827] [overflow-wrap:anywhere]">
                           {accountData.about_me || "—"}
                         </div>
                       </div>
 
-                      <div className="rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
+                      <div className="mt-3 rounded-[18px] border border-gray-200 bg-white p-4 shadow-sm">
                         <div className="text-xs font-bold uppercase text-gray-500">
-                          Город / опыт / категории
+                          Категории
                         </div>
-                        <div className="mt-2 space-y-1 text-sm font-semibold text-[#111827]">
-                          <div>Город: {accountData.work_city || "—"}</div>
-                          <div>
-                            Опыт:{" "}
-                            {accountData.experience_years === null ||
-                            accountData.experience_years === undefined
-                              ? "—"
-                              : `${accountData.experience_years} лет`}
-                          </div>
-                          <div>
-                            Категории:{" "}
-                            {Array.isArray(accountData.categories) &&
-                            accountData.categories.length > 0
-                              ? accountData.categories.join(", ")
-                              : "—"}
-                          </div>
+                        <div className="mt-2 text-sm font-semibold text-[#111827]">
+                          {Array.isArray(accountData.categories) &&
+                          accountData.categories.length > 0
+                            ? accountData.categories.join(", ")
+                            : "—"}
                         </div>
                       </div>
+                    </DetailPanel>
+                  ) : (
+                    <DetailPanel
+                      title="Профиль пользователя"
+                      subtitle="Аккаунтные данные не смешиваются с адресами"
+                    >
+                      <div className="rounded-[18px] border border-gray-200 bg-white p-4 text-sm font-semibold leading-6 text-gray-700 shadow-sm">
+                        Адреса пользователя используются в заказах и видны ниже в
+                        карточках заказов. Имя и телефон здесь только для
+                        проверки аккаунта.
+                      </div>
+                    </DetailPanel>
+                  )}
+                </div>
+
+                {accountData.role === "master" && (
+                  <DetailPanel
+                    title="Баланс мастера"
+                    subtitle="Разделение денег без смешивания с публичным профилем"
+                  >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <InfoCard
+                        title="Всего"
+                        value={formatMoney(accountData.balance_amount)}
+                      />
+                      <InfoCard
+                        title="Доступно к выводу"
+                        value={formatMoney(
+                          accountData.available_withdraw_amount,
+                        )}
+                      />
+                      <InfoCard
+                        title="Заморожено"
+                        value={formatMoney(accountData.frozen_balance_amount)}
+                        hint="Активные заказы, споры и удержания"
+                      />
                     </div>
-                  </div>
+                  </DetailPanel>
                 )}
 
                 <div className="rounded-[22px] border border-gray-200 bg-[#fbfcfb] p-4">
