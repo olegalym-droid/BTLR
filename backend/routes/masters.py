@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Form, File, UploadFile
 from sqlalchemy.orm import Session, joinedload
 
+from auth_dependencies import get_current_account, require_role
 from database import get_db
 from models import Account
 from schemas import MasterProfileResponse
@@ -23,20 +24,25 @@ def get_master_or_404(master_id: int, db: Session):
     return master
 
 
-@router.get("/masters/{master_id}", response_model=MasterProfileResponse)
-def get_master_profile(master_id: int, db: Session = Depends(get_db)):
-    return get_master_or_404(master_id, db)
+@router.get("/masters/me", response_model=MasterProfileResponse)
+def get_master_profile(
+    current_account: Account = Depends(get_current_account),
+    db: Session = Depends(get_db),
+):
+    master = require_role(current_account, "master")
+    return get_master_or_404(master.id, db)
 
 
-@router.put("/masters/{master_id}/profile", response_model=MasterProfileResponse)
+@router.put("/masters/me/profile", response_model=MasterProfileResponse)
 def update_master_profile(
-    master_id: int,
     about_me: str = Form(""),
     experience_years: int | None = Form(None),
     work_city: str = Form(""),
+    current_account: Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    master = get_master_or_404(master_id, db)
+    master_account = require_role(current_account, "master")
+    master = get_master_or_404(master_account.id, db)
 
     master.about_me = about_me.strip() or None
     master.experience_years = experience_years
@@ -49,13 +55,14 @@ def update_master_profile(
     return master
 
 
-@router.put("/masters/{master_id}/avatar", response_model=MasterProfileResponse)
+@router.put("/masters/me/avatar", response_model=MasterProfileResponse)
 async def upload_master_avatar(
-    master_id: int,
     avatar: UploadFile | None = File(default=None),
+    current_account: Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    master = get_master_or_404(master_id, db)
+    master_account = require_role(current_account, "master")
+    master = get_master_or_404(master_account.id, db)
 
     avatar_path = await save_master_document(avatar, "avatar")
 
@@ -73,15 +80,16 @@ async def upload_master_avatar(
     return master
 
 
-@router.put("/masters/{master_id}/documents", response_model=MasterProfileResponse)
+@router.put("/masters/me/documents", response_model=MasterProfileResponse)
 async def upload_master_documents(
-    master_id: int,
     id_card_front: UploadFile | None = File(default=None),
     id_card_back: UploadFile | None = File(default=None),
     selfie_photo: UploadFile | None = File(default=None),
+    current_account: Account = Depends(get_current_account),
     db: Session = Depends(get_db),
 ):
-    master = get_master_or_404(master_id, db)
+    master_account = require_role(current_account, "master")
+    master = get_master_or_404(master_account.id, db)
 
     front_path = await save_master_document(id_card_front, "id_front")
     back_path = await save_master_document(id_card_back, "id_back")

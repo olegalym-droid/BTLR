@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from auth_dependencies import get_current_account
 from database import get_db
 from models import Account, Notification
 from schemas import NotificationResponse
@@ -23,17 +24,12 @@ def serialize_notification(notification: Notification) -> NotificationResponse:
 
 @router.get("", response_model=list[NotificationResponse])
 def get_user_notifications(
-    user_id: int,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    user = db.query(Account).filter(Account.id == user_id).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="Аккаунт не найден")
-
     notifications = (
         db.query(Notification)
-        .filter(Notification.user_id == user_id)
+        .filter(Notification.user_id == current_account.id)
         .order_by(Notification.created_at.desc(), Notification.id.desc())
         .all()
     )
@@ -44,19 +40,14 @@ def get_user_notifications(
 @router.put("/{notification_id}/read", response_model=NotificationResponse)
 def mark_notification_as_read(
     notification_id: int,
-    user_id: int,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    user = db.query(Account).filter(Account.id == user_id).first()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="Аккаунт не найден")
-
     notification = (
         db.query(Notification)
         .filter(
             Notification.id == notification_id,
-            Notification.user_id == user_id,
+            Notification.user_id == current_account.id,
         )
         .first()
     )

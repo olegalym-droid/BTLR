@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API_BASE_URL } from "../lib/constants";
-import { getStoredAuthUser } from "../lib/auth";
+import { getAuthHeaders, getStoredAuthUser } from "../lib/auth";
 import { ClipboardList, MessageCircle, User, Wrench } from "lucide-react";
 import { loadChatConversations } from "../lib/chats";
 
@@ -50,9 +50,9 @@ export default function BottomNav({ activeTab, onTabChange }) {
 
     const loadNotifications = async () => {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/notifications?user_id=${authUser.id}`,
-        );
+        const response = await fetch(`${API_BASE_URL}/notifications`, {
+          headers: getAuthHeaders("user"),
+        });
         const data = await response.json();
 
         if (!response.ok) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CalendarDays,
@@ -66,6 +67,7 @@ export default function MasterOrdersSection({
   isReportUploading,
   onOpenPhoto,
 }) {
+  const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [copiedPhonesByOrder, setCopiedPhonesByOrder] = useState({});
@@ -630,9 +632,19 @@ export default function MasterOrdersSection({
               className="space-y-5 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm"
             >
               <div className="min-w-0 space-y-3">
-                <h3 className="break-words text-2xl font-bold leading-tight text-[#151c23] [overflow-wrap:anywhere]">
-                  {order.service_name}
-                </h3>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <h3 className="break-words text-2xl font-bold leading-tight text-[#151c23] [overflow-wrap:anywhere]">
+                    {order.service_name}
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/master/orders/${order.id}`)}
+                    className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-[#5f9557] transition hover:bg-[#f7faf6]"
+                  >
+                    Открыть страницу
+                  </button>
+                </div>
 
                 <StatusBadge status={order.status} />
 

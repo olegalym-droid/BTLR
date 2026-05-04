@@ -27,6 +27,9 @@ const getRoleStorageKeys = (role) => {
   };
 };
 
+const getRoleTokenKey = (role) =>
+  role ? `auth_token_${role}` : "auth_token";
+
 const readJson = (value, fallback = null) => {
   try {
     return value ? JSON.parse(value) : fallback;
@@ -103,8 +106,10 @@ const removeRoleSession = (role) => {
 
   localStorage.removeItem(authFlagKey);
   localStorage.removeItem(authUserKey);
+  localStorage.removeItem(getRoleTokenKey(role));
   sessionStorage.removeItem(authFlagKey);
   sessionStorage.removeItem(authUserKey);
+  sessionStorage.removeItem(getRoleTokenKey(role));
 };
 
 const removeLegacySession = () => {
@@ -114,8 +119,10 @@ const removeLegacySession = () => {
 
   localStorage.removeItem(AUTH_FLAG_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(getRoleTokenKey());
   sessionStorage.removeItem(AUTH_FLAG_KEY);
   sessionStorage.removeItem(AUTH_USER_KEY);
+  sessionStorage.removeItem(getRoleTokenKey());
 };
 
 const clearAdminSession = () => {
@@ -124,8 +131,10 @@ const clearAdminSession = () => {
   }
 
   localStorage.removeItem("admin_login");
+  localStorage.removeItem("admin_token");
   localStorage.removeItem("admin_password");
   sessionStorage.removeItem("admin_login");
+  sessionStorage.removeItem("admin_token");
   sessionStorage.removeItem("admin_password");
 };
 
@@ -180,14 +189,23 @@ const getStoredRoleAuthUser = (role) => {
   }
 
   const { authUserKey } = getRoleStorageKeys(role);
+  const tokenRequired = role === "user" || role === "master";
 
   const localRaw = localStorage.getItem(authUserKey);
   if (localRaw) {
+    if (tokenRequired && !localStorage.getItem(getRoleTokenKey(role))) {
+      return null;
+    }
+
     return readJson(localRaw, null);
   }
 
   const sessionRaw = sessionStorage.getItem(authUserKey);
   if (sessionRaw) {
+    if (tokenRequired && !sessionStorage.getItem(getRoleTokenKey(role))) {
+      return null;
+    }
+
     return readJson(sessionRaw, null);
   }
 
@@ -227,11 +245,44 @@ export const getStoredAuth = (role = "") => {
 
   const localIsAuth = localStorage.getItem(authFlagKey) === "true";
   const localAuthUser = localStorage.getItem(authUserKey);
+  const localAuthToken = localStorage.getItem(getRoleTokenKey(role));
 
   const sessionIsAuth = sessionStorage.getItem(authFlagKey) === "true";
   const sessionAuthUser = sessionStorage.getItem(authUserKey);
+  const sessionAuthToken = sessionStorage.getItem(getRoleTokenKey(role));
+
+  if (role === "user" || role === "master") {
+    return (
+      (localIsAuth && !!localAuthUser && !!localAuthToken) ||
+      (sessionIsAuth && !!sessionAuthUser && !!sessionAuthToken)
+    );
+  }
 
   return (localIsAuth && !!localAuthUser) || (sessionIsAuth && !!sessionAuthUser);
+};
+
+export const getStoredAuthToken = (role = "") => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const tokenKey = getRoleTokenKey(role);
+
+  return (
+    localStorage.getItem(tokenKey) ||
+    sessionStorage.getItem(tokenKey) ||
+    ""
+  );
+};
+
+export const getAuthHeaders = (role = "") => {
+  const token = getStoredAuthToken(role);
+
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {};
 };
 
 export const registerRequest = async ({
@@ -297,7 +348,7 @@ export const loginRequest = async ({ role, phone, password }) => {
 };
 
 export const saveAuthData = (
-  { id, role, phone, full_name },
+  { id, role, phone, full_name, access_token },
   rememberMe = true,
 ) => {
   if (typeof window === "undefined") {
@@ -305,6 +356,7 @@ export const saveAuthData = (
   }
 
   const { authFlagKey, authUserKey } = getRoleStorageKeys(role);
+  const tokenKey = getRoleTokenKey(role);
 
   clearOtherSessionsForRole(role);
 
@@ -320,9 +372,13 @@ export const saveAuthData = (
 
   otherStorage.removeItem(authFlagKey);
   otherStorage.removeItem(authUserKey);
+  otherStorage.removeItem(tokenKey);
 
   targetStorage.setItem(authFlagKey, "true");
   targetStorage.setItem(authUserKey, JSON.stringify(normalizedUser));
+  if (access_token) {
+    targetStorage.setItem(tokenKey, access_token);
+  }
   localStorage.setItem(APP_ROLE_KEY, role);
 
   if (role === "user") {
@@ -495,7 +551,9 @@ export const loadMasterProfileRequest = async (masterId) => {
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}/masters/${resolvedMasterId}`);
+    response = await fetch(`${API_BASE_URL}/masters/me`, {
+      headers: getAuthHeaders("master"),
+    });
   } catch (error) {
     throw createApiError(
       error.message || "Не удалось связаться с сервером",
@@ -533,9 +591,10 @@ export const updateMasterProfileRequest = async ({
   formData.append("work_city", workCity);
 
   const response = await fetch(
-    `${API_BASE_URL}/masters/${resolvedMasterId}/profile`,
+    `${API_BASE_URL}/masters/me/profile`,
     {
       method: "PUT",
+      headers: getAuthHeaders("master"),
       body: formData,
     },
   );
@@ -567,9 +626,10 @@ export const uploadMasterAvatarRequest = async ({ masterId, avatar }) => {
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/masters/${resolvedMasterId}/avatar`,
+    `${API_BASE_URL}/masters/me/avatar`,
     {
       method: "PUT",
+      headers: getAuthHeaders("master"),
       body: formData,
     },
   );
@@ -610,9 +670,10 @@ export const uploadMasterDocumentsRequest = async ({
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/masters/${resolvedMasterId}/documents`,
+    `${API_BASE_URL}/masters/me/documents`,
     {
       method: "PUT",
+      headers: getAuthHeaders("master"),
       body: formData,
     },
   );

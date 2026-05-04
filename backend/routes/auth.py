@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Account, MasterCategory
 from schemas import RegisterRequest, LoginRequest, AuthResponse
-from security import hash_password, verify_password
+from security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -85,6 +85,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
         role=account.role,
         phone=account.phone,
         full_name=account.full_name,
+        access_token=create_access_token(account_id=account.id, role=account.role),
     )
 
 
@@ -119,4 +120,5 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         role=account.role,
         phone=account.phone,
         full_name=account.full_name,
+        access_token=create_access_token(account_id=account.id, role=account.role),
     )

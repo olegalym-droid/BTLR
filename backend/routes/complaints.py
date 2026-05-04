@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from auth_dependencies import get_current_account, require_role
 from complaint_constants import (
     ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES,
     ALLOWED_COMPLAINT_REASONS,
@@ -150,15 +151,9 @@ def create_complaint_created_notifications(
 def create_complaint(
     payload: ComplaintCreateRequest,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    user = (
-        db.query(Account)
-        .filter(Account.id == payload.user_id, Account.role == "user")
-        .first()
-    )
-
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    user = require_role(current_account, "user")
 
     order = (
         db.query(Order)
@@ -166,7 +161,7 @@ def create_complaint(
             joinedload(Order.user),
             joinedload(Order.master),
         )
-        .filter(Order.id == payload.order_id, Order.user_id == payload.user_id)
+        .filter(Order.id == payload.order_id, Order.user_id == user.id)
         .first()
     )
 
@@ -220,7 +215,7 @@ def create_complaint(
 
     complaint = Complaint(
         order_id=payload.order_id,
-        user_id=payload.user_id,
+        user_id=user.id,
         reason=reason,
         text=text,
         status="new",

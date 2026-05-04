@@ -1,4 +1,4 @@
-import { getStoredAuthUser } from "./auth";
+import { getAuthHeaders, getStoredAuthUser } from "./auth";
 import { API_BASE_URL } from "./constants";
 
 export const ORDER_STATUSES = {
@@ -141,11 +141,35 @@ export const loadOrdersRequest = async () => {
     return [];
   }
 
-  const res = await fetch(`${API_BASE_URL}/orders?user_id=${authUser.id}`);
+  const res = await fetch(`${API_BASE_URL}/orders`, {
+    headers: getAuthHeaders("user"),
+  });
   const data = await res.json();
 
   if (!res.ok) {
     throw new Error(data.detail || "Не удалось загрузить заявки");
+  }
+
+  return data;
+};
+
+export const loadUserOrderRequest = async (orderId) => {
+  const authUser = getStoredUserAuth();
+
+  if (!authUser?.id) {
+    throw new Error("Пользователь не авторизован");
+  }
+
+  const res = await fetch(
+    `${API_BASE_URL}/orders/${orderId}`,
+    {
+      headers: getAuthHeaders("user"),
+    },
+  );
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Не удалось загрузить заказ");
   }
 
   return data;
@@ -158,9 +182,9 @@ export const loadAvailableOrdersRequest = async (masterId) => {
     throw new Error("Мастер не авторизован");
   }
 
-  const res = await fetch(
-    `${API_BASE_URL}/orders/available?master_id=${resolvedMasterId}`,
-  );
+  const res = await fetch(`${API_BASE_URL}/orders/available`, {
+    headers: getAuthHeaders("master"),
+  });
 
   const data = await res.json();
 
@@ -178,9 +202,9 @@ export const loadMasterOrdersRequest = async (masterId) => {
     throw new Error("Мастер не авторизован");
   }
 
-  const res = await fetch(
-    `${API_BASE_URL}/orders/master?master_id=${resolvedMasterId}`,
-  );
+  const res = await fetch(`${API_BASE_URL}/orders/master`, {
+    headers: getAuthHeaders("master"),
+  });
 
   const data = await res.json();
 
@@ -202,9 +226,7 @@ export const assignOrderToMasterRequest = async (
     throw new Error("Мастер не авторизован");
   }
 
-  const params = new URLSearchParams({
-    master_id: String(resolvedMasterId),
-  });
+  const params = new URLSearchParams();
 
   const normalizedOfferedPrice = String(offeredPrice || "").trim();
 
@@ -223,6 +245,7 @@ export const assignOrderToMasterRequest = async (
     `${API_BASE_URL}/orders/${orderId}/assign?${params.toString()}`,
     {
       method: "PUT",
+      headers: getAuthHeaders("master"),
     },
   );
 
@@ -247,9 +270,10 @@ export const updateOrderStatusByMasterRequest = async ({
   }
 
   const res = await fetch(
-    `${API_BASE_URL}/orders/${orderId}/master-status?status=${status}&master_id=${resolvedMasterId}`,
+    `${API_BASE_URL}/orders/${orderId}/master-status?status=${status}`,
     {
       method: "PUT",
+      headers: getAuthHeaders("master"),
     },
   );
 
@@ -282,7 +306,6 @@ export const uploadOrderReportRequest = async ({
   }
 
   const formData = new FormData();
-  formData.append("master_id", String(resolvedMasterId));
 
   validPhotos.forEach((photo) => {
     formData.append("photos", photo, photo.name);
@@ -290,6 +313,7 @@ export const uploadOrderReportRequest = async ({
 
   const res = await fetch(`${API_BASE_URL}/orders/${orderId}/report`, {
     method: "PUT",
+    headers: getAuthHeaders("master"),
     body: formData,
   });
 
@@ -328,7 +352,6 @@ export const createOrderRequest = async ({
   const scheduledAt = `${selectedDate} ${selectedTime}`;
   const formData = new FormData();
 
-  formData.append("user_id", String(authUser.id));
   formData.append("category", category);
   formData.append("service_name", serviceName);
   formData.append("description", description);
@@ -346,6 +369,7 @@ export const createOrderRequest = async ({
 
   const res = await fetch(`${API_BASE_URL}/orders`, {
     method: "POST",
+    headers: getAuthHeaders("user"),
     body: formData,
   });
 
@@ -366,9 +390,10 @@ export const updateOrderStatusRequest = async ({ orderId, status }) => {
   }
 
   const res = await fetch(
-    `${API_BASE_URL}/orders/${orderId}/status?status=${status}&user_id=${authUser.id}`,
+    `${API_BASE_URL}/orders/${orderId}/status?status=${status}`,
     {
       method: "PUT",
+      headers: getAuthHeaders("user"),
     },
   );
 
@@ -389,9 +414,10 @@ export const confirmMasterForOrderRequest = async ({ orderId, offerId }) => {
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/orders/${orderId}/confirm-master?user_id=${authUser.id}&offer_id=${offerId}`,
+    `${API_BASE_URL}/orders/${orderId}/confirm-master?offer_id=${offerId}`,
     {
       method: "PUT",
+      headers: getAuthHeaders("user"),
     },
   );
 
@@ -412,9 +438,10 @@ export const rejectMasterForOrderRequest = async ({ orderId, offerId }) => {
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/orders/${orderId}/reject-master?user_id=${authUser.id}&offer_id=${offerId}`,
+    `${API_BASE_URL}/orders/${orderId}/reject-master?offer_id=${offerId}`,
     {
       method: "PUT",
+      headers: getAuthHeaders("user"),
     },
   );
 
@@ -441,12 +468,12 @@ export const createReviewRequest = async ({
   const params = new URLSearchParams({
     order_id: String(orderId),
     rating: String(rating),
-    user_id: String(authUser.id),
     comment,
   });
 
   const res = await fetch(`${API_BASE_URL}/reviews?${params.toString()}`, {
     method: "POST",
+    headers: getAuthHeaders("user"),
   });
 
   const data = await res.json();
@@ -477,10 +504,10 @@ export const createComplaintRequest = async ({ orderId, reason, text }) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders("user"),
     },
     body: JSON.stringify({
       order_id: orderId,
-      user_id: authUser.id,
       reason,
       text: text.trim(),
     }),

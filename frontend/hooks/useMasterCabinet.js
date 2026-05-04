@@ -4,8 +4,8 @@ import useMasterSession from "./useMasterSession";
 import useMasterData from "./useMasterData";
 import useMasterCabinetActions from "./useMasterCabinetActions";
 
-export default function useMasterCabinet({ onLogout }) {
-  const session = useMasterSession();
+export default function useMasterCabinet({ initialSection, onLogout }) {
+  const session = useMasterSession(initialSection);
   const auth = useMasterAuth();
   const data = useMasterData();
   const [startupError, setStartupError] = useState("");

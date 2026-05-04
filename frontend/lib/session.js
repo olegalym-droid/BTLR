@@ -12,11 +12,18 @@ export const MASTER_SECTIONS = [
   "wallet",
   "chats",
 ];
+export const ADMIN_TABS = [
+  "masters",
+  "complaints",
+  "withdrawals",
+  "accounts",
+  "chats",
+];
 
 const ROLE_PATHS = {
-  user: "/user",
-  master: "/master",
-  admin: "/admin",
+  user: "/user/services",
+  master: "/master/profile",
+  admin: "/admin/masters",
 };
 
 const isBrowser = () => typeof window !== "undefined";
@@ -49,6 +56,17 @@ const getSafeValue = (key, allowedValues, fallback) => {
 };
 
 export const getRolePath = (role) => ROLE_PATHS[role] || "/";
+
+export const getUserTabPath = (tab) =>
+  USER_TABS.includes(tab) ? `/user/${tab}` : "/user/services";
+
+export const getMasterSectionPath = (section) =>
+  MASTER_SECTIONS.includes(section)
+    ? `/master/${section}`
+    : "/master/profile";
+
+export const getAdminTabPath = (tab) =>
+  ADMIN_TABS.includes(tab) ? `/admin/${tab}` : "/admin/masters";
 
 export const setStoredActiveRole = (role) => {
   saveSafeValue(APP_ROLE_KEY, ROLE_PATHS[role] ? role : "");
@@ -91,14 +109,15 @@ export const clearStoredMasterSection = () => {
 export const getStoredAdminSession = () => ({
   login: getStorageValue("admin_login", ""),
   password: getStorageValue("admin_password", ""),
+  token: getStorageValue("admin_token", ""),
 });
 
 export const hasStoredAdminSession = () => {
   const stored = getStoredAdminSession();
-  return Boolean(stored.login && stored.password);
+  return Boolean(stored.token || (stored.login && stored.password));
 };
 
-export const saveAdminSession = (adminLogin, adminPassword) => {
+export const saveAdminSession = (adminLogin, adminToken) => {
   if (!isBrowser()) return;
 
   clearAuthData("user");
@@ -108,8 +127,14 @@ export const saveAdminSession = (adminLogin, adminPassword) => {
   setStoredActiveRole("admin");
 
   window.sessionStorage.setItem("admin_login", adminLogin);
-  window.sessionStorage.setItem("admin_password", adminPassword);
+  if (adminToken) {
+    window.sessionStorage.setItem("admin_token", adminToken);
+  } else {
+    window.sessionStorage.removeItem("admin_token");
+  }
+  window.sessionStorage.removeItem("admin_password");
   window.localStorage.removeItem("admin_login");
+  window.localStorage.removeItem("admin_token");
   window.localStorage.removeItem("admin_password");
 };
 
@@ -117,8 +142,10 @@ export const clearAdminSession = () => {
   if (!isBrowser()) return;
 
   window.sessionStorage.removeItem("admin_login");
+  window.sessionStorage.removeItem("admin_token");
   window.sessionStorage.removeItem("admin_password");
   window.localStorage.removeItem("admin_login");
+  window.localStorage.removeItem("admin_token");
   window.localStorage.removeItem("admin_password");
 
   if (getStoredActiveRole() === "admin") {

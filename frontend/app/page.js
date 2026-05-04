@@ -34,8 +34,8 @@ export default function Home() {
   };
 
   const handleAdminSuccess = async (login, password) => {
-    await adminLoginRequest({ login, password });
-    saveAdminSession(login, password);
+    const authData = await adminLoginRequest({ login, password });
+    saveAdminSession(authData.login, authData.access_token);
   };
 
   if (isCheckingSession) {

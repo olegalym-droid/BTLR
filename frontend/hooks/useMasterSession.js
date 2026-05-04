@@ -3,15 +3,22 @@ import { getStoredAuthUser, clearAuthData } from "../lib/auth";
 import {
   clearStoredMasterSection,
   getStoredMasterSection,
+  MASTER_SECTIONS,
   saveStoredMasterSection,
 } from "../lib/session";
 
-export default function useMasterSession() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+const resolveInitialSection = (section) =>
+  MASTER_SECTIONS.includes(section) ? section : getStoredMasterSection();
+
+export default function useMasterSession(initialSection) {
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const authUser = getStoredAuthUser("master");
+    return Boolean(authUser?.id && authUser.role === "master");
+  });
   const [successText, setSuccessText] = useState("");
   const [openedPhoto, setOpenedPhoto] = useState(null);
   const [activeSectionState, setActiveSectionState] = useState(
-    getStoredMasterSection,
+    () => resolveInitialSection(initialSection),
   );
 
   const setActiveSection = useCallback((section) => {

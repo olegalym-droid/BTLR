@@ -7,6 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
 
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
+
 from database import Base, engine
 from routes.auth import router as auth_router
 from routes.orders import router as orders_router
@@ -18,12 +23,6 @@ from routes.notifications import router as notifications_router
 from routes.schedules import router as schedules_router
 from routes.wallet import router as wallet_router
 from routes.chats import router as chats_router, admin_router as admin_chats_router
-
-
-BASE_DIR = Path(__file__).resolve().parent
-ENV_PATH = BASE_DIR / ".env"
-
-load_dotenv(dotenv_path=ENV_PATH)
 
 
 def get_allowed_origins() -> list[str]:

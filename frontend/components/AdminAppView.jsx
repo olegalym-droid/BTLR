@@ -23,6 +23,8 @@ export default function AdminAppView({
   updateComplaintStatus,
   updateWithdrawalStatus,
   logout,
+  initialTab,
+  onTabChange,
 }) {
   if (!isLoggedIn) {
     return (
@@ -55,6 +57,9 @@ export default function AdminAppView({
       updateComplaintStatus={updateComplaintStatus}
       updateWithdrawalStatus={updateWithdrawalStatus}
       logout={logout}
+      adminLogin={login}
+      initialTab={initialTab}
+      onTabChange={onTabChange}
     />
   );
 }

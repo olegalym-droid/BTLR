@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from auth_dependencies import get_current_account, require_role
 from database import get_db
 from models import Account, MasterSchedule
 
@@ -38,14 +39,15 @@ def get_master_or_404(master_id: int, db: Session) -> Account:
 
 
 @router.get(
-    "/{master_id}/schedule",
+    "/me/schedule",
     response_model=list[MasterScheduleItemResponse],
 )
 def get_master_schedule(
-    master_id: int,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    get_master_or_404(master_id, db)
+    master = require_role(current_account, "master")
+    master_id = master.id
 
     schedule = (
         db.query(MasterSchedule)
@@ -58,15 +60,16 @@ def get_master_schedule(
 
 
 @router.put(
-    "/{master_id}/schedule",
+    "/me/schedule",
     response_model=list[MasterScheduleItemResponse],
 )
 def save_master_schedule(
-    master_id: int,
     payload: list[MasterScheduleItemRequest],
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    get_master_or_404(master_id, db)
+    master = require_role(current_account, "master")
+    master_id = master.id
 
     for item in payload:
         if item.weekday < 0 or item.weekday > 6:

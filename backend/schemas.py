@@ -24,6 +24,8 @@ class AuthResponse(BaseModel):
     role: str
     phone: str
     full_name: str | None = None
+    access_token: str
+    token_type: str = "bearer"
 
 
 class OrderPhotoResponse(BaseModel):
@@ -189,7 +191,7 @@ class OrderResponse(BaseModel):
 
 class ComplaintCreateRequest(BaseModel):
     order_id: int = Field(..., gt=0)
-    user_id: int = Field(..., gt=0)
+    user_id: int | None = Field(default=None, gt=0)
     reason: str = Field(..., min_length=1, max_length=64)
     text: str = Field(..., min_length=1, max_length=2000)
 
@@ -318,8 +320,8 @@ class AdminActionLogResponse(BaseModel):
 
 
 class ChatStartRequest(BaseModel):
-    sender_role: str = Field(..., pattern="^(user|master)$")
-    sender_id: int = Field(..., gt=0)
+    sender_role: str | None = Field(default=None, pattern="^(user|master)$")
+    sender_id: int | None = Field(default=None, gt=0)
     conversation_type: str = Field(..., pattern="^(order|admin)$")
     order_id: int | None = Field(default=None, gt=0)
 

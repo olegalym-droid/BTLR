@@ -47,6 +47,7 @@ from payment_ledger import (
     refund_order_payout_to_client,
     release_order_payout_to_master,
 )
+from security import create_access_token, decode_access_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -102,9 +103,23 @@ def get_admin_credentials() -> tuple[str, str]:
 
 
 def verify_admin(
+    authorization: str | None = Header(default=None),
     x_admin_login: str | None = Header(default=None),
     x_admin_password: str | None = Header(default=None),
 ):
+    scheme, _, token = (authorization or "").partition(" ")
+
+    if scheme.lower() == "bearer" and token:
+        payload = decode_access_token(token)
+
+        if payload.get("role") != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail="Недостаточно прав администратора",
+            )
+
+        return
+
     admin_login, admin_password = get_admin_credentials()
 
     is_login_valid = compare_digest(x_admin_login or "", admin_login)
@@ -666,6 +681,8 @@ def admin_login(payload: AdminLoginRequest):
     return {
         "ok": True,
         "login": payload.login,
+        "access_token": create_access_token(account_id=0, role="admin"),
+        "token_type": "bearer",
     }
 
 

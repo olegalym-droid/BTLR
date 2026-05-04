@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./constants";
 import { getAdminHeaders } from "./admin";
+import { getAuthHeaders } from "./auth";
 
 const parseResponse = async (response, fallbackMessage) => {
   const data = await response.json().catch(() => null);
@@ -11,7 +12,7 @@ const parseResponse = async (response, fallbackMessage) => {
   return data;
 };
 
-export const loadChatConversations = async ({ viewerRole, accountId }) => {
+export const loadChatConversations = async ({ viewerRole }) => {
   if (viewerRole === "admin") {
     const response = await fetch(`${API_BASE_URL}/admin/chats`, {
       headers: getAdminHeaders(),
@@ -21,38 +22,25 @@ export const loadChatConversations = async ({ viewerRole, accountId }) => {
     return Array.isArray(data) ? data : [];
   }
 
-  if (!accountId) {
-    throw new Error("Аккаунт не найден");
-  }
-
-  const params = new URLSearchParams({
-    role: viewerRole,
-    account_id: String(accountId),
+  const response = await fetch(`${API_BASE_URL}/chats`, {
+    headers: getAuthHeaders(viewerRole),
   });
-
-  const response = await fetch(`${API_BASE_URL}/chats?${params.toString()}`);
   const data = await parseResponse(response, "Не удалось загрузить чаты");
   return Array.isArray(data) ? data : [];
 };
 
 export const startChatConversation = async ({
   viewerRole,
-  accountId,
   conversationType,
   orderId = null,
 }) => {
-  if (!accountId) {
-    throw new Error("Аккаунт не найден");
-  }
-
   const response = await fetch(`${API_BASE_URL}/chats/start`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(viewerRole),
     },
     body: JSON.stringify({
-      sender_role: viewerRole,
-      sender_id: accountId,
       conversation_type: conversationType,
       order_id: orderId,
     }),
@@ -82,7 +70,6 @@ export const startAdminChatConversation = async ({
 
 export const loadChatMessages = async ({
   viewerRole,
-  accountId,
   conversationId,
 }) => {
   if (viewerRole === "admin") {
@@ -97,14 +84,9 @@ export const loadChatMessages = async ({
     return Array.isArray(data) ? data : [];
   }
 
-  const params = new URLSearchParams({
-    role: viewerRole,
-    account_id: String(accountId),
+  const response = await fetch(`${API_BASE_URL}/chats/${conversationId}/messages`, {
+    headers: getAuthHeaders(viewerRole),
   });
-
-  const response = await fetch(
-    `${API_BASE_URL}/chats/${conversationId}/messages?${params.toString()}`,
-  );
 
   const data = await parseResponse(response, "Не удалось загрузить сообщения");
   return Array.isArray(data) ? data : [];
@@ -112,7 +94,6 @@ export const loadChatMessages = async ({
 
 export const sendChatMessage = async ({
   viewerRole,
-  accountId,
   conversationId,
   text,
 }) => {
@@ -125,11 +106,9 @@ export const sendChatMessage = async ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(isAdmin ? getAdminHeaders() : {}),
+      ...(isAdmin ? getAdminHeaders() : getAuthHeaders(viewerRole)),
     },
     body: JSON.stringify({
-      sender_role: viewerRole,
-      sender_id: accountId,
       text,
     }),
   });

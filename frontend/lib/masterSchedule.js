@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "./constants";
-import { getStoredAuthUser } from "./auth";
+import { getAuthHeaders, getStoredAuthUser } from "./auth";
 
 export const WEEKDAY_OPTIONS = [
   { value: 0, label: "Понедельник" },
@@ -26,9 +26,9 @@ export const loadMasterScheduleRequest = async (masterId) => {
     throw new Error("Мастер не авторизован");
   }
 
-  const response = await fetch(
-    `${API_BASE_URL}/masters/${resolvedMasterId}/schedule`,
-  );
+  const response = await fetch(`${API_BASE_URL}/masters/me/schedule`, {
+    headers: getAuthHeaders("master"),
+  });
 
   const data = await response.json();
 
@@ -60,11 +60,12 @@ export const saveMasterScheduleRequest = async ({
   }));
 
   const response = await fetch(
-    `${API_BASE_URL}/masters/${resolvedMasterId}/schedule`,
+    `${API_BASE_URL}/masters/me/schedule`,
     {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        ...getAuthHeaders("master"),
       },
       body: JSON.stringify(normalizedItems),
     },

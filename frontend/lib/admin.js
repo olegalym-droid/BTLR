@@ -13,10 +13,20 @@ const getStoredAdminValue = (key, fallback = "") => {
   return window.localStorage.getItem(key) || fallback;
 };
 
+export const getStoredAdminToken = () => getStoredAdminValue("admin_token", "");
+
 export const getAdminHeaders = (
   adminLoginArg = null,
   adminPasswordArg = null,
 ) => {
+  const token = getStoredAdminToken();
+
+  if (token) {
+    return {
+      Authorization: `Bearer ${token}`,
+    };
+  }
+
   const storedLogin =
     adminLoginArg ?? getStoredAdminValue("admin_login", "");
   const storedPassword =

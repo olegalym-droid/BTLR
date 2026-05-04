@@ -37,20 +37,21 @@ export default function useAdminCabinet({ onLogout } = {}) {
   } = useAdminData();
 
   const loginWithCredentials = useCallback(async (adminLogin, adminPassword) => {
-    await adminLoginRequest({
+    const authData = await adminLoginRequest({
       login: adminLogin,
       password: adminPassword,
     });
 
-    saveAdminSession(adminLogin, adminPassword);
+    saveAdminSession(authData.login, authData.access_token);
     setStartupError("");
+    setPassword("");
 
     await Promise.all([
-      loadPendingMasters(adminLogin, adminPassword),
-      loadAdminOverview(adminLogin, adminPassword),
-      loadAdminActionLogs(adminLogin, adminPassword),
-      loadComplaints(adminLogin, adminPassword),
-      loadWithdrawalRequests(adminLogin, adminPassword),
+      loadPendingMasters(),
+      loadAdminOverview(),
+      loadAdminActionLogs(),
+      loadComplaints(),
+      loadWithdrawalRequests(),
     ]);
 
     setIsLoggedIn(true);
@@ -114,7 +115,7 @@ export default function useAdminCabinet({ onLogout } = {}) {
   useEffect(() => {
     const stored = getStoredAdminSession();
 
-    if (!stored.login || !stored.password) {
+    if (!stored.token && (!stored.login || !stored.password)) {
       const timer = window.setTimeout(() => {
         setIsSessionChecking(false);
       }, 0);
@@ -128,29 +129,42 @@ export default function useAdminCabinet({ onLogout } = {}) {
       try {
         setIsLoading(true);
 
+        if (!stored.token) {
+          const authData = await adminLoginRequest({
+            login: stored.login,
+            password: stored.password,
+          });
+
+          saveAdminSession(authData.login, authData.access_token);
+        }
+
         await Promise.all([
-          loadPendingMasters(stored.login, stored.password),
-          loadAdminOverview(stored.login, stored.password),
-          loadAdminActionLogs(stored.login, stored.password),
-          loadComplaints(stored.login, stored.password),
-          loadWithdrawalRequests(stored.login, stored.password),
+          loadPendingMasters(),
+          loadAdminOverview(),
+          loadAdminActionLogs(),
+          loadComplaints(),
+          loadWithdrawalRequests(),
         ]);
 
         if (!isMounted) return;
 
-        saveAdminSession(stored.login, stored.password);
+        if (stored.token) {
+          saveAdminSession(stored.login, stored.token);
+        }
         setStartupError("");
         setLogin(stored.login);
-        setPassword(stored.password);
+        setPassword("");
         setIsLoggedIn(true);
       } catch (error) {
         if (!isMounted) return;
 
         console.warn("Не удалось автоматически загрузить админку:", error);
-        saveAdminSession(stored.login, stored.password);
+        if (stored.token) {
+          saveAdminSession(stored.login, stored.token);
+        }
         setStartupError(error.message || "Не удалось загрузить админку");
         setLogin(stored.login);
-        setPassword(stored.password);
+        setPassword("");
         setIsLoggedIn(true);
         setSuccessText(
           "Данные админки временно не загрузились. Сессия сохранена, обновите страницу после запуска сервера.",

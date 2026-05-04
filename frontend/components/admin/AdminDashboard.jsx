@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   AlertTriangle,
   ClipboardList,
   Clock3,
-  LogOut,
   MessageCircle,
   RefreshCw,
   Search,
@@ -12,6 +12,7 @@ import {
   UserRound,
   WalletCards,
 } from "lucide-react";
+import CabinetHeader from "../CabinetHeader";
 import AdminMastersSection from "./AdminMastersSection";
 import AdminComplaintsSection from "./AdminComplaintsSection";
 import AdminWithdrawalsSection from "./AdminWithdrawalsSection";
@@ -64,6 +65,17 @@ const TAB_ITEMS = [
 ];
 const ACTIVE_COMPLAINT_STATUSES = ["new", "in_progress", "needs_details"];
 const ADMIN_CHAT_POLL_INTERVAL_MS = 12000;
+
+const resolveAdminTab = (tab) =>
+  TAB_ITEMS.some((item) => item.id === tab) ? tab : "masters";
+
+const ADMIN_TAB_LABELS = {
+  masters: "Мастера",
+  complaints: "Жалобы",
+  withdrawals: "Выводы",
+  accounts: "Поиск аккаунтов",
+  chats: "Чаты",
+};
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -239,8 +251,14 @@ export default function AdminDashboard({
   updateComplaintStatus,
   updateWithdrawalStatus,
   logout,
+  adminLogin = "",
+  initialTab = "masters",
+  onTabChange,
 }) {
-  const [activeTab, setActiveTab] = useState("masters");
+  const router = useRouter();
+  const [activeTab, setActiveTabState] = useState(() =>
+    resolveAdminTab(initialTab),
+  );
 
   const [searchQuery, setSearchQuery] = useState("");
   const [searchRole, setSearchRole] = useState("");
@@ -257,6 +275,20 @@ export default function AdminDashboard({
   const [dateTo, setDateTo] = useState("");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [chatStartTarget, setChatStartTarget] = useState(null);
+
+  const setActiveTab = (tab) => {
+    const nextTab = resolveAdminTab(tab);
+
+    setActiveTabState(nextTab);
+
+    if (typeof onTabChange === "function") {
+      onTabChange(nextTab);
+    }
+  };
+
+  useEffect(() => {
+    setActiveTabState(resolveAdminTab(initialTab));
+  }, [initialTab]);
 
   const overview = useMemo(() => {
     const activeComplaintFallback = (Array.isArray(complaints)
@@ -606,25 +638,14 @@ export default function AdminDashboard({
 
   return (
     <div className="space-y-7">
-      <div className="flex flex-col gap-5 rounded-[30px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between lg:p-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-[#111827] sm:text-4xl">
-            Панель администратора
-          </h1>
-          <p className="text-base font-medium text-gray-500 sm:text-lg">
-            Проверка мастеров, жалобы, выводы и поиск аккаунтов
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={logout}
-          className="inline-flex min-h-[56px] items-center justify-center gap-3 rounded-[18px] border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-[#4f7f56] shadow-sm transition hover:bg-[#f8faf8]"
-        >
-          <LogOut size={20} />
-          Выйти
-        </button>
-      </div>
+      <CabinetHeader
+        title="Панель администратора"
+        subtitle="Проверка мастеров, жалобы, выводы, поиск аккаунтов и чаты."
+        roleLabel="Администратор"
+        accountName={adminLogin || "Администратор"}
+        activeLabel={ADMIN_TAB_LABELS[activeTab]}
+        onLogout={logout}
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className={PANEL_CLASSNAME}>
@@ -1266,6 +1287,16 @@ export default function AdminDashboard({
                               <div className="mt-3 rounded-[18px] border border-gray-200 bg-[#fbfcfb] p-3 text-sm font-semibold text-gray-700">
                                 {order.description || "Без описания"}
                               </div>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(`/admin/orders/${order.id}`)
+                                }
+                                className="mt-3 inline-flex min-h-[42px] items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-[#4f7f56] transition hover:bg-[#f8faf8]"
+                              >
+                                Открыть страницу заказа
+                              </button>
                             </div>
                           </div>
                         </div>

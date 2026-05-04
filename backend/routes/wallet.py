@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from auth_dependencies import get_current_account, require_role
 from database import get_db
 from complaint_constants import (
     ACTIVE_PAYMENT_BLOCKING_COMPLAINT_STATUSES,
@@ -266,14 +267,14 @@ def build_master_frozen_items(
 
 
 @router.get(
-    "/{master_id}/balance",
+    "/me/balance",
     response_model=MasterBalanceResponse,
 )
 def get_master_balance(
-    master_id: int,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    master = get_master_or_404(master_id, db)
+    master = require_role(current_account, "master")
 
     return MasterBalanceResponse(
         master_id=master.id,
@@ -285,18 +286,18 @@ def get_master_balance(
 
 
 @router.get(
-    "/{master_id}/withdrawals",
+    "/me/withdrawals",
     response_model=list[MasterWithdrawalRequestResponse],
 )
 def get_master_withdrawals(
-    master_id: int,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    get_master_or_404(master_id, db)
+    master = require_role(current_account, "master")
 
     items = (
         db.query(MasterWithdrawalRequest)
-        .filter(MasterWithdrawalRequest.master_id == master_id)
+        .filter(MasterWithdrawalRequest.master_id == master.id)
         .order_by(
             MasterWithdrawalRequest.created_at.desc(),
             MasterWithdrawalRequest.id.desc(),
@@ -308,15 +309,15 @@ def get_master_withdrawals(
 
 
 @router.post(
-    "/{master_id}/withdrawals",
+    "/me/withdrawals",
     response_model=MasterWithdrawalRequestResponse,
 )
 def create_master_withdrawal(
-    master_id: int,
     payload: MasterWithdrawalRequestCreate,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    master = get_master_or_404(master_id, db)
+    master = require_role(current_account, "master")
 
     normalized_amount = normalize_amount(payload.amount)
     amount_value = parse_amount_to_int(normalized_amount)

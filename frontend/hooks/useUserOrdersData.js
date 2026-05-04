@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { loadOrdersRequest } from "../lib/orders";
 import { getStoredAuthUser } from "../lib/auth";
 
@@ -10,7 +10,7 @@ export default function useUserOrdersData() {
     return authUser?.id && authUser.role === "user" ? [] : [];
   });
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     const authUser = getStoredAuthUser();
 
     if (!authUser?.id || authUser.role !== "user") {
@@ -24,7 +24,7 @@ export default function useUserOrdersData() {
       console.error("Ошибка загрузки заявок:", error);
       setOrders([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const authUser = getStoredAuthUser();

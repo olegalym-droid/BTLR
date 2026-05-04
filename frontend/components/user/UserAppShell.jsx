@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import BottomNav from "../BottomNav";
+import CabinetHeader from "../CabinetHeader";
 import StatePanel from "../StatePanel";
 import UserAppView from "../UserAppView";
-import { API_BASE_URL, servicesByCategory } from "../../lib/constants";
-import { getStatusLabel } from "../../lib/orders";
+import { servicesByCategory } from "../../lib/constants";
+import { getStatusLabel, loadUserOrderRequest } from "../../lib/orders";
 import useOrders from "../../hooks/useOrders";
 import useProfile from "../../hooks/useProfile";
 import useOrderForm from "../../hooks/useOrderForm";
@@ -13,16 +15,39 @@ import { getStoredAuthUser, clearAuthData } from "../../lib/auth";
 import {
   getCurrentSessionRole,
   getRolePath,
+  getUserTabPath,
   getStoredUserTab,
   saveStoredUserTab,
   setStoredActiveRole,
+  USER_TABS,
 } from "../../lib/session";
 
+const resolveUserTab = (tab) =>
+  USER_TABS.includes(tab) ? tab : getStoredUserTab();
+
+const USER_TAB_LABELS = {
+  services: "Услуги",
+  orders: "Заказы",
+  chats: "Чаты",
+  profile: "Профиль",
+};
+
 export default function UserAppShell({
+  initialTab = "services",
   onLogout,
 }) {
-  const [activeTab, setActiveTab] = useState(getStoredUserTab);
-  const [sessionStatus, setSessionStatus] = useState("checking");
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState(() => resolveUserTab(initialTab));
+  const [sessionStatus, setSessionStatus] = useState(() => {
+    const role = getCurrentSessionRole();
+    const authUser = getStoredAuthUser("user");
+
+    if (role && role !== "user") {
+      return "redirecting";
+    }
+
+    return authUser?.id && authUser.role === "user" ? "ready" : "missing";
+  });
 
   const {
     orderCreated,
@@ -140,14 +165,25 @@ export default function UserAppShell({
   };
 
   const handleTabChange = async (tab) => {
-    saveStoredUserTab(tab);
-    setActiveTab(tab);
+    const nextTab = USER_TABS.includes(tab) ? tab : "services";
+
+    saveStoredUserTab(nextTab);
+    setActiveTab(nextTab);
     setOrderCreated(false);
     setSelectedOrder(null);
+    router.push(getUserTabPath(nextTab));
 
-    if (tab === "orders") {
+    if (nextTab === "orders") {
       await loadOrders();
     }
+  };
+
+  const handleOpenUserOrder = (order) => {
+    if (!order?.id) {
+      return;
+    }
+
+    router.push(`/user/orders/${order.id}`);
   };
 
   const handleOpenOrderFromNotification = async (orderId) => {
@@ -171,22 +207,18 @@ export default function UserAppShell({
 
     if (!foundOrder) {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/orders/${orderId}?user_id=${authUser.id}`,
-        );
-        const data = await response.json();
-
-        if (response.ok) {
-          foundOrder = data;
-        }
+        foundOrder = await loadUserOrderRequest(orderId);
       } catch (error) {
         console.error("Ошибка открытия заказа из уведомления:", error);
       }
     }
 
     if (foundOrder) {
-      setSelectedOrder(foundOrder);
+      router.push(`/user/orders/${foundOrder.id}`);
+      return;
     }
+
+    router.push(`/user/orders/${orderId}`);
   };
 
   const handleLogout = () => {
@@ -204,7 +236,7 @@ export default function UserAppShell({
     window.location.replace("/");
   };
 
-  if (sessionStatus === "checking") {
+  if (sessionStatus === "checking" || sessionStatus === "redirecting") {
     return (
       <main className="min-h-screen bg-gray-100">
         <StatePanel
@@ -231,18 +263,25 @@ export default function UserAppShell({
   return (
     <main className="min-h-screen bg-gray-100">
       <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-6">
-        <div className="mb-4">
+        <CabinetHeader
+          title="Кабинет пользователя"
+          subtitle="Создание заявок, отслеживание заказов, чаты и профиль."
+          roleLabel="Пользователь"
+          accountName={profile.name || authUser?.fullName || authUser?.phone}
+          activeLabel={USER_TAB_LABELS[activeTab]}
+          onLogout={handleLogout}
+        >
           <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
-        </div>
+        </CabinetHeader>
 
-        <div className="rounded-2xl bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-6">
+        <div className="mt-4 rounded-2xl bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4 lg:p-6">
           <UserAppView
             activeTab={activeTab}
             setActiveTab={handleTabChange}
             orderCreated={orderCreated}
             setOrderCreated={setOrderCreated}
             selectedOrder={selectedOrder}
-            setSelectedOrder={setSelectedOrder}
+            setSelectedOrder={handleOpenUserOrder}
             updateSelectedOrder={updateSelectedOrder}
             activeOrders={activeOrders}
             completedOrders={completedOrders}

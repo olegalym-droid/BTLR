@@ -1,8 +1,11 @@
+import Link from "next/link";
+
 export default function StatePanel({
   title,
   text = "",
   detail = "",
   actionLabel = "",
+  actionHref = "",
   onAction,
 }) {
   return (
@@ -18,7 +21,16 @@ export default function StatePanel({
           </p>
         ) : null}
 
-        {actionLabel && typeof onAction === "function" ? (
+        {actionLabel && actionHref ? (
+          <Link
+            href={actionHref}
+            className="mt-5 inline-flex min-h-[48px] items-center justify-center rounded-2xl bg-[#6f9f72] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#5f9557]"
+          >
+            {actionLabel}
+          </Link>
+        ) : null}
+
+        {actionLabel && !actionHref && typeof onAction === "function" ? (
           <button
             type="button"
             onClick={onAction}

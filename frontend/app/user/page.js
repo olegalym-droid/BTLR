@@ -1,7 +1,5 @@
-"use client";
-
-import UserAppShell from "../../components/user/UserAppShell";
+import { redirect } from "next/navigation";
 
 export default function UserPage() {
-  return <UserAppShell />;
+  redirect("/user/services");
 }

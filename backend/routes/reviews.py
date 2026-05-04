@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 
+from auth_dependencies import get_current_account, require_role
 from database import get_db
 from models import Account, Review, Order
 
@@ -58,11 +59,12 @@ def create_review(
     order_id: int,
     rating: int,
     comment: str | None = None,
-    user_id: int | None = None,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
+    user = require_role(current_account, "user")
     order = get_order_or_404(order_id, db)
-    validate_review_creation(order, rating, user_id)
+    validate_review_creation(order, rating, user.id)
 
     if review_exists(order_id, db):
         raise HTTPException(status_code=400, detail="Отзыв уже оставлен")
@@ -78,7 +80,7 @@ def create_review(
     review = Review(
         order_id=order.id,
         master_id=order.master_id,
-        user_id=user_id,
+        user_id=user.id,
         rating=rating,
         comment=normalized_comment,
     )

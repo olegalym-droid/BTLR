@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from auth_dependencies import get_current_account
 from database import get_db
 from models import Account, ChatConversation, ChatMessage, Notification, Order
 from routes.admin import verify_admin
@@ -399,11 +400,11 @@ def add_message(
 
 @router.get("", response_model=list[ChatConversationResponse])
 def list_my_chats(
-    role: str = Query(..., pattern="^(user|master)$"),
-    account_id: int = Query(...),
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    get_account_or_404(account_id, role, db)
+    role = current_account.role
+    account_id = current_account.id
 
     query = get_conversation_query(db)
 
@@ -417,8 +418,14 @@ def list_my_chats(
 
 
 @router.post("/start", response_model=ChatConversationResponse)
-def start_chat(payload: ChatStartRequest, db: Session = Depends(get_db)):
-    account = get_account_or_404(payload.sender_id, payload.sender_role, db)
+def start_chat(
+    payload: ChatStartRequest,
+    db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
+):
+    account = current_account
+    sender_role = account.role
+    sender_id = account.id
 
     if payload.conversation_type == "order":
         if not payload.order_id:
@@ -426,25 +433,25 @@ def start_chat(payload: ChatStartRequest, db: Session = Depends(get_db)):
 
         order = get_order_for_chat(
             payload.order_id,
-            payload.sender_role,
-            payload.sender_id,
+            sender_role,
+            sender_id,
             db,
         )
         conversation = find_or_create_order_conversation(order, db)
-        return serialize_conversation(conversation, payload.sender_role)
+        return serialize_conversation(conversation, sender_role)
 
     conversation = find_or_create_admin_conversation(account, db)
-    return serialize_conversation(conversation, payload.sender_role)
+    return serialize_conversation(conversation, sender_role)
 
 
 @router.get("/{conversation_id}/messages", response_model=list[ChatMessageResponse])
 def list_messages(
     conversation_id: int,
-    role: str = Query(..., pattern="^(user|master)$"),
-    account_id: int = Query(...),
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    get_account_or_404(account_id, role, db)
+    role = current_account.role
+    account_id = current_account.id
     conversation = get_conversation_for_viewer(conversation_id, role, db, account_id)
     mark_messages_as_read(conversation, role, db)
     db.refresh(conversation)
@@ -460,26 +467,26 @@ def send_message(
     conversation_id: int,
     payload: ChatMessageCreateRequest,
     db: Session = Depends(get_db),
+    current_account: Account = Depends(get_current_account),
 ):
-    if payload.sender_role not in {"user", "master"} or not payload.sender_id:
-        raise HTTPException(status_code=400, detail="Некорректный отправитель")
+    sender_role = current_account.role
+    sender_id = current_account.id
 
-    get_account_or_404(payload.sender_id, payload.sender_role, db)
     conversation = get_conversation_for_viewer(
         conversation_id,
-        payload.sender_role,
+        sender_role,
         db,
-        payload.sender_id,
+        sender_id,
     )
     message = add_message(
         conversation,
-        payload.sender_role,
+        sender_role,
         payload.text,
         db,
-        payload.sender_id,
+        sender_id,
     )
 
-    return serialize_message(message, payload.sender_role, payload.sender_id)
+    return serialize_message(message, sender_role, sender_id)
 
 
 @admin_router.get("", response_model=list[ChatConversationResponse])

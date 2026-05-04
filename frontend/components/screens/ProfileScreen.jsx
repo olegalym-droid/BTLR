@@ -14,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { API_BASE_URL } from "../../lib/constants";
-import { getStoredAuthUser } from "../../lib/auth";
+import { getAuthHeaders, getStoredAuthUser } from "../../lib/auth";
 import { formatPublicOrderCode } from "../../lib/orders";
 import ChatModal from "../chat/ChatModal";
 
@@ -287,9 +287,9 @@ export default function ProfileScreen({
           setIsNotificationsLoading(true);
         }
 
-        const response = await fetch(
-          `${API_BASE_URL}/notifications?user_id=${authUser.id}`,
-        );
+        const response = await fetch(`${API_BASE_URL}/notifications`, {
+          headers: getAuthHeaders("user"),
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -340,9 +340,10 @@ export default function ProfileScreen({
       setMarkingNotificationId(notificationId);
 
       const response = await fetch(
-        `${API_BASE_URL}/notifications/${notificationId}/read?user_id=${authUser.id}`,
+        `${API_BASE_URL}/notifications/${notificationId}/read`,
         {
           method: "PUT",
+          headers: getAuthHeaders("user"),
         },
       );
 
@@ -376,9 +377,10 @@ export default function ProfileScreen({
       await Promise.all(
         unreadNotifications.map((item) =>
           fetch(
-            `${API_BASE_URL}/notifications/${item.id}/read?user_id=${authUser.id}`,
+            `${API_BASE_URL}/notifications/${item.id}/read`,
             {
               method: "PUT",
+              headers: getAuthHeaders("user"),
             },
           ),
         ),

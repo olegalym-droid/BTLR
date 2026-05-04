@@ -13,6 +13,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { API_BASE_URL } from "../../lib/constants";
+import { getAuthHeaders } from "../../lib/auth";
 
 const DEFAULT_WITHDRAW_FORM = {
   amount: "",
@@ -225,8 +226,12 @@ export default function MasterWalletSection({ masterProfile }) {
       setIsWalletLoading(true);
 
       const [balanceResponse, withdrawalsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/masters/${masterProfile.id}/balance`),
-        fetch(`${API_BASE_URL}/masters/${masterProfile.id}/withdrawals`),
+        fetch(`${API_BASE_URL}/masters/me/balance`, {
+          headers: getAuthHeaders("master"),
+        }),
+        fetch(`${API_BASE_URL}/masters/me/withdrawals`, {
+          headers: getAuthHeaders("master"),
+        }),
       ]);
 
       const balanceData = await balanceResponse.json();
@@ -300,11 +305,12 @@ export default function MasterWalletSection({ masterProfile }) {
       setWalletSuccessText("");
 
       const response = await fetch(
-        `${API_BASE_URL}/masters/${masterProfile.id}/withdrawals`,
+        `${API_BASE_URL}/masters/me/withdrawals`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...getAuthHeaders("master"),
           },
           body: JSON.stringify({
             amount: String(enteredAmountValue),

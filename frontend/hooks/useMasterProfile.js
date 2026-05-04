@@ -1,13 +1,35 @@
 import { useCallback, useState } from "react";
 import {
+  getStoredAuthUser,
   loadMasterProfileRequest,
   updateMasterProfileRequest,
   uploadMasterAvatarRequest,
   uploadMasterDocumentsRequest,
 } from "../lib/auth";
 
+const getStoredMasterProfileFallback = () => {
+  const authUser = getStoredAuthUser("master");
+
+  if (!authUser?.id || authUser.role !== "master") {
+    return null;
+  }
+
+  return {
+    id: authUser.id,
+    role: "master",
+    phone: authUser.phone || "",
+    full_name: authUser.fullName || "",
+    verification_status: "pending",
+    rating: 0,
+    completed_orders_count: 0,
+    master_categories: [],
+  };
+};
+
 export default function useMasterProfile() {
-  const [masterProfile, setMasterProfile] = useState(null);
+  const [masterProfile, setMasterProfile] = useState(
+    getStoredMasterProfileFallback,
+  );
 
   const [fullName, setFullName] = useState("");
   const [aboutMe, setAboutMe] = useState("");
