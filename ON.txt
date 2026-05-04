@@ -18,3 +18,5 @@ http://localhost:3000
 
 git ls-files > files.txt
 (копировать структуру)
+
+https://driven-inner-hobbies-magnet.trycloudflare.com
